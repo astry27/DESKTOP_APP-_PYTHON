@@ -1,0 +1,11 @@
+PyQt5==5.15.9
+pyqt5-plugins==5.15.9.2.3
+PyQt5-Qt5==5.15.2
+PyQt5_sip==12.17.0
+pyqt5-tools==5.15.9.3.3
+requests==2.31.0
+python-dotenv==1.0.0
+cryptography==41.0.7
+Pillow==10.1.0
+python-dateutil==2.8.2
+pyinstaller==6.3.0
