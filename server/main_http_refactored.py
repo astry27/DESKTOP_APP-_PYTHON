@@ -48,22 +48,27 @@ class ServerMainWindow(QMainWindow):
         self.setup_menu()
         self.setup_connections()
         
-        self.statusBar().showMessage("API Mode - Server Admin")
+        if self.db and self.db.connection:
+            self.statusBar().showMessage("API Mode - Server Admin")
+        else:
+            self.statusBar().showMessage("Offline Mode - Server Admin (Limited Features)")
         
         if self.db and self.db.connection:
             self.load_all_data()
         else:
-            QMessageBox.warning(self, "Koneksi API Gagal", 
-                                "Tidak dapat terhubung ke API shared hosting. Silakan periksa koneksi internet dan pastikan API berjalan di shared hosting.")
+            self.show_offline_warning()
 
-        self.log_admin_activity("Login berhasil", "Administrator login ke sistem")
-        self.server_control.add_log_message(f"Login berhasil: {self.current_admin.get('nama_lengkap', 'Administrator')}")
-        self.server_control.add_log_message("Aplikasi server admin dimulai dalam API Mode.")
         if self.db and self.db.connection:
+            self.log_admin_activity("Login berhasil", "Administrator login ke sistem")
+            self.server_control.add_log_message(f"Login berhasil: {self.current_admin.get('nama_lengkap', 'Administrator')}")
+            self.server_control.add_log_message("Aplikasi server admin dimulai dalam API Mode.")
             self.server_control.add_log_message("Koneksi API shared hosting berhasil.")
+            self.server_control.add_log_message("Sistem siap. Kelola API dan client melalui panel kontrol.")
         else:
+            self.server_control.add_log_message(f"Mode Offline: {self.current_admin.get('nama_lengkap', 'Administrator')}")
+            self.server_control.add_log_message("Aplikasi dimulai dalam MODE OFFLINE.")
             self.server_control.add_log_message("PERINGATAN: Koneksi API shared hosting gagal. Periksa koneksi internet.")
-        self.server_control.add_log_message("Sistem siap. Kelola API dan client melalui panel kontrol.")
+            self.server_control.add_log_message("Mode offline terbatas - fitur penuh tidak tersedia.")
     
     def setup_database(self):
         try:
@@ -71,19 +76,35 @@ class ServerMainWindow(QMainWindow):
             if not self.db.connection:
                 self.db = None 
                 print("Peringatan: Gagal terhubung ke API shared hosting saat inisialisasi.")
+                print("Aplikasi akan berjalan dalam mode offline terbatas.")
             else:
                 print("Database Manager berhasil diinisialisasi dan terhubung ke API shared hosting.")
         except Exception as e:
             self.db = None
             print(f"Error inisialisasi Database Manager: {str(e)}")
-            QMessageBox.critical(None, "Database Error", f"Terjadi kesalahan fatal saat inisialisasi API shared hosting:\n{e}")
+            print("Aplikasi akan berjalan dalam mode offline terbatas.")
     
     def show_login(self):
         """Tampilkan dialog login dan return True jika berhasil"""
         if not self.db:
-            QMessageBox.critical(None, "Database Error", 
-                               "Tidak dapat terhubung ke database. Aplikasi akan ditutup.")
-            return False
+            reply = QMessageBox.question(None, "Koneksi API Gagal", 
+                                       "Tidak dapat terhubung ke API shared hosting.\n\n"
+                                       "Aplikasi dapat dijalankan dalam mode offline terbatas, "
+                                       "tetapi fitur login dan akses data tidak akan tersedia.\n\n"
+                                       "Apakah Anda ingin melanjutkan?",
+                                       QMessageBox.Yes | QMessageBox.No,
+                                       QMessageBox.No)
+            if reply == QMessageBox.No:
+                return False
+            
+            # Set dummy admin data untuk mode offline
+            self.current_admin = {
+                'id_admin': 1,
+                'username': 'offline_admin',
+                'nama_lengkap': 'Administrator (Offline Mode)',
+                'peran': 'administrator'
+            }
+            return True
         
         login_dialog = LoginDialog(self.db)
         login_dialog.login_successful.connect(self.on_login_successful)
@@ -103,8 +124,23 @@ class ServerMainWindow(QMainWindow):
     def setup_main_window(self):
         """Setup properti main window"""
         admin_name = self.current_admin.get('nama_lengkap', 'Administrator')
-        self.setWindowTitle(f"Server Admin Gereja Katolik (API Mode) - {admin_name} - v2.1.0")
+        if self.db and self.db.connection:
+            self.setWindowTitle(f"Server Admin Gereja Katolik (API Mode) - {admin_name} - v2.1.0")
+        else:
+            self.setWindowTitle(f"Server Admin Gereja Katolik (Offline Mode) - {admin_name} - v2.1.0")
         self.setMinimumSize(1200, 800)
+    
+    def show_offline_warning(self):
+        """Tampilkan peringatan mode offline"""
+        QMessageBox.warning(self, "Mode Offline", 
+                          "Aplikasi berjalan dalam mode offline terbatas.\n\n"
+                          "Fitur yang terbatas dalam mode offline:\n"
+                          "• Data tidak dapat dimuat dari server\n"
+                          "• Tidak dapat menyimpan perubahan data\n"
+                          "• Kontrol API tidak tersedia\n"
+                          "• Broadcast message tidak tersedia\n\n"
+                          "Silakan periksa koneksi internet dan restart aplikasi "
+                          "untuk menggunakan fitur penuh.")
     
     def setup_ui(self):
         central_widget = QWidget()
@@ -342,7 +378,10 @@ class ServerMainWindow(QMainWindow):
             "Dokumen", "Pengaturan Sistem"
         ]
         if 0 <= index < len(page_names):
-            self.statusBar().showMessage(f"API Mode - {page_names[index]}")
+            if self.db and self.db.connection:
+                self.statusBar().showMessage(f"API Mode - {page_names[index]}")
+            else:
+                self.statusBar().showMessage(f"Offline Mode - {page_names[index]} (Limited)")
     
     def load_all_data(self):
         if not self.db:
@@ -380,11 +419,15 @@ class ServerMainWindow(QMainWindow):
     
     def show_about(self):
         admin_name = self.current_admin.get('nama_lengkap', 'Administrator')
+        mode = "API Mode" if self.db and self.db.connection else "Offline Mode"
+        connection_status = "Terhubung ke API shared hosting" if self.db and self.db.connection else "Tidak terhubung (Mode Offline)"
+        
         QMessageBox.about(self, "Tentang Aplikasi", 
-                         f"Server Admin Gereja Katolik (API Mode)\n"
+                         f"Server Admin Gereja Katolik ({mode})\n"
                          f"Versi 2.1.0\n\n"
                          f"Sedang login sebagai: {admin_name}\n"
                          f"Username: {self.current_admin.get('username', 'admin')}\n\n"
+                         f"Status Koneksi: {connection_status}\n\n"
                          f"Aplikasi admin untuk mengelola sistem gereja katolik "
                          f"dengan arsitektur API shared hosting.\n\n"
                          f"Fitur:\n"

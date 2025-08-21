@@ -28,7 +28,7 @@ class ClientMainWindow(QMainWindow):
         self.user_data = None
         self.is_connected = False
         self.config = ClientConfig.load_settings()
-        self.last_message_count = 0
+        # self.last_message_count = 0
         
         self.setup_ui()
         self.setup_timers()
@@ -90,13 +90,14 @@ class ClientMainWindow(QMainWindow):
         
         splitter.addWidget(self.tab_widget)
         
-        # Panel komunikasi di sebelah kanan
-        communication_panel = self.create_communication_panel()
-        splitter.addWidget(communication_panel)
+        # # Panel komunikasi di sebelah kanan
+        # communication_panel = self.create_communication_panel()
+        # splitter.addWidget(communication_panel)
         
         # Set ukuran splitter
-        splitter.setSizes([700, 300])
-        main_layout.addWidget(splitter)
+        # splitter.setSizes([700, 300])
+        # main_layout.addWidget(splitter)
+        main_layout.addWidget(self.tab_widget)
         
         # Control buttons
         control_layout = self.create_control_buttons()
@@ -161,11 +162,11 @@ class ClientMainWindow(QMainWindow):
         layout.addStretch()
         return dashboard_widget
     
-    def create_communication_panel(self):
-        """Buat panel komunikasi"""
-        comm_widget = QWidget()
-        comm_widget.setMaximumWidth(350)
-        layout = QVBoxLayout(comm_widget)
+    # def create_communication_panel(self):
+    #     """Buat panel komunikasi"""
+    #     comm_widget = QWidget()
+    #     comm_widget.setMaximumWidth(350)
+    #     layout = QVBoxLayout(comm_widget)
         
         # Header panel komunikasi
         comm_header = QLabel("Panel Komunikasi")
@@ -311,9 +312,9 @@ class ClientMainWindow(QMainWindow):
         self.heartbeat_timer.start(30000)  # Heartbeat setiap 30 detik
         
         # Timer untuk check broadcast messages
-        self.broadcast_timer = QTimer()
-        self.broadcast_timer.timeout.connect(self.check_new_broadcasts)
-        self.broadcast_timer.start(5000)  # Check setiap 5 detik
+        # self.broadcast_timer = QTimer()
+        # self.broadcast_timer.timeout.connect(self.check_new_broadcasts)
+        # self.broadcast_timer.start(5000)  # Check setiap 5 detik
     
     def setup_system_tray(self):
         """Setup system tray untuk notifikasi"""
@@ -370,10 +371,10 @@ class ClientMainWindow(QMainWindow):
                 
                 self.connect_button.setEnabled(False)
                 self.disconnect_button.setEnabled(True)
-                self.send_button.setEnabled(True)
+                # self.send_button.setEnabled(True)
                 
                 self.statusBar.showMessage("Terhubung ke API shared hosting")
-                self.add_log("Berhasil terhubung ke API dan terdaftar sebagai client")
+                print("Berhasil terhubung ke API dan terdaftar sebagai client")
                 
                 # Load semua data
                 self.refresh_all_data()
@@ -386,7 +387,7 @@ class ClientMainWindow(QMainWindow):
                 
                 # Start timers
                 self.heartbeat_timer.start()
-                self.broadcast_timer.start()
+                # self.broadcast_timer.start()
                 
             else:
                 QMessageBox.warning(self, "Error", f"Gagal registrasi client: {register_result['data']}")
@@ -410,14 +411,14 @@ class ClientMainWindow(QMainWindow):
         
         self.connect_button.setEnabled(True)
         self.disconnect_button.setEnabled(False)
-        self.send_button.setEnabled(False)
+        # self.send_button.setEnabled(False)
         
         self.statusBar.showMessage("Terputus dari API")
-        self.add_log("Koneksi API terputus")
+        print("Koneksi API terputus")
         
         # Stop timers
         self.heartbeat_timer.stop()
-        self.broadcast_timer.stop()
+        # self.broadcast_timer.stop()
     
     def send_heartbeat(self):
         """Kirim heartbeat ke server"""
@@ -426,73 +427,73 @@ class ClientMainWindow(QMainWindow):
             if not result["success"]:
                 self.add_log("Heartbeat gagal - koneksi mungkin terputus")
     
-    def send_message_to_admin(self):
-        """Kirim pesan ke admin"""
-        if not self.is_connected:
-            QMessageBox.warning(self, "Error", "Tidak terhubung ke API")
-            return
+    # def send_message_to_admin(self):
+    #     """Kirim pesan ke admin"""
+    #     if not self.is_connected:
+    #         QMessageBox.warning(self, "Error", "Tidak terhubung ke API")
+    #         return
         
-        message = self.message_input.text().strip()
-        if not message:
-            return
+    #     message = self.message_input.text().strip()
+    #     if not message:
+    #         return
         
-        result = self.api_client.send_message_to_admin(message)
-        if result["success"]:
-            self.add_log(f"[Pesan ke Admin]: {message}")
-            self.message_input.clear()
-        else:
-            self.add_log(f"Gagal mengirim pesan: {result['data']}")
+    #     result = self.api_client.send_message_to_admin(message)
+    #     if result["success"]:
+    #         self.add_log(f"[Pesan ke Admin]: {message}")
+    #         self.message_input.clear()
+    #     else:
+    #         self.add_log(f"Gagal mengirim pesan: {result['data']}")
     
-    def check_new_broadcasts(self):
-        """Check pesan broadcast baru dari admin"""
-        if not self.is_connected:
-            return
+    # def check_new_broadcasts(self):
+    #     """Check pesan broadcast baru dari admin"""
+    #     if not self.is_connected:
+    #         return
         
-        result = self.api_client.get_broadcast_messages(limit=20)
-        if result["success"]:
-            data = result["data"]
-            if data.get("status") == "success":
-                messages = data.get("data", [])
-                current_count = len(messages)
+    #     result = self.api_client.get_broadcast_messages(limit=20)
+    #     if result["success"]:
+    #         data = result["data"]
+    #         if data.get("status") == "success":
+    #             messages = data.get("data", [])
+    #             current_count = len(messages)
                 
-                if current_count > self.last_message_count:
-                    # Ada pesan baru
-                    new_message_count = current_count - self.last_message_count
-                    self.broadcast_notification.setText(f"Pesan broadcast baru: +{new_message_count}")
-                    self.broadcast_notification.setStyleSheet("color: #27ae60; font-weight: bold; padding: 5px;")
+    #             if current_count > self.last_message_count:
+    #                 # Ada pesan baru
+    #                 new_message_count = current_count - self.last_message_count
+    #                 self.broadcast_notification.setText(f"Pesan broadcast baru: +{new_message_count}")
+    #                 self.broadcast_notification.setStyleSheet("color: #27ae60; font-weight: bold; padding: 5px;")
                     
-                    # Tampilkan notifikasi sistem tray jika ada
-                    if hasattr(self, 'tray_icon') and new_message_count > 0:
-                        self.tray_icon.showMessage(
-                            "Pesan Broadcast Baru",
-                            f"Diterima {new_message_count} pesan broadcast dari admin",
-                            QSystemTrayIcon.Information,
-                            3000
-                        )
+    #                 # Tampilkan notifikasi sistem tray jika ada
+    #                 if hasattr(self, 'tray_icon') and new_message_count > 0:
+    #                     self.tray_icon.showMessage(
+    #                         "Pesan Broadcast Baru",
+    #                         f"Diterima {new_message_count} pesan broadcast dari admin",
+    #                         QSystemTrayIcon.Information,
+    #                         3000
+    #                     )
                     
-                    # Log pesan terbaru
-                    if messages:
-                        latest_message = messages[0]
-                        pesan_content = latest_message.get('pesan', '')
-                        if len(pesan_content) > 50:
-                            pesan_content = pesan_content[:50] + "..."
-                        self.add_log(f"[Broadcast Admin]: {pesan_content}")
+    #                 # Log pesan terbaru
+    #                 if messages:
+    #                     latest_message = messages[0]
+    #                     pesan_content = latest_message.get('pesan', '')
+    #                     if len(pesan_content) > 50:
+    #                         pesan_content = pesan_content[:50] + "..."
+    #                     self.add_log(f"[Broadcast Admin]: {pesan_content}")
                     
-                    # Reset notification style setelah 5 detik
-                    QTimer.singleShot(5000, self.reset_broadcast_notification)
+    #                 # Reset notification style setelah 5 detik
+    #                 QTimer.singleShot(5000, self.reset_broadcast_notification)
                     
-                self.last_message_count = current_count
+    #             self.last_message_count = current_count
     
-    def reset_broadcast_notification(self):
-        """Reset style notifikasi broadcast"""
-        self.broadcast_notification.setText("Siap menerima broadcast...")
-        self.broadcast_notification.setStyleSheet("color: #7f8c8d; font-style: italic; padding: 5px;")
+    # def reset_broadcast_notification(self):
+    #     """Reset style notifikasi broadcast"""
+    #     self.broadcast_notification.setText("Siap menerima broadcast...")
+    #     self.broadcast_notification.setStyleSheet("color: #7f8c8d; font-style: italic; padding: 5px;")
     
     def refresh_all_data(self):
         if not self.is_connected:
             return
 
-        self.add_log("Memuat ulang semua data...")
+        print("Memuat ulang semua data...")
         
         # Refresh pengumuman
         self.pengumuman_component.load_pengumuman()
@@ -502,7 +503,7 @@ class ClientMainWindow(QMainWindow):
         if hasattr(self.dokumen_component, 'load_files'):
             self.dokumen_component.load_files()
         
-        self.add_log("Data berhasil dimuat ulang")
+        print("Data berhasil dimuat ulang")
     
     def periodic_update(self):
         if self.is_connected:
@@ -523,9 +524,9 @@ class ClientMainWindow(QMainWindow):
         scrollbar = self.communication_log.verticalScrollBar()
         scrollbar.setValue(scrollbar.maximum())
     
-    def clear_communication_log(self):
-        self.communication_log.clear()
-        self.add_log("Log komunikasi dibersihkan")
+    # def clear_communication_log(self):
+    #     self.communication_log.clear()
+    #     self.add_log("Log komunikasi dibersihkan")
     
     def closeEvent(self, event):
         if self.is_connected:

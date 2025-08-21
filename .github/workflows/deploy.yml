@@ -1,0 +1,48 @@
+name: Deploy Flask API to Shared Hosting
+
+# Menentukan kapan alur kerja ini akan dijalankan
+on:
+  # Memicu alur kerja saat ada push ke cabang 'main'
+  push:
+    branches: [main]
+
+# Mendefinisikan pekerjaan (jobs) yang akan dijalankan
+jobs:
+  deploy:
+    # Menentukan bahwa pekerjaan ini akan berjalan di environment Ubuntu terbaru
+    runs-on: ubuntu-latest
+
+    # Langkah-langkah yang akan dieksekusi dalam pekerjaan 'deploy'
+    steps:
+      # Langkah 1: Checkout kode dari repositori
+      # Ini akan mengunduh kode dari cabang Anda ke runner GitHub Actions
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Langkah 2: Deploy file ke server menggunakan FTP
+      - name: Deploy Flask API via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+        with:
+          # Alamat server FTP Anda, diambil dari secrets
+          server: ${{ secrets.FTP_HOST }}
+          # Username FTP Anda, diambil dari secrets
+          username: ${{ secrets.FTP_USERNAME }}
+          # Password FTP Anda, diambil dari secrets
+          password: ${{ secrets.FTP_PASSWORD }}
+                 
+          # Direktori lokal di dalam repositori yang akan diunggah.
+          local-dir: ./api/
+          
+          # Direktori tujuan di server hosting Anda.
+          server-dir: /flask/
+          
+          # Daftar file atau direktori yang tidak akan diikutkan dalam proses upload.
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/__pycache__/**
+            # Anda bisa menambahkan file atau folder lain di sini jika tidak ingin diunggah
+            # Contoh:
+            # DEPLOYMENT_*
+            # *.md
+
