@@ -28,15 +28,20 @@ except ImportError as e:
     sys.exit(1)
 
 from database import DatabaseManager
+from client_handler import ClientRegistrationServer
 
 class ServerMainWindow(QMainWindow):
     
     def __init__(self):
         super().__init__()
         self.current_admin = None
+        self.client_server = None
         
         # Setup database first
         self.setup_database()
+        
+        # Setup client registration server
+        self.setup_client_server()
         
         # Show login dialog before main window
         if not self.show_login():
@@ -63,6 +68,8 @@ class ServerMainWindow(QMainWindow):
             self.server_control.add_log_message(f"Login berhasil: {self.current_admin.get('nama_lengkap', 'Administrator')}")
             self.server_control.add_log_message("Aplikasi server admin dimulai dalam API Mode.")
             self.server_control.add_log_message("Koneksi API shared hosting berhasil.")
+            if self.client_server and self.client_server.is_running():
+                self.server_control.add_log_message("Client registration server berhasil dimulai pada http://localhost:8080")
             self.server_control.add_log_message("Sistem siap. Kelola API dan client melalui panel kontrol.")
         else:
             self.server_control.add_log_message(f"Mode Offline: {self.current_admin.get('nama_lengkap', 'Administrator')}")
@@ -83,6 +90,22 @@ class ServerMainWindow(QMainWindow):
             self.db = None
             print(f"Error inisialisasi Database Manager: {str(e)}")
             print("Aplikasi akan berjalan dalam mode offline terbatas.")
+    
+    def setup_client_server(self):
+        """Setup local client registration server"""
+        try:
+            self.client_server = ClientRegistrationServer(port=8080)
+            if self.db:
+                self.client_server.set_database_manager(self.db)
+            
+            if self.client_server.start():
+                print("Client registration server berhasil dimulai pada port 8080")
+            else:
+                print("Gagal memulai client registration server")
+                self.client_server = None
+        except Exception as e:
+            print(f"Error memulai client registration server: {str(e)}")
+            self.client_server = None
     
     def show_login(self):
         """Tampilkan dialog login dan return True jika berhasil"""
@@ -499,6 +522,11 @@ class ServerMainWindow(QMainWindow):
     def closeEvent(self, event):
         # Log logout activity
         self.log_admin_activity("Application Closed", "Administrator menutup aplikasi")
+        
+        # Stop client registration server
+        if self.client_server:
+            self.client_server.stop()
+        
         if self.db:
             self.db.close()
         event.accept()

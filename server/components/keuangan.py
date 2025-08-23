@@ -78,8 +78,8 @@ class KeuanganComponent(QWidget):
         self.pengeluaran_bulan_ini_value = QLabel("Rp 0")
         
         stats_layout.addWidget(self.create_stat_widget("TOTAL SALDO", self.saldo_value, "#ecf0f1", "#2c3e50"))
-        stats_layout.addWidget(self.create_stat_widget("PEMASUKAN BULAN INI", self.pemasukan_bulan_ini_value, "#e8f8f5", "#27ae60"))
-        stats_layout.addWidget(self.create_stat_widget("PENGELUARAN BULAN INI", self.pengeluaran_bulan_ini_value, "#fdedec", "#c0392b"))
+        stats_layout.addWidget(self.create_stat_widget("TOTAL PEMASUKAN", self.pemasukan_bulan_ini_value, "#e8f8f5", "#27ae60"))
+        stats_layout.addWidget(self.create_stat_widget("TOTAL PENGELUARAN", self.pengeluaran_bulan_ini_value, "#fdedec", "#c0392b"))
         
         return stats_group
 
@@ -332,22 +332,27 @@ class KeuanganComponent(QWidget):
         else:
             self.saldo_value.setText("Rp 0")
 
-        # Update pemasukan & pengeluaran bulan ini
-        today = datetime.date.today()
-        success, bulanan = self.db_manager.get_saldo_keuangan_bulanan(today.year, today.month)
-        if success and bulanan:
-            data = bulanan[0]
+        # Hitung total pemasukan dari data yang sudah dimuat
+        total_pemasukan = 0
+        for item in self.pemasukan_data:
             try:
-                pemasukan = float(data.get('total_pemasukan', 0) or 0)
-                pengeluaran = float(data.get('total_pengeluaran', 0) or 0)
-                self.pemasukan_bulan_ini_value.setText(f"Rp {pemasukan:,.0f}".replace(',', '.'))
-                self.pengeluaran_bulan_ini_value.setText(f"Rp {pengeluaran:,.0f}".replace(',', '.'))
+                jumlah = float(item.get('jumlah', 0))
+                total_pemasukan += jumlah
             except (ValueError, TypeError):
-                self.pemasukan_bulan_ini_value.setText("Rp 0")
-                self.pengeluaran_bulan_ini_value.setText("Rp 0")
-        else:
-            self.pemasukan_bulan_ini_value.setText("Rp 0")
-            self.pengeluaran_bulan_ini_value.setText("Rp 0")
+                continue
+        
+        # Hitung total pengeluaran dari data yang sudah dimuat
+        total_pengeluaran = 0
+        for item in self.pengeluaran_data:
+            try:
+                jumlah = float(item.get('jumlah', 0))
+                total_pengeluaran += jumlah
+            except (ValueError, TypeError):
+                continue
+        
+        # Update tampilan
+        self.pemasukan_bulan_ini_value.setText(f"Rp {total_pemasukan:,.0f}".replace(',', '.'))
+        self.pengeluaran_bulan_ini_value.setText(f"Rp {total_pengeluaran:,.0f}".replace(',', '.'))
 
     def add_income(self):
         """Tambah pemasukan baru."""

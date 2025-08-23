@@ -80,9 +80,15 @@ class LoginDialog(QDialog):
         if result.get("success"):
             response_data = result.get("data", {})
             if response_data.get("status") == "success":
-                self.user_data = response_data.get("user")
-                QMessageBox.information(self, "Login Berhasil", "Login berhasil!")
-                self.accept()
+                user_data = response_data.get("user")
+                if user_data:
+                    self.user_data = user_data
+                    user_name = user_data.get('nama_lengkap', 'Unknown')
+                    user_role = user_data.get('peran', 'Unknown')
+                    QMessageBox.information(self, "Login Berhasil", f"Selamat datang, {user_name}!\nPeran: {user_role}")
+                    self.accept()
+                else:
+                    QMessageBox.critical(self, "Login Gagal", "Data user tidak ditemukan")
             else:
                 QMessageBox.critical(self, "Login Gagal", response_data.get("message", "Login gagal"))
         else:

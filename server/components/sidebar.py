@@ -201,16 +201,55 @@ class SidebarWidget(QWidget):
             if success and status_data.get('api_enabled', False):
                 self.set_api_active()
                 
-                # Cek jumlah client yang terhubung
-                client_success, clients = self.db_manager.get_active_sessions()
+                # Cek jumlah client yang benar-benar terhubung/aktif
+                client_success, result = self.db_manager.get_active_sessions()
                 if client_success:
-                    if isinstance(clients, dict) and 'data' in clients:
-                        client_count = len(clients['data'])
-                    elif isinstance(clients, list):
-                        client_count = len(clients)
+                    # Handle berbagai format response dari API
+                    if isinstance(result, dict):
+                        if 'data' in result:
+                            clients = result['data']
+                        elif 'clients' in result:
+                            clients = result['clients']
+                        else:
+                            clients = []
+                    elif isinstance(result, list):
+                        clients = result
                     else:
-                        client_count = 0
+                        clients = []
                     
+                    # Filter hanya client yang benar-benar aktif dengan timeout check
+                    import datetime
+                    active_clients = []
+                    current_time = datetime.datetime.now()
+                    
+                    for client in clients:
+                        status = client.get('status', '').lower()
+                        last_activity = client.get('last_activity') or client.get('connect_time')
+                        
+                        # Check jika client benar-benar aktif berdasarkan status dan waktu aktivitas terakhir
+                        is_active = False
+                        if status in ['aktif', 'active', 'terhubung', 'connected', 'online']:
+                            if last_activity:
+                                try:
+                                    if isinstance(last_activity, str):
+                                        if 'T' in last_activity:
+                                            last_time = datetime.datetime.fromisoformat(last_activity.replace('Z', '+00:00'))
+                                        else:
+                                            last_time = datetime.datetime.strptime(last_activity, '%Y-%m-%d %H:%M:%S')
+                                    else:
+                                        last_time = last_activity
+                                    
+                                    # Client dianggap aktif jika aktivitas terakhir kurang dari 5 menit yang lalu
+                                    time_diff = current_time - last_time.replace(tzinfo=None)
+                                    if time_diff.total_seconds() < 300:  # 5 menit
+                                        is_active = True
+                                except:
+                                    pass
+                        
+                        if is_active:
+                            active_clients.append(client)
+                    
+                    client_count = len(active_clients)
                     self.connection_status.setText(f"🌐 Client Aktif: {client_count}")
                     self.connection_status.setStyleSheet("""
                         color: #27ae60; 

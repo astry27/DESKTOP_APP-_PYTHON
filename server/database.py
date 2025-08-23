@@ -11,6 +11,11 @@ class DatabaseManager:
         self.logger = logging.getLogger('DatabaseManager')
         self.api_client = ApiClient()
         self.connection = None
+        
+        # Local client sessions storage
+        self.client_sessions = {}  # {session_id: session_data}
+        self.active_sessions = {}  # {client_ip: session_data}
+        
         self._test_connection()
     
     def _test_connection(self):
@@ -101,14 +106,103 @@ class DatabaseManager:
         else:
             return False, {"api_enabled": False, "message": result["data"]}
     
-    def get_active_sessions(self) -> Tuple[bool, Any]:
-        """Ambil daftar client yang aktif melalui API"""
+    def register_client_session(self, session_data: Dict[str, Any]) -> Tuple[bool, str]:
+        """Register client session"""
         try:
+            session_id = session_data.get('session_id')
+            client_ip = session_data.get('client_ip')
+            
+            if not session_id or not client_ip:
+                return False, "Session ID dan Client IP diperlukan"
+            
+            # Simpan ke local storage
+            session_data['last_activity'] = datetime.datetime.now().isoformat()
+            session_data['status'] = 'active'
+            
+            self.client_sessions[session_id] = session_data
+            self.active_sessions[client_ip] = session_data
+            
+            self.logger.info(f"Client session registered: {session_id} from {client_ip}")
+            return True, "Session berhasil didaftarkan"
+            
+        except Exception as e:
+            self.logger.error(f"Error registering client session: {e}")
+            return False, f"Error registrasi session: {str(e)}"
+    
+    def update_client_activity(self, session_id: str, client_ip: str) -> Tuple[bool, str]:
+        """Update client activity timestamp"""
+        try:
+            current_time = datetime.datetime.now().isoformat()
+            
+            # Update di session storage
+            if session_id in self.client_sessions:
+                self.client_sessions[session_id]['last_activity'] = current_time
+                self.client_sessions[session_id]['status'] = 'active'
+            
+            if client_ip in self.active_sessions:
+                self.active_sessions[client_ip]['last_activity'] = current_time
+                self.active_sessions[client_ip]['status'] = 'active'
+            
+            return True, "Activity updated"
+            
+        except Exception as e:
+            self.logger.error(f"Error updating client activity: {e}")
+            return False, f"Error update activity: {str(e)}"
+    
+    def remove_client_session(self, session_id: str, client_ip: str) -> Tuple[bool, str]:
+        """Remove client session"""
+        try:
+            # Hapus dari local storage
+            if session_id in self.client_sessions:
+                del self.client_sessions[session_id]
+            
+            if client_ip in self.active_sessions:
+                del self.active_sessions[client_ip]
+            
+            self.logger.info(f"Client session removed: {session_id} from {client_ip}")
+            return True, "Session berhasil dihapus"
+            
+        except Exception as e:
+            self.logger.error(f"Error removing client session: {e}")
+            return False, f"Error hapus session: {str(e)}"
+    
+    def get_active_sessions(self) -> Tuple[bool, Any]:
+        """Ambil daftar client yang aktif - prioritas local storage"""
+        try:
+            # Bersihkan session yang sudah tidak aktif (> 5 menit)
+            current_time = datetime.datetime.now()
+            expired_sessions = []
+            
+            for session_id, session_data in self.client_sessions.items():
+                try:
+                    last_activity_str = session_data.get('last_activity', '')
+                    if last_activity_str:
+                        last_activity = datetime.datetime.fromisoformat(last_activity_str.replace('Z', '+00:00'))
+                        if (current_time - last_activity).total_seconds() > 300:  # 5 menit
+                            expired_sessions.append((session_id, session_data.get('client_ip')))
+                except:
+                    expired_sessions.append((session_id, session_data.get('client_ip')))
+            
+            # Hapus session yang expired
+            for session_id, client_ip in expired_sessions:
+                self.remove_client_session(session_id, client_ip or '')
+            
+            # Return active sessions dari local storage
+            active_sessions = list(self.client_sessions.values())
+            
+            if active_sessions:
+                self.logger.info(f"Returning {len(active_sessions)} local active sessions")
+                return True, active_sessions
+            
+            # Fallback ke API jika tidak ada local sessions
             result = self.api_client.get_active_sessions()
             if result["success"]:
-                return True, result["data"].get("data", [])
+                api_sessions = result["data"].get("data", [])
+                self.logger.info(f"Fallback to API: {len(api_sessions)} sessions")
+                return True, api_sessions
             else:
                 return False, result["data"]
+                
         except Exception as e:
             self.logger.error(f"Error getting active sessions: {e}")
             return False, str(e)

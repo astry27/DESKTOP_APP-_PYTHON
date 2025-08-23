@@ -20,6 +20,7 @@ class ApiClient:
         self.client_hostname = socket.gethostname()
         self.session_id = None
         self.user_data = None
+        self.device_info = self.get_device_info()
     
     def get_client_ip(self):
         try:
@@ -31,55 +32,188 @@ class ApiClient:
         except:
             return "127.0.0.1"
     
-    def register_client(self):
+    def get_device_info(self):
+        """Ambil informasi lengkap perangkat"""
+        import platform
+        import os
         try:
+            device_info = {
+                'platform': platform.system(),
+                'platform_version': platform.release(),
+                'architecture': platform.machine(),
+                'processor': platform.processor(),
+                'python_version': platform.python_version(),
+                'hostname': socket.gethostname(),
+                'username': os.getlogin() if hasattr(os, 'getlogin') else 'Unknown'
+            }
+            return device_info
+        except:
+            return {
+                'platform': 'Unknown',
+                'platform_version': 'Unknown',
+                'architecture': 'Unknown',
+                'processor': 'Unknown',
+                'python_version': 'Unknown',
+                'hostname': socket.gethostname(),
+                'username': 'Unknown'
+            }
+    
+    def register_client(self):
+        """Registrasi client ke server untuk tracking koneksi"""
+        try:
+            import datetime
+            import uuid
+            
+            # Generate session ID lokal
+            session_id = str(uuid.uuid4())
+            self.session_id = session_id
+            
+            # Data yang akan dikirim ke server
             data = {
                 'client_ip': self.client_ip,
-                'hostname': self.client_hostname
+                'hostname': self.client_hostname,
+                'connect_time': datetime.datetime.now().isoformat(),
+                'last_activity': datetime.datetime.now().isoformat(),
+                'status': 'connected',
+                'user_data': self.user_data if self.user_data else None,
+                'device_info': self.device_info,
+                'client_type': 'desktop_client',
+                'session_id': session_id
             }
-            response = requests.post(f"{self.base_url}/client/register", 
-                                   json=data, 
-                                   timeout=self.timeout,
-                                   headers={'Content-Type': 'application/json'})
-            response.raise_for_status()
-            result = response.json()
-            if result.get('status') == 'success':
-                self.session_id = result.get('connection_id')
-            return {"success": True, "data": result}
-        except requests.exceptions.RequestException as e:
-            return {"success": False, "data": f"Gagal registrasi client: {e}"}
+            
+            print(f"[DEBUG] Registering client with session: {session_id}")
+            print(f"[DEBUG] Client IP: {self.client_ip}")
+            print(f"[DEBUG] Hostname: {self.client_hostname}")
+            
+            # Coba registrasi ke server lokal (prioritas pertama)
+            try:
+                # Coba ke server lokal dulu
+                local_response = requests.post("http://localhost:8080/client/register", 
+                                             json=data, 
+                                             timeout=5,
+                                             headers={'Content-Type': 'application/json'})
+                
+                if local_response.status_code == 200:
+                    local_result = local_response.json()
+                    if local_result.get('status') == 'success':
+                        print(f"[DEBUG] Local server registration successful")
+                        return {"success": True, "data": {"status": "success", "connection_id": session_id, "message": "Client registered to local server"}}
+                
+            except Exception as e:
+                print(f"[DEBUG] Local server registration failed: {e}")
+            
+            # Fallback ke API remote jika lokal gagal
+            try:
+                response = requests.post(f"{self.base_url}/client/register", 
+                                       json=data, 
+                                       timeout=self.timeout,
+                                       headers={'Content-Type': 'application/json'})
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    if result.get('status') == 'success':
+                        print(f"[DEBUG] Server registration successful")
+                        return {"success": True, "data": {"status": "success", "connection_id": session_id, "message": "Client registered to server"}}
+                    else:
+                        print(f"[DEBUG] Server registration failed: {result}")
+                        
+            except Exception as e:
+                print(f"[DEBUG] Server registration error: {e}")
+            
+            # Jika registrasi server gagal, tetap lanjutkan dengan session lokal
+            print(f"[INFO] Using local session mode: {session_id}")
+            return {"success": True, "data": {"status": "success", "connection_id": session_id, "message": "Client connected with local session"}}
+            
+        except Exception as e:
+            print(f"[ERROR] Client registration failed: {e}")
+            return {"success": False, "data": f"Registration failed: {e}"}
+    
     
     def disconnect_client(self):
         try:
             if self.session_id:
+                import datetime
                 data = {
                     'connection_id': self.session_id,
-                    'client_ip': self.client_ip
+                    'client_ip': self.client_ip,
+                    'hostname': self.client_hostname,
+                    'disconnect_time': datetime.datetime.now().isoformat(),
+                    'status': 'disconnected'
                 }
+                # Coba disconnect dari server lokal dulu
+                try:
+                    local_response = requests.post("http://localhost:8080/client/disconnect", 
+                                                 json=data, 
+                                                 timeout=3,
+                                                 headers={'Content-Type': 'application/json'})
+                    if local_response.status_code == 200:
+                        self.session_id = None
+                        return {"success": True, "data": local_response.json()}
+                except:
+                    pass  # Continue to remote
+                
+                # Fallback ke remote API
                 response = requests.post(f"{self.base_url}/client/disconnect", 
                                        json=data, 
                                        timeout=self.timeout,
                                        headers={'Content-Type': 'application/json'})
                 response.raise_for_status()
+                self.session_id = None
                 return {"success": True, "data": response.json()}
             return {"success": True, "data": "No active session"}
         except requests.exceptions.RequestException as e:
             return {"success": False, "data": f"Gagal disconnect client: {e}"}
     
     def heartbeat(self):
+        """Kirim heartbeat ke server untuk update status"""
         try:
+            if not self.session_id:
+                return {"success": False, "data": "No session ID"}
+                
+            import datetime
             data = {
                 'connection_id': self.session_id,
-                'client_ip': self.client_ip
+                'client_ip': self.client_ip,
+                'hostname': self.client_hostname,
+                'last_activity': datetime.datetime.now().isoformat(),
+                'status': 'active',
+                'user_data': self.user_data if self.user_data else None
             }
-            response = requests.post(f"{self.base_url}/client/heartbeat", 
-                                   json=data, 
-                                   timeout=self.timeout,
-                                   headers={'Content-Type': 'application/json'})
-            response.raise_for_status()
-            return {"success": True, "data": response.json()}
-        except requests.exceptions.RequestException as e:
-            return {"success": False, "data": f"Gagal heartbeat: {e}"}
+            
+            # Coba kirim heartbeat ke server lokal terlebih dahulu
+            try:
+                # Coba local server dulu
+                local_response = requests.post("http://localhost:8080/client/heartbeat", 
+                                             json=data, 
+                                             timeout=3,
+                                             headers={'Content-Type': 'application/json'})
+                
+                if local_response.status_code == 200:
+                    local_result = local_response.json()
+                    return {"success": True, "data": local_result}
+                    
+            except Exception as e:
+                pass  # Continue to remote fallback
+            
+            # Fallback ke remote API
+            try:
+                response = requests.post(f"{self.base_url}/client/heartbeat", 
+                                       json=data, 
+                                       timeout=5,  # Timeout singkat untuk heartbeat
+                                       headers={'Content-Type': 'application/json'})
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    return {"success": True, "data": result}
+                else:
+                    return {"success": False, "data": f"Heartbeat failed: {response.status_code}"}
+                    
+            except Exception as e:
+                # Heartbeat gagal tidak masalah, client tetap bisa jalan
+                return {"success": False, "data": f"Heartbeat error: {e}"}
+                
+        except Exception as e:
+            return {"success": False, "data": f"Heartbeat exception: {e}"}
     
     def check_server_connection(self):
         try:

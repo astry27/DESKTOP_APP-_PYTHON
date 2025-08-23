@@ -3,7 +3,7 @@
 from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QFormLayout, 
                             QLineEdit, QTextEdit, QDateEdit, QComboBox, QGroupBox,
                             QDialogButtonBox, QPushButton, QLabel, QDoubleSpinBox)
-from PyQt5.QtCore import QDate
+from PyQt5.QtCore import QDate, QLocale
 
 class JemaatDialog(QDialog):
     """Dialog untuk menambah/edit data jemaat"""
@@ -283,6 +283,18 @@ class KeuanganDialog(QDialog):
         self.jumlah_input = QDoubleSpinBox()
         self.jumlah_input.setRange(0, 1_000_000_000)
         self.jumlah_input.setGroupSeparatorShown(True)
+        self.jumlah_input.setValue(0)
+        
+        # Set locale Indonesia untuk format pemisah ribuan dengan titik
+        locale = QLocale(QLocale.Indonesian, QLocale.Indonesia)
+        self.jumlah_input.setLocale(locale)
+        
+        # Custom behavior untuk select all saat focus
+        def on_focus_in(event):
+            self.jumlah_input.selectAll()
+            QDoubleSpinBox.focusInEvent(self.jumlah_input, event)
+        
+        self.jumlah_input.focusInEvent = on_focus_in
         
         self.penanggung_jawab_input = QLineEdit()
 

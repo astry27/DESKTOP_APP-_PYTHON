@@ -142,6 +142,18 @@ class ClientMainWindow(QMainWindow):
         self.client_info_label = QLabel(f"IP Client: {self.api_client.client_ip}")
         self.client_info_label.setStyleSheet("color: #7f8c8d;")
         status_layout.addWidget(self.client_info_label)
+
+        # Informasi perangkat
+        device_info = self.api_client.device_info
+        device_text = f"Perangkat: {device_info.get('platform', 'Unknown')} {device_info.get('platform_version', '')}"
+        self.device_info_label = QLabel(device_text)
+        self.device_info_label.setStyleSheet("color: #7f8c8d;")
+        status_layout.addWidget(self.device_info_label)
+        
+        hostname_text = f"Hostname: {self.api_client.client_hostname}"
+        self.hostname_label = QLabel(hostname_text)
+        self.hostname_label.setStyleSheet("color: #7f8c8d;")
+        status_layout.addWidget(self.hostname_label)
         layout.addWidget(status_frame)
 
         # 2) Informasi API ------------------------------------
@@ -347,8 +359,19 @@ class ClientMainWindow(QMainWindow):
                 Peran: {self.user_data.get('peran', 'Unknown')}
                 """)
                 self.add_log("Login berhasil sebagai " + self.user_data.get('nama_lengkap', 'Unknown'))
+                
+                # Tampilkan window utama setelah login berhasil
+                self.show()
+                self.raise_()
+                self.activateWindow()
+                
+                # Set user data ke API client untuk registrasi
+                self.api_client.user_data = self.user_data
+                
+                # Connect ke API
                 self.connect_to_api()
             else:
+                QMessageBox.critical(self, "Error", "Data user tidak valid")
                 self.close()
         else:
             self.close()
@@ -359,7 +382,7 @@ class ClientMainWindow(QMainWindow):
         # Test koneksi API
         result = self.api_client.check_server_connection()
         if result["success"]:
-            # Register client
+            # Register client untuk tracking
             register_result = self.api_client.register_client()
             if register_result["success"]:
                 self.is_connected = True
@@ -368,13 +391,29 @@ class ClientMainWindow(QMainWindow):
                 
                 self.api_status_label.setText("Terhubung ke API")
                 self.api_status_label.setStyleSheet("color: #27ae60; font-size: 14px;")
+                self.statusBar.showMessage("Terhubung ke API dan terdaftar")
                 
                 self.connect_button.setEnabled(False)
                 self.disconnect_button.setEnabled(True)
-                # self.send_button.setEnabled(True)
                 
-                self.statusBar.showMessage("Terhubung ke API shared hosting")
-                print("Berhasil terhubung ke API dan terdaftar sebagai client")
+                # Log informasi client
+                user_name = self.user_data.get('nama_lengkap', 'Unknown') if self.user_data else 'Unknown'
+                user_role = self.user_data.get('peran', 'Unknown') if self.user_data else 'Unknown'
+                session_id = self.api_client.session_id
+                device_info = self.api_client.device_info
+                
+                self.add_log(f"Client terdaftar: {user_name} ({user_role})")
+                self.add_log(f"IP Address: {self.api_client.client_ip}")
+                self.add_log(f"Hostname: {self.api_client.client_hostname}")
+                self.add_log(f"Perangkat: {device_info.get('platform', 'Unknown')} {device_info.get('platform_version', '')}")
+                self.add_log(f"Session ID: {session_id}")
+                
+                print(f"=== CLIENT CONNECTED ===")
+                print(f"User: {user_name} ({user_role})")
+                print(f"Device: {device_info.get('platform', 'Unknown')} - {self.api_client.client_hostname}")
+                print(f"IP: {self.api_client.client_ip}")
+                print(f"Session: {session_id}")
+                print(f"=======================")
                 
                 # Load semua data
                 self.refresh_all_data()
@@ -385,16 +424,19 @@ class ClientMainWindow(QMainWindow):
                     status_text = "Aktif" if api_data["api_enabled"] else "Nonaktif"
                     self.api_version_label.setText(f"Status API: {status_text}")
                 
-                # Start timers
+                # Start timers untuk heartbeat
                 self.heartbeat_timer.start()
-                # self.broadcast_timer.start()
                 
             else:
-                QMessageBox.warning(self, "Error", f"Gagal registrasi client: {register_result['data']}")
-                self.add_log(f"Gagal registrasi client: {register_result['data']}")
+                error_msg = register_result.get('data', 'Unknown error')
+                QMessageBox.warning(self, "Error Registrasi Client", f"Gagal registrasi client:\n{error_msg}")
+                self.add_log(f"ERROR: Gagal registrasi client - {error_msg}")
+                print(f"[ERROR] Client registration failed: {error_msg}")
         else:
-            QMessageBox.warning(self, "Error", f"Gagal terhubung ke API: {result['data']}")
-            self.add_log(f"Gagal terhubung ke API: {result['data']}")
+            error_msg = result.get('data', 'Unknown connection error')
+            QMessageBox.warning(self, "Error Koneksi API", f"Gagal terhubung ke API:\n{error_msg}")
+            self.add_log(f"ERROR: Gagal terhubung ke API - {error_msg}")
+            print(f"[ERROR] API connection failed: {error_msg}")
     
     def disconnect_from_api(self):
         if self.is_connected:
@@ -421,11 +463,19 @@ class ClientMainWindow(QMainWindow):
         # self.broadcast_timer.stop()
     
     def send_heartbeat(self):
-        """Kirim heartbeat ke server"""
-        if self.is_connected:
+        """Kirim heartbeat ke server untuk update status"""
+        if self.is_connected and self.api_client.session_id:
             result = self.api_client.heartbeat()
             if not result["success"]:
-                self.add_log("Heartbeat gagal - koneksi mungkin terputus")
+                # Heartbeat gagal tidak masalah, log saja
+                print(f"[DEBUG] Heartbeat failed: {result.get('data', 'Unknown error')}")
+    
+    def auto_reconnect(self):
+        """Coba reconnect otomatis ke API"""
+        if self.user_data:
+            self.add_log("Mencoba reconnect otomatis...")
+            self.disconnect_from_api()
+            self.connect_to_api()
     
     # def send_message_to_admin(self):
     #     """Kirim pesan ke admin"""
@@ -520,9 +570,13 @@ class ClientMainWindow(QMainWindow):
         timestamp = datetime.datetime.now().strftime("%H:%M:%S")
         log_entry = f"[{timestamp}] {message}"
         
-        self.communication_log.append(log_entry)
-        scrollbar = self.communication_log.verticalScrollBar()
-        scrollbar.setValue(scrollbar.maximum())
+        # Print to console jika communication_log tidak tersedia
+        if hasattr(self, 'communication_log'):
+            self.communication_log.append(log_entry)
+            scrollbar = self.communication_log.verticalScrollBar()
+            scrollbar.setValue(scrollbar.maximum())
+        else:
+            print(log_entry)
     
     # def clear_communication_log(self):
     #     self.communication_log.clear()
@@ -549,6 +603,7 @@ if __name__ == "__main__":
     app.setStyle("Fusion")
     
     window = ClientMainWindow()
-    window.show()
+    # Window akan ditampilkan setelah login berhasil
+    # window.show() tidak dipanggil di sini
     
     sys.exit(app.exec_())

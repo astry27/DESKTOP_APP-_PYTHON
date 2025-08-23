@@ -110,8 +110,8 @@ class ServerControlComponent(QWidget):
         # Client Table
         client_group = QGroupBox("Client Terhubung")
         client_layout = QVBoxLayout(client_group)
-        self.client_table = QTableWidget(0, 4)
-        self.client_table.setHorizontalHeaderLabels(["IP Address", "Hostname", "Waktu Koneksi", "Status"])
+        self.client_table = QTableWidget(0, 5)
+        self.client_table.setHorizontalHeaderLabels(["IP Address", "Hostname", "Waktu Koneksi", "Terakhir Aktif", "Status"])
         self.client_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         client_layout.addWidget(self.client_table)
         
@@ -253,39 +253,106 @@ class ServerControlComponent(QWidget):
                     QMessageBox.warning(self, "Error", f"Gagal menonaktifkan API: {message}")
     
     def load_connected_clients(self):
-        """Load daftar client yang terhubung melalui API"""
+        """Load daftar client yang benar-benar aktif melalui API"""
         if not self.database_manager:
             return
         
         try:
             # Ambil data client yang terhubung dari API
-            success, clients = self.database_manager.get_active_sessions()
+            success, result = self.database_manager.get_active_sessions()
             
             if success:
-                self.connected_clients = clients
+                # Handle berbagai format response dari API
+                if isinstance(result, dict):
+                    if 'data' in result:
+                        clients = result['data']
+                    elif 'clients' in result:
+                        clients = result['clients']
+                    else:
+                        clients = []
+                elif isinstance(result, list):
+                    clients = result
+                else:
+                    clients = []
+                
+                # Filter hanya client yang benar-benar aktif/terhubung dengan timeout check
+                import datetime
+                active_clients = []
+                current_time = datetime.datetime.now()
+                
+                for client in clients:
+                    status = client.get('status', '').lower()
+                    last_activity = client.get('last_activity') or client.get('connect_time')
+                    
+                    # Check jika client benar-benar aktif berdasarkan status dan waktu aktivitas terakhir
+                    is_active = False
+                    if status in ['aktif', 'active', 'terhubung', 'connected', 'online']:
+                        if last_activity:
+                            try:
+                                if isinstance(last_activity, str):
+                                    if 'T' in last_activity:
+                                        last_time = datetime.datetime.fromisoformat(last_activity.replace('Z', '+00:00'))
+                                    else:
+                                        last_time = datetime.datetime.strptime(last_activity, '%Y-%m-%d %H:%M:%S')
+                                else:
+                                    last_time = last_activity
+                                
+                                # Client dianggap aktif jika aktivitas terakhir kurang dari 5 menit yang lalu
+                                time_diff = current_time - last_time.replace(tzinfo=None)
+                                if time_diff.total_seconds() < 300:  # 5 menit
+                                    is_active = True
+                                else:
+                                    # Update status jika sudah timeout
+                                    client['status'] = 'timeout'
+                            except:
+                                # Jika tidak bisa parsing waktu, anggap tidak aktif
+                                client['status'] = 'unknown'
+                        else:
+                            # Jika tidak ada waktu aktivitas, anggap tidak aktif
+                            client['status'] = 'no_activity'
+                    
+                    if is_active:
+                        active_clients.append(client)
+                
+                self.connected_clients = active_clients
                 self.update_client_table()
-                self.clients_label.setText(str(len(clients)))
+                self.clients_label.setText(str(len(active_clients)))
+                
+                # Log untuk debugging
+                total_sessions = len(clients)
+                active_count = len(active_clients)
+                self.log_message.emit(f"Total Sessions: {total_sessions}, Client Benar-benar Aktif: {active_count}")
+                
             else:
                 self.connected_clients = []
                 self.update_client_table()
                 self.clients_label.setText("0")
+                self.log_message.emit("Gagal mengambil data sessions")
         except Exception as e:
+            self.connected_clients = []
+            self.update_client_table()
+            self.clients_label.setText("0")
             self.log_message.emit(f"Error loading clients: {str(e)}")
     
     def update_client_table(self):
-        """Update tabel client yang terhubung"""
+        """Update tabel client yang benar-benar terhubung"""
         self.client_table.setRowCount(len(self.connected_clients))
         
         for i, client in enumerate(self.connected_clients):
-            self.client_table.setItem(i, 0, QTableWidgetItem(client.get('client_ip', '')))
-            self.client_table.setItem(i, 1, QTableWidgetItem(client.get('hostname', '')))
+            self.client_table.setItem(i, 0, QTableWidgetItem(client.get('client_ip', 'Unknown')))
+            self.client_table.setItem(i, 1, QTableWidgetItem(client.get('hostname', 'Unknown')))
             
+            # Format waktu koneksi
             connect_time = client.get('connect_time', '')
             if connect_time:
                 if isinstance(connect_time, str):
                     try:
-                        dt = datetime.datetime.fromisoformat(connect_time.replace('Z', '+00:00'))
-                        time_str = dt.strftime('%H:%M:%S')
+                        # Handle different datetime formats
+                        if 'T' in connect_time:
+                            dt = datetime.datetime.fromisoformat(connect_time.replace('Z', '+00:00'))
+                        else:
+                            dt = datetime.datetime.strptime(connect_time, '%Y-%m-%d %H:%M:%S')
+                        time_str = dt.strftime('%d/%m/%Y %H:%M:%S')
                     except:
                         time_str = str(connect_time)
                 else:
@@ -295,14 +362,59 @@ class ServerControlComponent(QWidget):
             
             self.client_table.setItem(i, 2, QTableWidgetItem(time_str))
             
+            # Waktu terakhir aktif
+            last_activity = client.get('last_activity') or client.get('connect_time', '')
+            if last_activity:
+                if isinstance(last_activity, str):
+                    try:
+                        # Handle different datetime formats
+                        if 'T' in last_activity:
+                            dt = datetime.datetime.fromisoformat(last_activity.replace('Z', '+00:00'))
+                        else:
+                            dt = datetime.datetime.strptime(last_activity, '%Y-%m-%d %H:%M:%S')
+                        last_active_str = dt.strftime('%d/%m/%Y %H:%M:%S')
+                        
+                        # Hitung waktu yang telah berlalu
+                        current_time = datetime.datetime.now()
+                        time_diff = current_time - dt.replace(tzinfo=None)
+                        
+                        if time_diff.total_seconds() < 60:
+                            last_active_str += " (Sekarang)"
+                        elif time_diff.total_seconds() < 3600:
+                            minutes = int(time_diff.total_seconds() / 60)
+                            last_active_str += f" ({minutes}m yang lalu)"
+                        else:
+                            hours = int(time_diff.total_seconds() / 3600)
+                            last_active_str += f" ({hours}h yang lalu)"
+                    except:
+                        last_active_str = str(last_activity)
+                else:
+                    last_active_str = str(last_activity)
+            else:
+                last_active_str = 'Tidak diketahui'
+            
+            self.client_table.setItem(i, 3, QTableWidgetItem(last_active_str))
+            
+            # Status dengan warna yang sesuai
             status = client.get('status', 'Unknown')
             status_item = QTableWidgetItem(status)
-            if status == 'Terhubung':
-                status_item.setBackground(QColor(200, 255, 200))
-            else:
-                status_item.setBackground(QColor(255, 200, 200))
             
-            self.client_table.setItem(i, 3, status_item)
+            # Color coding berdasarkan status
+            status_lower = status.lower()
+            if status_lower in ['aktif', 'active', 'terhubung', 'connected', 'online']:
+                status_item.setBackground(QColor(144, 238, 144))  # Light green
+                status_item.setText('Aktif')
+            elif status_lower in ['disconnect', 'disconnected', 'offline', 'terputus']:
+                status_item.setBackground(QColor(255, 182, 193))  # Light red
+                status_item.setText('Terputus')
+            elif status_lower == 'timeout':
+                status_item.setBackground(QColor(255, 165, 0, 100))  # Light orange
+                status_item.setText('Timeout')
+            else:
+                status_item.setBackground(QColor(255, 255, 224))  # Light yellow
+                status_item.setText(status)
+            
+            self.client_table.setItem(i, 4, status_item)
     
     def send_broadcast_message(self):
         """Kirim broadcast message ke semua client melalui API"""
