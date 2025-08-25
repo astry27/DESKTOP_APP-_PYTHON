@@ -5,8 +5,8 @@ import csv
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
                             QPushButton, QTableWidget, QTableWidgetItem,
                             QHeaderView, QGroupBox, QTabWidget, QMessageBox, 
-                            QFileDialog, QAbstractItemView)
-from PyQt5.QtCore import pyqtSignal, QDate
+                            QFileDialog, QAbstractItemView, QFrame, QSizePolicy)
+from PyQt5.QtCore import pyqtSignal, QDate, Qt
 
 # Import dialog keuangan yang baru
 from .dialogs import KeuanganDialog
@@ -27,12 +27,27 @@ class KeuanganComponent(QWidget):
     def set_database_manager(self, db_manager):
         """Set database manager."""
         self.db_manager = db_manager
+        # Auto load data setelah database manager di-set
+        if self.db_manager:
+            self.load_data()
     
     def setup_ui(self):
         """Setup UI untuk halaman keuangan."""
         layout = QVBoxLayout(self)
         
-        # Header
+        # Header Frame (matching dokumen.py style)
+        header_frame = QFrame()
+        header_frame.setStyleSheet("background-color: #34495e; color: white; padding: 2px;")
+        header_layout = QHBoxLayout(header_frame)
+        
+        title_label = QLabel("Manajemen Keuangan")
+        title_label.setStyleSheet("font-size: 16px; font-weight: bold; color: white;")
+        header_layout.addWidget(title_label)
+        header_layout.addStretch()
+        
+        layout.addWidget(header_frame)
+        
+        # Original header with buttons
         header = self.create_header()
         layout.addWidget(header)
         
@@ -49,14 +64,10 @@ class KeuanganComponent(QWidget):
         layout.addLayout(action_layout)
 
     def create_header(self):
-        """Buat header dengan title dan kontrol."""
+        """Buat header dengan kontrol (tanpa title karena sudah ada di header frame)."""
         header = QWidget()
         header_layout = QHBoxLayout(header)
         header_layout.setContentsMargins(0, 0, 0, 0)
-        
-        title = QLabel("Manajemen Keuangan")
-        title.setStyleSheet("font-size: 18px; font-weight: bold;")
-        header_layout.addWidget(title)
         
         header_layout.addStretch()
         
@@ -77,7 +88,7 @@ class KeuanganComponent(QWidget):
         self.pemasukan_bulan_ini_value = QLabel("Rp 0")
         self.pengeluaran_bulan_ini_value = QLabel("Rp 0")
         
-        stats_layout.addWidget(self.create_stat_widget("TOTAL SALDO", self.saldo_value, "#ecf0f1", "#2c3e50"))
+        stats_layout.addWidget(self.create_stat_widget("TOTAL SALDO", self.saldo_value, "#ddeaee", "#2c3e50"))
         stats_layout.addWidget(self.create_stat_widget("TOTAL PEMASUKAN", self.pemasukan_bulan_ini_value, "#e8f8f5", "#27ae60"))
         stats_layout.addWidget(self.create_stat_widget("TOTAL PENGELUARAN", self.pengeluaran_bulan_ini_value, "#fdedec", "#c0392b"))
         
@@ -86,12 +97,44 @@ class KeuanganComponent(QWidget):
     def create_stat_widget(self, label_text, value_label, bg_color, text_color):
         """Buat widget statistik dengan style."""
         widget = QWidget()
-        widget.setStyleSheet(f"background-color: {bg_color}; border-radius: 5px; padding: 10px;")
+        widget.setStyleSheet(f"""
+            QWidget {{
+                background-color: {bg_color}; 
+                border-radius: 5px; 
+                padding: 10px;
+            }}
+        """)
         layout = QVBoxLayout(widget)
+        layout.setSpacing(5)
+        layout.setContentsMargins(10, 10, 10, 10)
         
         label = QLabel(label_text)
-        label.setStyleSheet(f"font-weight: bold; color: {text_color};")
-        value_label.setStyleSheet(f"font-size: 18px; font-weight: bold; color: {text_color};")
+        label.setAlignment(Qt.AlignCenter)
+        label.setWordWrap(True)
+        label.setStyleSheet(f"""
+            QLabel {{
+                font-weight: bold; 
+                color: {text_color};
+                font-size: 12px;
+                font-family: Arial, sans-serif;
+                background-color: transparent;
+                min-height: 20px;
+            }}
+        """)
+        
+        value_label.setAlignment(Qt.AlignCenter)
+        value_label.setWordWrap(True)
+        value_label.setStyleSheet(f"""
+            QLabel {{
+                font-size: 18px; 
+                font-weight: bold; 
+                color: {text_color};
+                font-family: Arial, sans-serif;
+                background-color: transparent;
+                padding: 5px;
+                min-height: 25px;
+            }}
+        """)
         
         layout.addWidget(label)
         layout.addWidget(value_label)
@@ -251,9 +294,42 @@ class KeuanganComponent(QWidget):
     def create_button(self, text, color, slot):
         """Buat button dengan style konsisten."""
         button = QPushButton(text)
-        button.setStyleSheet(f"background-color: {color}; color: white; padding: 8px 15px; border: none; border-radius: 4px; font-weight: bold;")
+        hover_color = self.darken_color(color)
+        button.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {color}; 
+                color: white; 
+                padding: 8px 15px; 
+                border: none; 
+                border-radius: 4px; 
+                font-weight: bold;
+                font-family: Arial, sans-serif;
+            }}
+            QPushButton:hover {{
+                background-color: {hover_color};
+                border: 1px solid {hover_color};
+            }}
+            QPushButton:pressed {{
+                background-color: {self.darken_color(hover_color)};
+                border: 2px inset {self.darken_color(hover_color)};
+            }}
+        """)
         button.clicked.connect(slot)
         return button
+    
+    def darken_color(self, color):
+        """Buat warna lebih gelap untuk hover effect"""
+        color_map = {
+            "#27ae60": "#229954",  # Hijau
+            "#c0392b": "#a93226",  # Merah
+            "#3498db": "#2980b9",  # Biru
+            "#16a085": "#138d75",  # Teal
+            "#8e44ad": "#7d3c98",  # Ungu
+            "#f39c12": "#e67e22",  # Orange
+            "#2ecc71": "#27ae60",  # Light green
+            "#e74c3c": "#c0392b",  # Light red
+        }
+        return color_map.get(color, color)
 
     def load_data(self):
         """Load data keuangan dari database."""
@@ -262,29 +338,60 @@ class KeuanganComponent(QWidget):
             return
 
         try:
+            # Test koneksi database terlebih dahulu
+            if not hasattr(self.db_manager, 'get_keuangan_list'):
+                self.log_message.emit("Error: Database manager tidak memiliki method get_keuangan_list")
+                return
+            
             # Load pemasukan
+            self.log_message.emit("Mencoba memuat data pemasukan...")
             success, pemasukan = self.db_manager.get_keuangan_list(category="Pemasukan")
             if success:
-                self.pemasukan_data = pemasukan
+                # Handle different response formats
+                if isinstance(pemasukan, dict) and 'data' in pemasukan:
+                    self.pemasukan_data = pemasukan['data']
+                elif isinstance(pemasukan, list):
+                    self.pemasukan_data = pemasukan
+                else:
+                    self.pemasukan_data = []
+                
                 self.populate_table(self.income_table, self.pemasukan_data)
-                self.log_message.emit(f"Data pemasukan berhasil dimuat: {len(pemasukan)} record")
+                self.log_message.emit(f"Data pemasukan berhasil dimuat: {len(self.pemasukan_data)} record")
             else:
+                self.pemasukan_data = []
+                self.populate_table(self.income_table, self.pemasukan_data)
                 self.log_message.emit(f"Gagal memuat data pemasukan: {pemasukan}")
 
             # Load pengeluaran
+            self.log_message.emit("Mencoba memuat data pengeluaran...")
             success, pengeluaran = self.db_manager.get_keuangan_list(category="Pengeluaran")
             if success:
-                self.pengeluaran_data = pengeluaran
+                # Handle different response formats
+                if isinstance(pengeluaran, dict) and 'data' in pengeluaran:
+                    self.pengeluaran_data = pengeluaran['data']
+                elif isinstance(pengeluaran, list):
+                    self.pengeluaran_data = pengeluaran
+                else:
+                    self.pengeluaran_data = []
+                
                 self.populate_table(self.expense_table, self.pengeluaran_data)
-                self.log_message.emit(f"Data pengeluaran berhasil dimuat: {len(pengeluaran)} record")
+                self.log_message.emit(f"Data pengeluaran berhasil dimuat: {len(self.pengeluaran_data)} record")
             else:
+                self.pengeluaran_data = []
+                self.populate_table(self.expense_table, self.pengeluaran_data)
                 self.log_message.emit(f"Gagal memuat data pengeluaran: {pengeluaran}")
             
             self.update_statistics()
-            self.log_message.emit("Data keuangan berhasil dimuat")
+            self.log_message.emit("Proses loading data keuangan selesai")
             self.data_updated.emit()
         except Exception as e:
             self.log_message.emit(f"Exception saat memuat data keuangan: {str(e)}")
+            # Reset data jika terjadi error
+            self.pemasukan_data = []
+            self.pengeluaran_data = []
+            self.populate_table(self.income_table, self.pemasukan_data)
+            self.populate_table(self.expense_table, self.pengeluaran_data)
+            self.update_statistics()
 
     def populate_table(self, table, data):
         """Populate tabel dengan data."""
@@ -319,17 +426,34 @@ class KeuanganComponent(QWidget):
     def update_statistics(self):
         """Update panel statistik."""
         if not self.db_manager: 
+            # Set default values jika tidak ada database manager
+            self.saldo_value.setText("Rp 0")
+            self.pemasukan_bulan_ini_value.setText("Rp 0")
+            self.pengeluaran_bulan_ini_value.setText("Rp 0")
             return
 
-        # Update saldo total
-        success, saldo = self.db_manager.get_saldo_total()
-        if success and saldo:
-            try:
-                saldo_amount = float(saldo.get('saldo', 0))
-                self.saldo_value.setText(f"Rp {saldo_amount:,.0f}".replace(',', '.'))
-            except (ValueError, TypeError):
+        try:
+            # Update saldo total via API
+            if hasattr(self.db_manager, 'get_saldo_total'):
+                success, saldo = self.db_manager.get_saldo_total()
+                if success and saldo:
+                    try:
+                        saldo_amount = float(saldo.get('saldo', 0))
+                        self.saldo_value.setText(f"Rp {saldo_amount:,.0f}".replace(',', '.'))
+                    except (ValueError, TypeError):
+                        self.saldo_value.setText("Rp 0")
+                else:
+                    # Fallback: hitung dari data local
+                    total_pemasukan = sum(float(item.get('jumlah', 0)) for item in self.pemasukan_data if item.get('jumlah'))
+                    total_pengeluaran = sum(float(item.get('jumlah', 0)) for item in self.pengeluaran_data if item.get('jumlah'))
+                    saldo_local = total_pemasukan - total_pengeluaran
+                    self.saldo_value.setText(f"Rp {saldo_local:,.0f}".replace(',', '.'))
+                    self.log_message.emit("Menggunakan perhitungan saldo local (API tidak tersedia)")
+            else:
+                self.log_message.emit("Method get_saldo_total tidak tersedia di database manager")
                 self.saldo_value.setText("Rp 0")
-        else:
+        except Exception as e:
+            self.log_message.emit(f"Error updating saldo: {str(e)}")
             self.saldo_value.setText("Rp 0")
 
         # Hitung total pemasukan dari data yang sudah dimuat
@@ -375,6 +499,13 @@ class KeuanganComponent(QWidget):
                 QMessageBox.warning(self, "Error", "Database tidak tersedia")
                 return
             
+            # Check if method exists
+            if not hasattr(self.db_manager, 'add_keuangan'):
+                QMessageBox.critical(self, "Error", "Method add_keuangan tidak tersedia di database manager")
+                self.log_message.emit("Method add_keuangan tidak tersedia")
+                return
+            
+            self.log_message.emit(f"Mencoba menambahkan {kategori}...")
             success, result = self.db_manager.add_keuangan(data)
             if success:
                 QMessageBox.information(self, "Sukses", f"{kategori} berhasil ditambahkan.")
@@ -382,7 +513,7 @@ class KeuanganComponent(QWidget):
                 self.log_message.emit(f"{kategori} berhasil ditambahkan")
             else:
                 QMessageBox.critical(self, "Error", f"Gagal menambahkan {kategori}: {result}")
-                self.log_message.emit(f"Gagal menambahkan {kategori}: {result}")
+                self.log_message.emit(f"API Error - Gagal menambahkan {kategori}: {result}")
 
     def generate_report(self):
         """Generate laporan keuangan sederhana."""

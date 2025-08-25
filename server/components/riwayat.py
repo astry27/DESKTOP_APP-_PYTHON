@@ -31,7 +31,7 @@ class RiwayatComponent(QWidget):
         
         # Header
         header_frame = QFrame()
-        header_frame.setStyleSheet("background-color: #34495e; color: white; padding: 10px;")
+        header_frame.setStyleSheet("background-color: #34495e; color: white; padding: 2px;")
         header_layout = QHBoxLayout(header_frame)
         
         title_label = QLabel("Riwayat Aktivitas Sistem")

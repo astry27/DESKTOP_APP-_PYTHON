@@ -2,7 +2,7 @@
 
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
                             QPushButton, QLineEdit, QTableWidget, QTableWidgetItem,
-                            QHeaderView, QMessageBox, QFileDialog, QAbstractItemView)
+                            QHeaderView, QMessageBox, QFileDialog, QAbstractItemView, QFrame)
 from PyQt5.QtCore import QObject, pyqtSignal
 
 # Import dialog secara langsung untuk menghindari circular import
@@ -28,7 +28,19 @@ class JemaatComponent(QWidget):
         """Setup UI untuk halaman jemaat"""
         layout = QVBoxLayout(self)
         
-        # Header
+        # Header Frame (matching dokumen.py style)
+        header_frame = QFrame()
+        header_frame.setStyleSheet("background-color: #34495e; color: white; padding: 2px;")
+        header_layout = QHBoxLayout(header_frame)
+        
+        title_label = QLabel("Database Jemaat")
+        title_label.setStyleSheet("font-size: 16px; font-weight: bold; color: white;")
+        header_layout.addWidget(title_label)
+        header_layout.addStretch()
+        
+        layout.addWidget(header_frame)
+        
+        # Original header with buttons
         header = self.create_header()
         layout.addWidget(header)
         
@@ -71,14 +83,10 @@ class JemaatComponent(QWidget):
             self.delete_jemaat()
     
     def create_header(self):
-        """Buat header dengan title dan kontrol"""
+        """Buat header dengan kontrol (tanpa title karena sudah ada di header frame)"""
         header = QWidget()
         header_layout = QHBoxLayout(header)
         header_layout.setContentsMargins(0, 0, 0, 0)
-        
-        title = QLabel("Database Jemaat")
-        title.setStyleSheet("font-size: 18px; font-weight: bold;")
-        header_layout.addWidget(title)
         
         header_layout.addStretch()
         
