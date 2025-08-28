@@ -232,7 +232,12 @@ class DatabaseManager:
                     if (search_lower in str(item.get('nama_lengkap', '')).lower() or
                         search_lower in str(item.get('alamat', '')).lower() or
                         search_lower in str(item.get('no_telepon', '')).lower() or
-                        search_lower in str(item.get('email', '')).lower()):
+                        search_lower in str(item.get('email', '')).lower() or
+                        search_lower in str(item.get('wilayah_rohani', '')).lower() or
+                        search_lower in str(item.get('nama_keluarga', '')).lower() or
+                        search_lower in str(item.get('tempat_lahir', '')).lower() or
+                        search_lower in str(item.get('hubungan_keluarga', '')).lower() or
+                        search_lower in str(item.get('status_keanggotaan', '')).lower()):
                         filtered_data.append(item)
                 data = filtered_data
             
@@ -433,8 +438,8 @@ class DatabaseManager:
         else:
             return False, result["data"]
     
-    def upload_file(self, file_path: str) -> Tuple[bool, Any]:
-        result = self.api_client.upload_file(file_path)
+    def upload_file(self, file_path: str, document_name: str = None, document_type: str = None) -> Tuple[bool, Any]:
+        result = self.api_client.upload_file(file_path, document_name, document_type)
         if result["success"]:
             return True, result["data"]
         else:
@@ -670,9 +675,14 @@ class DatabaseManager:
         try:
             result = self.api_client.download_file(file_id)
             if result["success"]:
+                # result["data"] should already be bytes from response.content
+                file_content = result["data"]
+                headers = result.get("headers", {})
+                
                 return True, {
-                    'content': result["data"],
-                    'headers': result.get("headers", {})
+                    'content': file_content,
+                    'headers': headers,
+                    'content_type': headers.get('content-type', '') if headers else ''
                 }
             else:
                 return False, result["data"]

@@ -5,6 +5,10 @@ import os
 from dotenv import load_dotenv
 import json
 import datetime
+import time
+from urllib3.util.retry import Retry
+from requests.adapters import HTTPAdapter
+from requests.exceptions import RequestException, ConnectionError, Timeout
 
 load_dotenv()
 
@@ -15,363 +19,277 @@ class ApiClient:
     def __init__(self):
         self.base_url = BASE_URL
         self.timeout = 10
+        
+        # Setup session with retry strategy
+        self.session = requests.Session()
+        
+        # Retry strategy
+        retry_strategy = Retry(
+            total=3,  # Total retry attempts
+            backoff_factor=1,  # Wait time between retries
+            status_forcelist=[429, 500, 502, 503, 504],  # HTTP status codes to retry
+            allowed_methods=["HEAD", "GET", "POST", "PUT", "DELETE", "OPTIONS", "TRACE"]
+        )
+        
+        adapter = HTTPAdapter(max_retries=retry_strategy)
+        self.session.mount("http://", adapter)
+        self.session.mount("https://", adapter)
     
+    def _make_request(self, method, url, **kwargs):
+        """Make HTTP request with improved error handling"""
+        for attempt in range(3):
+            try:
+                if method.upper() == 'GET':
+                    response = self.session.get(url, timeout=self.timeout, **kwargs)
+                elif method.upper() == 'POST':
+                    response = self.session.post(url, timeout=self.timeout, **kwargs)
+                elif method.upper() == 'PUT':
+                    response = self.session.put(url, timeout=self.timeout, **kwargs)
+                elif method.upper() == 'DELETE':
+                    response = self.session.delete(url, timeout=self.timeout, **kwargs)
+                else:
+                    response = self.session.request(method, url, timeout=self.timeout, **kwargs)
+                
+                response.raise_for_status()
+                return {"success": True, "data": response.json() if response.text else None}
+                
+            except ConnectionError as e:
+                if "Failed to resolve" in str(e) or "getaddrinfo failed" in str(e) or "Name or service not known" in str(e):
+                    if attempt < 2:  # Last attempt
+                        time.sleep(2 ** attempt)  # Exponential backoff
+                        continue
+                    return {"success": False, "data": f"Gagal terhubung ke server: Masalah koneksi internet atau DNS. Periksa koneksi internet Anda."}
+                else:
+                    return {"success": False, "data": f"Gagal terhubung ke server: {e}"}
+            except Timeout as e:
+                if attempt < 2:
+                    time.sleep(1)
+                    continue
+                return {"success": False, "data": f"Timeout koneksi ke server: {e}"}
+            except RequestException as e:
+                return {"success": False, "data": f"Gagal terhubung ke API: {e}"}
+            except Exception as e:
+                return {"success": False, "data": f"Error tidak terduga: {e}"}
+        
+        return {"success": False, "data": "Gagal terhubung setelah 3 kali percobaan"}
+
     def check_server_connection(self):
-        try:
-            response = requests.get(self.base_url, timeout=self.timeout)
-            response.raise_for_status()
-            return {"success": True, "data": response.json()}
-        except requests.exceptions.RequestException as e:
-            return {"success": False, "data": f"Gagal terhubung ke API: {e}"}
+        return self._make_request('GET', self.base_url)
     
     def enable_api(self):
-        try:
-            response = requests.post(f"{self.base_url}/admin/enable", timeout=self.timeout)
-            response.raise_for_status()
-            return {"success": True, "data": response.json()}
-        except requests.exceptions.RequestException as e:
-            return {"success": False, "data": f"Gagal mengaktifkan API: {e}"}
+        return self._make_request('POST', f"{self.base_url}/admin/enable")
     
     def disable_api(self):
-        try:
-            response = requests.post(f"{self.base_url}/admin/disable", timeout=self.timeout)
-            response.raise_for_status()
-            return {"success": True, "data": response.json()}
-        except requests.exceptions.RequestException as e:
-            return {"success": False, "data": f"Gagal menonaktifkan API: {e}"}
+        return self._make_request('POST', f"{self.base_url}/admin/disable")
     
     def get_api_status(self):
-        try:
-            response = requests.get(f"{self.base_url}/admin/status", timeout=self.timeout)
-            response.raise_for_status()
-            return {"success": True, "data": response.json()}
-        except requests.exceptions.RequestException as e:
-            return {"success": False, "data": f"Gagal mengecek status API: {e}"}
+        return self._make_request('GET', f"{self.base_url}/admin/status")
     
     def authenticate_admin(self, login_data):
         """Authenticate admin credentials"""
-        try:
-            response = requests.post(f"{self.base_url}/admin/login", 
-                                   json=login_data, 
-                                   timeout=self.timeout,
-                                   headers={'Content-Type': 'application/json'})
-            response.raise_for_status()
-            return {"success": True, "data": response.json()}
-        except requests.exceptions.RequestException as e:
-            return {"success": False, "data": f"Gagal login admin: {e}"}
+        return self._make_request('POST', f"{self.base_url}/admin/login", 
+                                json=login_data, 
+                                headers={'Content-Type': 'application/json'})
     
     def update_admin_last_login(self, admin_id):
         """Update last login timestamp untuk admin"""
-        try:
-            data = {
-                'admin_id': admin_id,
-                'last_login': datetime.datetime.now().isoformat()
-            }
-            response = requests.post(f"{self.base_url}/admin/update-last-login", 
-                                   json=data, 
-                                   timeout=self.timeout,
-                                   headers={'Content-Type': 'application/json'})
-            response.raise_for_status()
-            return {"success": True, "data": response.json()}
-        except requests.exceptions.RequestException as e:
-            return {"success": False, "data": f"Gagal update last login: {e}"}
+        data = {
+            'admin_id': admin_id,
+            'last_login': datetime.datetime.now().isoformat()
+        }
+        return self._make_request('POST', f"{self.base_url}/admin/update-last-login", 
+                               json=data, 
+                               headers={'Content-Type': 'application/json'})
     
     def get_active_sessions(self):
         """Ambil daftar client yang sedang aktif"""
-        try:
-            response = requests.get(f"{self.base_url}/admin/active-sessions", timeout=self.timeout)
-            response.raise_for_status()
-            return {"success": True, "data": response.json()}
-        except requests.exceptions.RequestException as e:
-            return {"success": False, "data": f"Gagal mengambil active sessions: {e}"}
+        return self._make_request('GET', f"{self.base_url}/admin/active-sessions")
     
     def send_broadcast_message(self, message):
         """Kirim broadcast message ke semua client"""
-        try:
-            data = {
-                'message': message,
-                'timestamp': datetime.datetime.now().isoformat()
-            }
-            response = requests.post(f"{self.base_url}/admin/broadcast", 
-                                   json=data, 
-                                   timeout=self.timeout,
-                                   headers={'Content-Type': 'application/json'})
-            response.raise_for_status()
-            return {"success": True, "data": response.json()}
-        except requests.exceptions.RequestException as e:
-            return {"success": False, "data": f"Gagal mengirim broadcast message: {e}"}
+        data = {
+            'message': message,
+            'timestamp': datetime.datetime.now().isoformat()
+        }
+        return self._make_request('POST', f"{self.base_url}/admin/broadcast", 
+                               json=data, 
+                               headers={'Content-Type': 'application/json'})
     
     def test_database(self):
-        try:
-            response = requests.get(f"{self.base_url}/test-db", timeout=self.timeout)
-            response.raise_for_status()
-            return {"success": True, "data": response.json()}
-        except requests.exceptions.RequestException as e:
-            return {"success": False, "data": f"Gagal test database: {e}"}
+        return self._make_request('GET', f"{self.base_url}/test-db")
     
     # ========== JEMAAT METHODS ==========
     def get_jemaat(self):
-        try:
-            response = requests.get(f"{self.base_url}/jemaat", timeout=self.timeout)
-            response.raise_for_status()
-            return {"success": True, "data": response.json()}
-        except requests.exceptions.RequestException as e:
-            return {"success": False, "data": f"Gagal mengambil data jemaat: {e}"}
+        return self._make_request('GET', f"{self.base_url}/jemaat")
     
     def add_jemaat(self, data):
-        try:
-            response = requests.post(f"{self.base_url}/jemaat", 
-                                   json=data, 
-                                   timeout=self.timeout,
-                                   headers={'Content-Type': 'application/json'})
-            response.raise_for_status()
-            return {"success": True, "data": response.json()}
-        except requests.exceptions.RequestException as e:
-            return {"success": False, "data": f"Gagal menambah jemaat: {e}"}
+        return self._make_request('POST', f"{self.base_url}/jemaat", 
+                               json=data, 
+                               headers={'Content-Type': 'application/json'})
     
     def update_jemaat(self, jemaat_id, data):
-        try:
-            response = requests.put(f"{self.base_url}/jemaat/{jemaat_id}", 
-                                  json=data, 
-                                  timeout=self.timeout,
-                                  headers={'Content-Type': 'application/json'})
-            response.raise_for_status()
-            return {"success": True, "data": response.json()}
-        except requests.exceptions.RequestException as e:
-            return {"success": False, "data": f"Gagal mengupdate jemaat: {e}"}
+        return self._make_request('PUT', f"{self.base_url}/jemaat/{jemaat_id}", 
+                              json=data, 
+                              headers={'Content-Type': 'application/json'})
     
     def delete_jemaat(self, jemaat_id):
-        try:
-            response = requests.delete(f"{self.base_url}/jemaat/{jemaat_id}", 
-                                     timeout=self.timeout)
-            response.raise_for_status()
-            return {"success": True, "data": response.json()}
-        except requests.exceptions.RequestException as e:
-            return {"success": False, "data": f"Gagal menghapus jemaat: {e}"}
+        return self._make_request('DELETE', f"{self.base_url}/jemaat/{jemaat_id}")
     
     # ========== KEGIATAN METHODS ==========
     def get_kegiatan(self):
-        try:
-            response = requests.get(f"{self.base_url}/kegiatan", timeout=self.timeout)
-            response.raise_for_status()
-            return {"success": True, "data": response.json()}
-        except requests.exceptions.RequestException as e:
-            return {"success": False, "data": f"Gagal mengambil data kegiatan: {e}"}
+        return self._make_request('GET', f"{self.base_url}/kegiatan")
     
     def add_kegiatan(self, data):
-        try:
-            response = requests.post(f"{self.base_url}/kegiatan", 
-                                   json=data, 
-                                   timeout=self.timeout,
-                                   headers={'Content-Type': 'application/json'})
-            response.raise_for_status()
-            return {"success": True, "data": response.json()}
-        except requests.exceptions.RequestException as e:
-            return {"success": False, "data": f"Gagal menambah kegiatan: {e}"}
+        return self._make_request('POST', f"{self.base_url}/kegiatan", 
+                               json=data, 
+                               headers={'Content-Type': 'application/json'})
     
     def update_kegiatan(self, kegiatan_id, data):
-        try:
-            response = requests.put(f"{self.base_url}/kegiatan/{kegiatan_id}", 
-                                  json=data, 
-                                  timeout=self.timeout,
-                                  headers={'Content-Type': 'application/json'})
-            response.raise_for_status()
-            return {"success": True, "data": response.json()}
-        except requests.exceptions.RequestException as e:
-            return {"success": False, "data": f"Gagal mengupdate kegiatan: {e}"}
+        return self._make_request('PUT', f"{self.base_url}/kegiatan/{kegiatan_id}", 
+                              json=data, 
+                              headers={'Content-Type': 'application/json'})
     
     def delete_kegiatan(self, kegiatan_id):
-        try:
-            response = requests.delete(f"{self.base_url}/kegiatan/{kegiatan_id}", 
-                                     timeout=self.timeout)
-            response.raise_for_status()
-            return {"success": True, "data": response.json()}
-        except requests.exceptions.RequestException as e:
-            return {"success": False, "data": f"Gagal menghapus kegiatan: {e}"}
+        return self._make_request('DELETE', f"{self.base_url}/kegiatan/{kegiatan_id}")
     
     # ========== PENGUMUMAN METHODS ==========
     def get_pengumuman(self):
-        try:
-            response = requests.get(f"{self.base_url}/pengumuman", timeout=self.timeout)
-            response.raise_for_status()
-            return {"success": True, "data": response.json()}
-        except requests.exceptions.RequestException as e:
-            return {"success": False, "data": f"Gagal mengambil data pengumuman: {e}"}
+        return self._make_request('GET', f"{self.base_url}/pengumuman")
     
     def add_pengumuman(self, data):
-        try:
-            response = requests.post(f"{self.base_url}/pengumuman", 
-                                   json=data, 
-                                   timeout=self.timeout,
-                                   headers={'Content-Type': 'application/json'})
-            response.raise_for_status()
-            return {"success": True, "data": response.json()}
-        except requests.exceptions.RequestException as e:
-            return {"success": False, "data": f"Gagal menambah pengumuman: {e}"}
+        return self._make_request('POST', f"{self.base_url}/pengumuman", 
+                               json=data, 
+                               headers={'Content-Type': 'application/json'})
     
     def update_pengumuman(self, pengumuman_id, data):
-        try:
-            response = requests.put(f"{self.base_url}/pengumuman/{pengumuman_id}", 
-                                  json=data, 
-                                  timeout=self.timeout,
-                                  headers={'Content-Type': 'application/json'})
-            response.raise_for_status()
-            return {"success": True, "data": response.json()}
-        except requests.exceptions.RequestException as e:
-            return {"success": False, "data": f"Gagal mengupdate pengumuman: {e}"}
+        return self._make_request('PUT', f"{self.base_url}/pengumuman/{pengumuman_id}", 
+                              json=data, 
+                              headers={'Content-Type': 'application/json'})
     
     def delete_pengumuman(self, pengumuman_id):
-        try:
-            response = requests.delete(f"{self.base_url}/pengumuman/{pengumuman_id}", 
-                                     timeout=self.timeout)
-            response.raise_for_status()
-            return {"success": True, "data": response.json()}
-        except requests.exceptions.RequestException as e:
-            return {"success": False, "data": f"Gagal menghapus pengumuman: {e}"}
+        return self._make_request('DELETE', f"{self.base_url}/pengumuman/{pengumuman_id}")
     
     # ========== KEUANGAN METHODS ==========
     def get_keuangan(self):
-        try:
-            response = requests.get(f"{self.base_url}/keuangan", timeout=self.timeout)
-            response.raise_for_status()
-            return {"success": True, "data": response.json()}
-        except requests.exceptions.RequestException as e:
-            return {"success": False, "data": f"Gagal mengambil data keuangan: {e}"}
+        return self._make_request('GET', f"{self.base_url}/keuangan")
     
     def add_keuangan(self, data):
-        try:
-            response = requests.post(f"{self.base_url}/keuangan", 
-                                   json=data, 
-                                   timeout=self.timeout,
-                                   headers={'Content-Type': 'application/json'})
-            response.raise_for_status()
-            return {"success": True, "data": response.json()}
-        except requests.exceptions.RequestException as e:
-            return {"success": False, "data": f"Gagal menambah data keuangan: {e}"}
+        return self._make_request('POST', f"{self.base_url}/keuangan", 
+                               json=data, 
+                               headers={'Content-Type': 'application/json'})
     
     def update_keuangan(self, keuangan_id, data):
-        try:
-            response = requests.put(f"{self.base_url}/keuangan/{keuangan_id}", 
-                                  json=data, 
-                                  timeout=self.timeout,
-                                  headers={'Content-Type': 'application/json'})
-            response.raise_for_status()
-            return {"success": True, "data": response.json()}
-        except requests.exceptions.RequestException as e:
-            return {"success": False, "data": f"Gagal mengupdate data keuangan: {e}"}
+        return self._make_request('PUT', f"{self.base_url}/keuangan/{keuangan_id}", 
+                              json=data, 
+                              headers={'Content-Type': 'application/json'})
     
     def delete_keuangan(self, keuangan_id):
-        try:
-            response = requests.delete(f"{self.base_url}/keuangan/{keuangan_id}", 
-                                     timeout=self.timeout)
-            response.raise_for_status()
-            return {"success": True, "data": response.json()}
-        except requests.exceptions.RequestException as e:
-            return {"success": False, "data": f"Gagal menghapus data keuangan: {e}"}
+        return self._make_request('DELETE', f"{self.base_url}/keuangan/{keuangan_id}")
     
     # ========== FILES METHODS ==========
     def get_files(self):
-        try:
-            response = requests.get(f"{self.base_url}/files", timeout=self.timeout)
-            response.raise_for_status()
-            return {"success": True, "data": response.json()}
-        except requests.exceptions.RequestException as e:
-            return {"success": False, "data": f"Gagal mengambil data files: {e}"}
+        return self._make_request('GET', f"{self.base_url}/files")
     
-    def upload_file(self, file_path):
-        try:
-            with open(file_path, 'rb') as f:
-                files = {'file': f}
-                response = requests.post(f"{self.base_url}/upload", 
-                                       files=files, 
-                                       timeout=self.timeout)
-            response.raise_for_status()
-            return {"success": True, "data": response.json()}
-        except requests.exceptions.RequestException as e:
-            return {"success": False, "data": f"Gagal upload file: {e}"}
-        except Exception as e:
-            return {"success": False, "data": f"Error reading file: {e}"}
+    def upload_file(self, file_path, document_name=None, document_type=None):
+        """Upload file with improved error handling"""
+        for attempt in range(3):
+            try:
+                with open(file_path, 'rb') as f:
+                    files = {'file': f}
+                    
+                    # Prepare form data
+                    data = {}
+                    if document_name:
+                        data['document_name'] = document_name
+                    if document_type:
+                        data['document_type'] = document_type
+                        data['jenis_dokumen'] = document_type
+                    
+                    # Debug logging untuk upload
+                    print(f"Upload API - name: {document_name}, type: {document_type}")
+                    
+                    response = self.session.post(f"{self.base_url}/upload", 
+                                               files=files,
+                                               data=data,
+                                               timeout=self.timeout)
+                    response.raise_for_status()
+                    return {"success": True, "data": response.json()}
+                    
+            except ConnectionError as e:
+                if "Failed to resolve" in str(e) or "getaddrinfo failed" in str(e) or "Name or service not known" in str(e):
+                    if attempt < 2:
+                        time.sleep(2 ** attempt)
+                        continue
+                    return {"success": False, "data": f"Gagal terhubung ke server: Masalah koneksi internet atau DNS. Periksa koneksi internet Anda."}
+                else:
+                    return {"success": False, "data": f"Gagal upload file: {e}"}
+            except Timeout as e:
+                if attempt < 2:
+                    time.sleep(1)
+                    continue
+                return {"success": False, "data": f"Timeout upload file: {e}"}
+            except RequestException as e:
+                return {"success": False, "data": f"Gagal upload file: {e}"}
+            except Exception as e:
+                return {"success": False, "data": f"Error reading file: {e}"}
+        
+        return {"success": False, "data": "Gagal upload file setelah 3 kali percobaan"}
     
     def delete_file(self, file_id):
-        try:
-            response = requests.delete(f"{self.base_url}/files/{file_id}", 
-                                     timeout=self.timeout)
-            response.raise_for_status()
-            return {"success": True, "data": response.json()}
-        except requests.exceptions.RequestException as e:
-            return {"success": False, "data": f"Gagal menghapus file: {e}"}
+        return self._make_request('DELETE', f"{self.base_url}/files/{file_id}")
 # ========== LOG METHODS ==========
     def get_log_activities(self, limit=100):
-        try:
-            response = requests.get(f"{self.base_url}/log/activities?limit={limit}", timeout=self.timeout)
-            response.raise_for_status()
-            return {"success": True, "data": response.json()}
-        except requests.exceptions.RequestException as e:
-            return {"success": False, "data": f"Gagal mengambil log aktivitas: {e}"}
+        return self._make_request('GET', f"{self.base_url}/log/activities?limit={limit}")
     
     def add_log_activity(self, data):
-        try:
-            response = requests.post(f"{self.base_url}/log/activities", 
-                                   json=data, 
-                                   timeout=self.timeout,
-                                   headers={'Content-Type': 'application/json'})
-            response.raise_for_status()
-            return {"success": True, "data": response.json()}
-        except requests.exceptions.RequestException as e:
-            return {"success": False, "data": f"Gagal menambah log aktivitas: {e}"}
+        return self._make_request('POST', f"{self.base_url}/log/activities", 
+                               json=data, 
+                               headers={'Content-Type': 'application/json'})
     
     def get_recent_activities(self, limit=50, hours=24):
-        try:
-            response = requests.get(f"{self.base_url}/log/activities/recent?limit={limit}&hours={hours}", 
-                                  timeout=self.timeout)
-            response.raise_for_status()
-            return {"success": True, "data": response.json()}
-        except requests.exceptions.RequestException as e:
-            return {"success": False, "data": f"Gagal mengambil aktivitas terbaru: {e}"}
+        return self._make_request('GET', f"{self.base_url}/log/activities/recent?limit={limit}&hours={hours}")
     
     def get_admin_activities(self, admin_id, limit=100):
-        try:
-            response = requests.get(f"{self.base_url}/log/activities/admin/{admin_id}?limit={limit}", 
-                                  timeout=self.timeout)
-            response.raise_for_status()
-            return {"success": True, "data": response.json()}
-        except requests.exceptions.RequestException as e:
-            return {"success": False, "data": f"Gagal mengambil aktivitas admin: {e}"}
+        return self._make_request('GET', f"{self.base_url}/log/activities/admin/{admin_id}?limit={limit}")
     
     def download_file(self, file_id):
-        try:
-            response = requests.get(f"{self.base_url}/files/{file_id}/download", 
-                                  timeout=self.timeout)
-            response.raise_for_status()
-            return {"success": True, "data": response.content, "headers": response.headers}
-        except requests.exceptions.RequestException as e:
-            return {"success": False, "data": f"Gagal download file: {e}"}
+        """Download file with improved error handling"""
+        for attempt in range(3):
+            try:
+                response = self.session.get(f"{self.base_url}/files/{file_id}/download", 
+                                          timeout=self.timeout)
+                response.raise_for_status()
+                
+                # Debug logging untuk response
+                print(f"Download API - Status: {response.status_code}, Size: {len(response.content)} bytes")
+                
+                return {"success": True, "data": response.content, "headers": dict(response.headers)}
+                
+            except ConnectionError as e:
+                if "Failed to resolve" in str(e) or "getaddrinfo failed" in str(e) or "Name or service not known" in str(e):
+                    if attempt < 2:
+                        time.sleep(2 ** attempt)
+                        continue
+                    return {"success": False, "data": f"Gagal terhubung ke server: Masalah koneksi internet atau DNS. Periksa koneksi internet Anda."}
+                else:
+                    return {"success": False, "data": f"Gagal download file: {e}"}
+            except Timeout as e:
+                if attempt < 2:
+                    time.sleep(1)
+                    continue
+                return {"success": False, "data": f"Timeout download file: {e}"}
+            except RequestException as e:
+                return {"success": False, "data": f"Gagal download file: {e}"}
+        
+        return {"success": False, "data": "Gagal download file setelah 3 kali percobaan"}
     # ========== PESAN METHODS ==========
     def get_recent_messages(self, limit=50):
-        try:
-            response = requests.get(f"{self.base_url}/pesan/recent?limit={limit}", 
-                                  timeout=self.timeout)
-            response.raise_for_status()
-            return {"success": True, "data": response.json()}
-        except requests.exceptions.RequestException as e:
-            return {"success": False, "data": f"Gagal mengambil pesan: {e}"}
+        return self._make_request('GET', f"{self.base_url}/pesan/recent?limit={limit}")
     
     def send_message(self, message_data):
-        try:
-            response = requests.post(f"{self.base_url}/pesan", 
-                                   json=message_data, 
-                                   timeout=self.timeout,
-                                   headers={'Content-Type': 'application/json'})
-            response.raise_for_status()
-            return {"success": True, "data": response.json()}
-        except requests.exceptions.RequestException as e:
-            return {"success": False, "data": f"Gagal mengirim pesan: {e}"}
+        return self._make_request('POST', f"{self.base_url}/pesan", 
+                               json=message_data, 
+                               headers={'Content-Type': 'application/json'})
     
     def get_broadcast_messages(self, limit=20):
-        try:
-            response = requests.get(f"{self.base_url}/pesan/broadcast?limit={limit}", 
-                                  timeout=self.timeout)
-            response.raise_for_status()
-            return {"success": True, "data": response.json()}
-        except requests.exceptions.RequestException as e:
-            return {"success": False, "data": f"Gagal mengambil broadcast messages: {e}"}
+        return self._make_request('GET', f"{self.base_url}/pesan/broadcast?limit={limit}")

@@ -44,11 +44,11 @@ class JemaatComponent(QWidget):
         header = self.create_header()
         layout.addWidget(header)
         
-        # Tabel Jemaat (hapus kolom ID)
-        self.jemaat_table = QTableWidget(0, 6)
+        # Tabel Jemaat dengan kolom yang lebih relevan
+        self.jemaat_table = QTableWidget(0, 8)
         self.jemaat_table.setHorizontalHeaderLabels([
-            "Nama Lengkap", "Alamat", "No. Telepon", 
-            "Email", "Tanggal Lahir", "Jenis Kelamin"
+            "Nama Lengkap", "Wilayah Rohani", "Nama Keluarga", "Tempat Lahir",
+            "Tanggal Lahir", "Jenis Kelamin", "Hubungan Keluarga", "Status"
         ])
         self.jemaat_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.jemaat_table.setSelectionBehavior(QAbstractItemView.SelectRows)
@@ -183,11 +183,12 @@ class JemaatComponent(QWidget):
             row_pos = self.jemaat_table.rowCount()
             self.jemaat_table.insertRow(row_pos)
             
-            # Konversi data ke string dengan penanganan None (tanpa kolom ID)
+            # Kolom yang lebih relevan untuk menampilkan data jemaat
+            # Untuk compatibility dengan database lama, gunakan fallback values
             self.jemaat_table.setItem(row_pos, 0, QTableWidgetItem(str(row_data.get('nama_lengkap', ''))))
-            self.jemaat_table.setItem(row_pos, 1, QTableWidgetItem(str(row_data.get('alamat', ''))))
-            self.jemaat_table.setItem(row_pos, 2, QTableWidgetItem(str(row_data.get('no_telepon', ''))))
-            self.jemaat_table.setItem(row_pos, 3, QTableWidgetItem(str(row_data.get('email', ''))))
+            self.jemaat_table.setItem(row_pos, 1, QTableWidgetItem(str(row_data.get('wilayah_rohani', row_data.get('wilayah', '')))))
+            self.jemaat_table.setItem(row_pos, 2, QTableWidgetItem(str(row_data.get('nama_keluarga', ''))))
+            self.jemaat_table.setItem(row_pos, 3, QTableWidgetItem(str(row_data.get('tempat_lahir', ''))))
             
             # Handle tanggal lahir
             tanggal_lahir = row_data.get('tanggal_lahir')
@@ -200,7 +201,17 @@ class JemaatComponent(QWidget):
                 tanggal_str = ''
                 
             self.jemaat_table.setItem(row_pos, 4, QTableWidgetItem(tanggal_str))
-            self.jemaat_table.setItem(row_pos, 5, QTableWidgetItem(str(row_data.get('jenis_kelamin', ''))))
+            
+            # Handle jenis kelamin - convert dari format lama ke format baru
+            jenis_kelamin = row_data.get('jenis_kelamin', '')
+            if jenis_kelamin == 'Laki-laki':
+                jenis_kelamin = 'L'
+            elif jenis_kelamin == 'Perempuan':
+                jenis_kelamin = 'P'
+            self.jemaat_table.setItem(row_pos, 5, QTableWidgetItem(str(jenis_kelamin)))
+            
+            self.jemaat_table.setItem(row_pos, 6, QTableWidgetItem(str(row_data.get('hubungan_keluarga', ''))))
+            self.jemaat_table.setItem(row_pos, 7, QTableWidgetItem(str(row_data.get('status_keanggotaan', 'Aktif'))))
     
     def add_jemaat(self):
         """Tambah jemaat baru"""
@@ -213,17 +224,37 @@ class JemaatComponent(QWidget):
                 QMessageBox.warning(self, "Error", "Nama lengkap harus diisi")
                 return
             
+            if not data['jenis_kelamin']:
+                QMessageBox.warning(self, "Error", "Jenis kelamin harus dipilih")
+                return
+            
             if not self.db_manager:
                 QMessageBox.warning(self, "Error", "Database tidak tersedia")
                 return
             
             try:
-                success, result = self.db_manager.add_jemaat(data)
+                # Filter data untuk compatibility dengan API yang ada
+                # Hanya kirim field yang sudah ada di database lama
+                filtered_data = {
+                    'nama_lengkap': data.get('nama_lengkap', ''),
+                    'alamat': data.get('alamat', ''),
+                    'no_telepon': data.get('no_telepon', ''),
+                    'email': data.get('email', ''),
+                    'tanggal_lahir': data.get('tanggal_lahir', ''),
+                    'jenis_kelamin': 'Laki-laki' if data.get('jenis_kelamin') == 'L' else 'Perempuan'
+                }
+                
+                success, result = self.db_manager.add_jemaat(filtered_data)
                 
                 if success:
                     QMessageBox.information(self, "Sukses", "Data jemaat berhasil ditambahkan")
                     self.load_data()
                     self.log_message.emit(f"Jemaat baru ditambahkan: {data['nama_lengkap']}")
+                    
+                    # Inform user about enhanced features
+                    QMessageBox.information(self, "Info", 
+                        "Data berhasil disimpan! Catatan: Fitur lengkap seperti sakramen dan wilayah rohani "
+                        "akan tersedia setelah database server diupdate dengan schema terbaru.")
                 else:
                     QMessageBox.warning(self, "Error", f"Gagal menambahkan jemaat: {result}")
                     self.log_message.emit(f"Error adding jemaat: {result}")
@@ -253,13 +284,28 @@ class JemaatComponent(QWidget):
                 QMessageBox.warning(self, "Error", "Nama lengkap harus diisi")
                 return
             
+            if not data['jenis_kelamin']:
+                QMessageBox.warning(self, "Error", "Jenis kelamin harus dipilih")
+                return
+            
             if not self.db_manager:
                 QMessageBox.warning(self, "Error", "Database tidak tersedia")
                 return
             
             try:
+                # Filter data untuk compatibility dengan API yang ada
+                # Hanya kirim field yang sudah ada di database lama
+                filtered_data = {
+                    'nama_lengkap': data.get('nama_lengkap', ''),
+                    'alamat': data.get('alamat', ''),
+                    'no_telepon': data.get('no_telepon', ''),
+                    'email': data.get('email', ''),
+                    'tanggal_lahir': data.get('tanggal_lahir', ''),
+                    'jenis_kelamin': 'Laki-laki' if data.get('jenis_kelamin') == 'L' else 'Perempuan'
+                }
+                
                 id_jemaat = jemaat_data['id_jemaat']
-                success, result = self.db_manager.update_jemaat(id_jemaat, data)
+                success, result = self.db_manager.update_jemaat(id_jemaat, filtered_data)
                 
                 if success:
                     QMessageBox.information(self, "Sukses", "Data jemaat berhasil diupdate")
@@ -334,18 +380,52 @@ class JemaatComponent(QWidget):
             
             if filename:
                 with open(filename, 'w', newline='', encoding='utf-8') as csvfile:
-                    fieldnames = ['Nama Lengkap', 'Alamat', 'No. Telepon', 'Email', 'Tanggal Lahir', 'Jenis Kelamin']
+                    fieldnames = [
+                        'Nama Lengkap', 'Wilayah Rohani', 'Nama Keluarga', 'Tempat Lahir', 
+                        'Tanggal Lahir', 'Jenis Kelamin', 'Hubungan Keluarga', 'Pendidikan Terakhir',
+                        'Jenis Pekerjaan', 'Detail Pekerjaan', 'Status Menikah', 'Alamat', 'No. Telepon', 'Email',
+                        'Status Babtis', 'Tempat Babtis', 'Tanggal Babtis', 'Nama Babtis',
+                        'Status Ekaristi', 'Tempat Komuni', 'Tanggal Komuni',
+                        'Status Krisma', 'Tempat Krisma', 'Tanggal Krisma',
+                        'Status Perkawinan', 'Keuskupan', 'Paroki', 'Kota Perkawinan', 
+                        'Tanggal Perkawinan', 'Status Perkawinan Detail', 'Status Keanggotaan'
+                    ]
                     writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                     
                     writer.writeheader()
                     for data in self.jemaat_data:
                         writer.writerow({
                             'Nama Lengkap': data.get('nama_lengkap', ''),
+                            'Wilayah Rohani': data.get('wilayah_rohani', ''),
+                            'Nama Keluarga': data.get('nama_keluarga', ''),
+                            'Tempat Lahir': data.get('tempat_lahir', ''),
+                            'Tanggal Lahir': str(data.get('tanggal_lahir', '')),
+                            'Jenis Kelamin': data.get('jenis_kelamin', ''),
+                            'Hubungan Keluarga': data.get('hubungan_keluarga', ''),
+                            'Pendidikan Terakhir': data.get('pendidikan_terakhir', ''),
+                            'Jenis Pekerjaan': data.get('jenis_pekerjaan', ''),
+                            'Detail Pekerjaan': data.get('detail_pekerjaan', ''),
+                            'Status Menikah': data.get('status_menikah', ''),
                             'Alamat': data.get('alamat', ''),
                             'No. Telepon': data.get('no_telepon', ''),
                             'Email': data.get('email', ''),
-                            'Tanggal Lahir': str(data.get('tanggal_lahir', '')),
-                            'Jenis Kelamin': data.get('jenis_kelamin', '')
+                            'Status Babtis': data.get('status_babtis', ''),
+                            'Tempat Babtis': data.get('tempat_babtis', ''),
+                            'Tanggal Babtis': str(data.get('tanggal_babtis', '')),
+                            'Nama Babtis': data.get('nama_babtis', ''),
+                            'Status Ekaristi': data.get('status_ekaristi', ''),
+                            'Tempat Komuni': data.get('tempat_komuni', ''),
+                            'Tanggal Komuni': str(data.get('tanggal_komuni', '')),
+                            'Status Krisma': data.get('status_krisma', ''),
+                            'Tempat Krisma': data.get('tempat_krisma', ''),
+                            'Tanggal Krisma': str(data.get('tanggal_krisma', '')),
+                            'Status Perkawinan': data.get('status_perkawinan', ''),
+                            'Keuskupan': data.get('keuskupan', ''),
+                            'Paroki': data.get('paroki', ''),
+                            'Kota Perkawinan': data.get('kota_perkawinan', ''),
+                            'Tanggal Perkawinan': str(data.get('tanggal_perkawinan', '')),
+                            'Status Perkawinan Detail': data.get('status_perkawinan_detail', ''),
+                            'Status Keanggotaan': data.get('status_keanggotaan', '')
                         })
                 
                 QMessageBox.information(self, "Sukses", f"Data berhasil diekspor ke {filename}")

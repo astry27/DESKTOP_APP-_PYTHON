@@ -9,18 +9,51 @@ from datetime import datetime
 
 load_dotenv()
 
-BASE_URL = os.getenv('API_BASE_URL', 'https://enternal.my.id/flask')
+# Prioritaskan localhost untuk development, fallback ke remote
+BASE_URL = os.getenv('API_BASE_URL', 'http://localhost:8000')  # Ganti ke port server Anda
+REMOTE_URL = 'https://enternal.my.id/flask'  # Backup URL
 
 class ApiClient:
     
     def __init__(self):
         self.base_url = BASE_URL
+        self.remote_url = REMOTE_URL
         self.timeout = 10
         self.client_ip = self.get_client_ip()
         self.client_hostname = socket.gethostname()
         self.session_id = None
         self.user_data = None
         self.device_info = self.get_device_info()
+        
+        # Auto-detect best server
+        self._detect_best_server()
+    
+    def _detect_best_server(self):
+        """Auto-detect apakah menggunakan localhost atau remote server"""
+        # List server untuk dicoba
+        servers_to_try = [
+            'http://localhost:8000',  # Server HTTP lokal
+            'http://localhost:5000',  # Flask default
+            'http://localhost:3000',  # Express default
+            'http://127.0.0.1:8000',  # IPv4 localhost
+            self.remote_url  # Remote server sebagai fallback
+        ]
+        
+        print("Mencari server yang tersedia...")
+        for server_url in servers_to_try:
+            try:
+                print(f"  Testing: {server_url}")
+                response = requests.get(server_url, timeout=3)
+                if response.status_code in [200, 404]:  # 404 juga OK, artinya server hidup
+                    self.base_url = server_url
+                    print(f"Server ditemukan: {server_url}")
+                    return
+            except:
+                continue
+        
+        # Jika semua gagal, gunakan default
+        print(f"Tidak ada server yang tersedia, menggunakan default: {BASE_URL}")
+        self.base_url = BASE_URL
     
     def get_client_ip(self):
         try:
@@ -368,3 +401,88 @@ class ApiClient:
             return {"success": True, "data": response.json()}
         except requests.exceptions.RequestException as e:
             return {"success": False, "data": f"Gagal mengambil client aktif: {e}"}
+    
+    # ========== BROADCAST DATA METHODS (Client View) ==========
+    def get_broadcast_jemaat(self):
+        """Get jemaat data that has been broadcast by admin"""
+        try:
+            response = requests.get(f"{self.base_url}/broadcast/jemaat", 
+                                  timeout=self.timeout)
+            response.raise_for_status()
+            return {"success": True, "data": response.json()}
+        except requests.exceptions.RequestException as e:
+            return {"success": False, "data": f"Gagal mengambil data broadcast jemaat: {e}"}
+    
+    def get_broadcast_kegiatan(self):
+        """Get kegiatan data that has been broadcast by admin"""
+        try:
+            response = requests.get(f"{self.base_url}/broadcast/kegiatan", 
+                                  timeout=self.timeout)
+            response.raise_for_status()
+            return {"success": True, "data": response.json()}
+        except requests.exceptions.RequestException as e:
+            return {"success": False, "data": f"Gagal mengambil data broadcast kegiatan: {e}"}
+    
+    def get_broadcast_keuangan(self):
+        """Get keuangan data that has been broadcast by admin"""
+        try:
+            response = requests.get(f"{self.base_url}/broadcast/keuangan", 
+                                  timeout=self.timeout)
+            response.raise_for_status()
+            return {"success": True, "data": response.json()}
+        except requests.exceptions.RequestException as e:
+            return {"success": False, "data": f"Gagal mengambil data broadcast keuangan: {e}"}
+    
+    def get_broadcast_dokumen(self):
+        """Get dokumen data that has been broadcast by admin"""
+        try:
+            response = requests.get(f"{self.base_url}/broadcast/dokumen", 
+                                  timeout=self.timeout)
+            response.raise_for_status()
+            return {"success": True, "data": response.json()}
+        except requests.exceptions.RequestException as e:
+            return {"success": False, "data": f"Gagal mengambil data broadcast dokumen: {e}"}
+    
+    def change_password(self, username, old_password, new_password):
+        """Change user password"""
+        try:
+            data = {
+                "username": username,
+                "old_password": old_password,
+                "new_password": new_password
+            }
+            
+            response = requests.post(f"{self.base_url}/change-password", 
+                                   json=data,
+                                   headers={'Content-Type': 'application/json'},
+                                   timeout=self.timeout)
+            response.raise_for_status()
+            
+            result = response.json()
+            if result.get("status") == "success":
+                return {"success": True, "data": result}
+            else:
+                return {"success": False, "data": result.get("message", "Gagal mengubah password")}
+                
+        except requests.exceptions.RequestException as e:
+            return {"success": False, "data": f"Gagal mengubah password: {e}"}
+    
+    def logout(self):
+        """Logout user and clear session"""
+        try:
+            if self.session_id:
+                data = {"session_id": self.session_id}
+                response = requests.post(f"{self.base_url}/logout", 
+                                       json=data,
+                                       headers={'Content-Type': 'application/json'},
+                                       timeout=self.timeout)
+                response.raise_for_status()
+            
+            # Clear session data
+            self.session_id = None
+            return {"success": True, "data": "Logout berhasil"}
+            
+        except requests.exceptions.RequestException as e:
+            # Even if logout request fails, clear local session
+            self.session_id = None
+            return {"success": True, "data": f"Logout selesai (warning: {e})"}

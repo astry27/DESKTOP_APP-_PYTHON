@@ -120,6 +120,7 @@ CREATE TABLE IF NOT EXISTS pesan (
 CREATE TABLE IF NOT EXISTS dokumen (
     id_dokumen INT AUTO_INCREMENT PRIMARY KEY,
     nama_dokumen VARCHAR(200) NOT NULL,
+    jenis_dokumen ENUM('Administrasi', 'Keanggotaan', 'Keuangan', 'Liturgi', 'Legalitas') NOT NULL DEFAULT 'Administrasi',
     file_path VARCHAR(500) NOT NULL,
     ukuran_file BIGINT,
     tipe_file VARCHAR(50),
@@ -127,6 +128,7 @@ CREATE TABLE IF NOT EXISTS dokumen (
     keterangan TEXT,
     uploaded_by_admin INT,
     uploaded_by_pengguna INT,
+    uploaded_by_name VARCHAR(100),
     upload_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (uploaded_by_admin) REFERENCES admin(id_admin) ON DELETE SET NULL,
     FOREIGN KEY (uploaded_by_pengguna) REFERENCES pengguna(id_pengguna) ON DELETE SET NULL
@@ -217,6 +219,9 @@ CREATE INDEX idx_keuangan_tanggal ON keuangan(tanggal);
 CREATE INDEX idx_keuangan_kategori ON keuangan(kategori);
 CREATE INDEX idx_pesan_waktu ON pesan(waktu_kirim);
 CREATE INDEX idx_log_timestamp ON log_aktivitas(timestamp);
+CREATE INDEX idx_dokumen_jenis ON dokumen(jenis_dokumen);
+CREATE INDEX idx_dokumen_tipe ON dokumen(tipe_file);
+CREATE INDEX idx_dokumen_upload_date ON dokumen(upload_date);
 CREATE INDEX idx_client_ip ON client_connections(client_ip);
 CREATE INDEX idx_client_status ON client_connections(status);
 CREATE INDEX idx_server_status ON server_sessions(status);

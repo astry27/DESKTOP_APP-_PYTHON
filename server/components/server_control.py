@@ -142,14 +142,14 @@ class ServerControlComponent(QWidget):
         self.clear_log_button.clicked.connect(self.clear_log)
         self.clear_log_button.setStyleSheet("""
             QPushButton {
-                background-color: #3498db;
+                background-color: #e74c3c;
                 color: white;
                 padding: 5px 10px;
                 border: none;
                 border-radius: 3px;
             }
             QPushButton:hover {
-                background-color: #2980b9;
+                background-color: #c0392b;
             }
         """)
         
