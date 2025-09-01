@@ -33,7 +33,7 @@ class JemaatComponent(QWidget):
         header_frame.setStyleSheet("background-color: #34495e; color: white; padding: 2px;")
         header_layout = QHBoxLayout(header_frame)
         
-        title_label = QLabel("Database Jemaat")
+        title_label = QLabel("Database Umat")
         title_label.setStyleSheet("font-size: 16px; font-weight: bold; color: white;")
         header_layout.addWidget(title_label)
         header_layout.addStretch()
@@ -238,7 +238,6 @@ class JemaatComponent(QWidget):
                 filtered_data = {
                     'nama_lengkap': data.get('nama_lengkap', ''),
                     'alamat': data.get('alamat', ''),
-                    'no_telepon': data.get('no_telepon', ''),
                     'email': data.get('email', ''),
                     'tanggal_lahir': data.get('tanggal_lahir', ''),
                     'jenis_kelamin': 'Laki-laki' if data.get('jenis_kelamin') == 'L' else 'Perempuan'
@@ -298,7 +297,6 @@ class JemaatComponent(QWidget):
                 filtered_data = {
                     'nama_lengkap': data.get('nama_lengkap', ''),
                     'alamat': data.get('alamat', ''),
-                    'no_telepon': data.get('no_telepon', ''),
                     'email': data.get('email', ''),
                     'tanggal_lahir': data.get('tanggal_lahir', ''),
                     'jenis_kelamin': 'Laki-laki' if data.get('jenis_kelamin') == 'L' else 'Perempuan'
@@ -383,7 +381,7 @@ class JemaatComponent(QWidget):
                     fieldnames = [
                         'Nama Lengkap', 'Wilayah Rohani', 'Nama Keluarga', 'Tempat Lahir', 
                         'Tanggal Lahir', 'Jenis Kelamin', 'Hubungan Keluarga', 'Pendidikan Terakhir',
-                        'Jenis Pekerjaan', 'Detail Pekerjaan', 'Status Menikah', 'Alamat', 'No. Telepon', 'Email',
+                        'Jenis Pekerjaan', 'Detail Pekerjaan', 'Status Menikah', 'Alamat', 'Email',
                         'Status Babtis', 'Tempat Babtis', 'Tanggal Babtis', 'Nama Babtis',
                         'Status Ekaristi', 'Tempat Komuni', 'Tanggal Komuni',
                         'Status Krisma', 'Tempat Krisma', 'Tanggal Krisma',
@@ -407,7 +405,6 @@ class JemaatComponent(QWidget):
                             'Detail Pekerjaan': data.get('detail_pekerjaan', ''),
                             'Status Menikah': data.get('status_menikah', ''),
                             'Alamat': data.get('alamat', ''),
-                            'No. Telepon': data.get('no_telepon', ''),
                             'Email': data.get('email', ''),
                             'Status Babtis': data.get('status_babtis', ''),
                             'Tempat Babtis': data.get('tempat_babtis', ''),

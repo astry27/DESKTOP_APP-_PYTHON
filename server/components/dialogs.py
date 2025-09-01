@@ -72,6 +72,18 @@ class JemaatDialog(QDialog):
         self.tanggal_lahir_input.setCalendarPopup(True)
         self.tanggal_lahir_input.setDate(QDate.currentDate())  # Set to current date
         self.tanggal_lahir_input.setMinimumWidth(300)
+        self.tanggal_lahir_input.dateChanged.connect(self.calculate_age)
+        
+        self.umur_input = QLineEdit()
+        self.umur_input.setMinimumWidth(300)
+        self.umur_input.setPlaceholderText("Umur akan dihitung otomatis")
+        self.umur_input.setReadOnly(True)
+        
+        self.kategori_input = QComboBox()
+        self.kategori_input.addItems(["Pilih Kategori", "Balita", "Anak-anak", "Remaja", "OMK", "KBK", "KIK", "Lansia"])
+        self.kategori_input.setCurrentIndex(0)
+        self.kategori_input.setMinimumWidth(300)
+        self.setup_placeholder_style(self.kategori_input)
         
         self.jenis_kelamin_input = QComboBox()
         self.jenis_kelamin_input.addItems(["Pilih Jenis Kelamin", "L", "P"])
@@ -92,27 +104,24 @@ class JemaatDialog(QDialog):
         self.setup_placeholder_style(self.pendidikan_terakhir_input)
         
         self.jenis_pekerjaan_input = QComboBox()
-        self.jenis_pekerjaan_input.addItems(["Pilih pekerjaan", "Pelajar", "Bekerja", "Tidak Bekerja"])
+        self.jenis_pekerjaan_input.addItems(["Pilih status pekerjaan", "Pelajar", "Bekerja", "Tidak Bekerja"])
         self.jenis_pekerjaan_input.setCurrentIndex(0)
         self.jenis_pekerjaan_input.setMinimumWidth(300)
         self.setup_placeholder_style(self.jenis_pekerjaan_input)
-        self.jenis_pekerjaan_input.currentTextChanged.connect(self.on_pekerjaan_changed)
+        self.jenis_pekerjaan_input.currentTextChanged.connect(self.on_jenis_pekerjaan_changed)
         
         self.detail_pekerjaan_input = QLineEdit()
         self.detail_pekerjaan_input.setMinimumWidth(300)
         self.detail_pekerjaan_input.setVisible(False)
         
         self.status_menikah_input = QComboBox()
-        self.status_menikah_input.addItems(["Pilih status", "Sudah Menikah", "Belum Menikah"])
+        self.status_menikah_input.addItems(["Belum Menikah", "Sudah Menikah", "Duda", "Janda"])
         self.status_menikah_input.setCurrentIndex(0)
         self.status_menikah_input.setMinimumWidth(300)
-        self.setup_placeholder_style(self.status_menikah_input)
         
         # Legacy fields for compatibility
         self.alamat_input = QLineEdit()
         self.alamat_input.setMinimumWidth(300)
-        self.no_telepon_input = QLineEdit()
-        self.no_telepon_input.setMinimumWidth(300)
         self.email_input = QLineEdit()
         self.email_input.setMinimumWidth(300)
         
@@ -121,14 +130,25 @@ class JemaatDialog(QDialog):
         data_diri_layout.addRow("Nama Lengkap:", self.nama_lengkap_input)
         data_diri_layout.addRow("Tempat Lahir:", self.tempat_lahir_input)
         data_diri_layout.addRow("Tanggal Lahir:", self.tanggal_lahir_input)
+        data_diri_layout.addRow("Umur:", self.umur_input)
+        data_diri_layout.addRow("Kategori:", self.kategori_input)
         data_diri_layout.addRow("Jenis Kelamin:", self.jenis_kelamin_input)
         data_diri_layout.addRow("Hubungan Keluarga:", self.hubungan_keluarga_input)
         data_diri_layout.addRow("Pendidikan Terakhir:", self.pendidikan_terakhir_input)
         data_diri_layout.addRow("Status Menikah:", self.status_menikah_input)
-        data_diri_layout.addRow("Jenis Pekerjaan:", self.jenis_pekerjaan_input)
-        data_diri_layout.addRow("Detail Pekerjaan:", self.detail_pekerjaan_input)
+        data_diri_layout.addRow("Status Pekerjaan:", self.jenis_pekerjaan_input)
+        
+        # Store reference to detail pekerjaan label and field
+        self.detail_pekerjaan_label = QLabel("Detail Pekerjaan:")
+        data_diri_layout.addRow(self.detail_pekerjaan_label, self.detail_pekerjaan_input)
+        # Initially hide both label and input
+        self.detail_pekerjaan_label.setVisible(False)
+        self.detail_pekerjaan_input.setVisible(False)
+        
+        # Trigger initial state for detail pekerjaan (should be hidden by default)
+        self.on_jenis_pekerjaan_changed(self.jenis_pekerjaan_input.currentText())
+        
         data_diri_layout.addRow("Alamat:", self.alamat_input)
-        data_diri_layout.addRow("No. Telepon:", self.no_telepon_input)
         data_diri_layout.addRow("Email:", self.email_input)
         
         # Set consistent spacing and alignment
@@ -314,12 +334,29 @@ class JemaatDialog(QDialog):
         status_layout = QFormLayout(status_group)
         
         self.status_keanggotaan_input = QComboBox()
-        self.status_keanggotaan_input.addItems(["Pilih Status", "Aktif", "Pindah", "Meninggal Dunia", "Tidak Aktif"])
+        self.status_keanggotaan_input.addItems(["Pilih Status", "Aktif", "Pindah", "Meninggal Dunia"])
         self.status_keanggotaan_input.setCurrentIndex(0)
         self.status_keanggotaan_input.setMinimumWidth(300)
         self.setup_placeholder_style(self.status_keanggotaan_input)
+        self.status_keanggotaan_input.currentTextChanged.connect(self.on_status_keanggotaan_changed)
+        
+        # Conditional fields for Pindah status
+        self.wilayah_rohani_pindah_input = QLineEdit()
+        self.wilayah_rohani_pindah_input.setMinimumWidth(300)
+        self.wilayah_rohani_pindah_input.setVisible(False)
+        
+        self.paroki_pindah_input = QLineEdit()
+        self.paroki_pindah_input.setMinimumWidth(300)
+        self.paroki_pindah_input.setVisible(False)
+        
+        self.keuskupan_pindah_input = QLineEdit()
+        self.keuskupan_pindah_input.setMinimumWidth(300)
+        self.keuskupan_pindah_input.setVisible(False)
         
         status_layout.addRow("Status Keanggotaan:", self.status_keanggotaan_input)
+        status_layout.addRow("Wilayah Rohani Tujuan:", self.wilayah_rohani_pindah_input)
+        status_layout.addRow("Paroki Tujuan:", self.paroki_pindah_input)
+        status_layout.addRow("Keuskupan Tujuan:", self.keuskupan_pindah_input)
         
         # Set consistent spacing and alignment
         status_layout.setVerticalSpacing(5)
@@ -428,9 +465,53 @@ class JemaatDialog(QDialog):
         
         combo_box.currentIndexChanged.connect(on_selection_changed)
     
-    def on_pekerjaan_changed(self, text):
-        """Handle perubahan jenis pekerjaan"""
-        self.detail_pekerjaan_input.setVisible(text == "Tidak Bekerja")
+    def calculate_age(self):
+        """Calculate age based on birth date"""
+        try:
+            birth_date = self.tanggal_lahir_input.date()
+            current_date = QDate.currentDate()
+            
+            age = current_date.year() - birth_date.year()
+            
+            # Adjust if birthday hasn't occurred this year
+            if (current_date.month() < birth_date.month() or 
+                (current_date.month() == birth_date.month() and current_date.day() < birth_date.day())):
+                age -= 1
+            
+            self.umur_input.setText(f"{age} tahun")
+            
+            # Auto-set kategori based on age
+            if age < 2:
+                self.kategori_input.setCurrentText("Balita")
+            elif age < 12:
+                self.kategori_input.setCurrentText("Anak-anak")
+            elif age < 18:
+                self.kategori_input.setCurrentText("Remaja")
+            elif age < 30:
+                self.kategori_input.setCurrentText("OMK")
+            elif age < 50:
+                self.kategori_input.setCurrentText("KBK")
+            elif age < 60:
+                self.kategori_input.setCurrentText("KIK")
+            else:
+                self.kategori_input.setCurrentText("Lansia")
+                
+        except Exception as e:
+            self.umur_input.setText("")
+    
+    def on_status_keanggotaan_changed(self, text):
+        """Handle perubahan status keanggotaan"""
+        visible = (text == "Pindah")
+        self.wilayah_rohani_pindah_input.setVisible(visible)
+        self.paroki_pindah_input.setVisible(visible)
+        self.keuskupan_pindah_input.setVisible(visible)
+    
+    def on_jenis_pekerjaan_changed(self, text):
+        """Handle perubahan status pekerjaan"""
+        # Detail pekerjaan hanya muncul saat pilih "Bekerja"
+        visible = (text == "Bekerja")
+        self.detail_pekerjaan_label.setVisible(visible)
+        self.detail_pekerjaan_input.setVisible(visible)
     
     def on_babtis_status_changed(self, text):
         """Handle perubahan status babtis"""
@@ -471,7 +552,6 @@ class JemaatDialog(QDialog):
         self.nama_lengkap_input.setText(str(self.jemaat_data.get('nama_lengkap', '')))
         self.tempat_lahir_input.setText(str(self.jemaat_data.get('tempat_lahir', '')))
         self.alamat_input.setText(str(self.jemaat_data.get('alamat', '')))
-        self.no_telepon_input.setText(str(self.jemaat_data.get('no_telepon', '')))
         self.email_input.setText(str(self.jemaat_data.get('email', '')))
         self.detail_pekerjaan_input.setText(str(self.jemaat_data.get('detail_pekerjaan', '')))
         
@@ -499,6 +579,13 @@ class JemaatDialog(QDialog):
         self.set_combo_value(self.pendidikan_terakhir_input, self.jemaat_data.get('pendidikan_terakhir', 'SMA'))
         self.set_combo_value(self.jenis_pekerjaan_input, self.jemaat_data.get('jenis_pekerjaan', 'Bekerja'))
         self.set_combo_value(self.status_menikah_input, self.jemaat_data.get('status_menikah', 'Belum Menikah'))
+        self.set_combo_value(self.kategori_input, self.jemaat_data.get('kategori', ''))
+        
+        # Calculate age after setting birth date
+        self.calculate_age()
+        
+        # Trigger pekerjaan changed to show/hide detail pekerjaan
+        self.on_jenis_pekerjaan_changed(self.jenis_pekerjaan_input.currentText())
         
         # Sakramen Babtis
         self.set_combo_value(self.status_babtis_input, self.jemaat_data.get('status_babtis', 'Belum'))
@@ -515,6 +602,9 @@ class JemaatDialog(QDialog):
             except:
                 pass
         
+        # Trigger babtis changed to show/hide fields
+        self.on_babtis_status_changed(self.status_babtis_input.currentText())
+        
         # Sakramen Ekaristi
         self.set_combo_value(self.status_ekaristi_input, self.jemaat_data.get('status_ekaristi', 'Belum'))
         self.tempat_komuni_input.setText(str(self.jemaat_data.get('tempat_komuni', '')))
@@ -529,6 +619,9 @@ class JemaatDialog(QDialog):
             except:
                 pass
         
+        # Trigger ekaristi changed to show/hide fields
+        self.on_ekaristi_status_changed(self.status_ekaristi_input.currentText())
+        
         # Sakramen Krisma
         self.set_combo_value(self.status_krisma_input, self.jemaat_data.get('status_krisma', 'Belum'))
         self.tempat_krisma_input.setText(str(self.jemaat_data.get('tempat_krisma', '')))
@@ -542,6 +635,9 @@ class JemaatDialog(QDialog):
                 self.tanggal_krisma_input.setDate(date)
             except:
                 pass
+        
+        # Trigger krisma changed to show/hide fields
+        self.on_krisma_status_changed(self.status_krisma_input.currentText())
         
         # Sakramen Perkawinan
         self.set_combo_value(self.status_perkawinan_input, self.jemaat_data.get('status_perkawinan', 'Belum'))
@@ -560,8 +656,19 @@ class JemaatDialog(QDialog):
             except:
                 pass
         
+        # Trigger perkawinan changed to show/hide fields
+        self.on_perkawinan_status_changed(self.status_perkawinan_input.currentText())
+        
         # Status
         self.set_combo_value(self.status_keanggotaan_input, self.jemaat_data.get('status_keanggotaan', 'Aktif'))
+        
+        # Conditional Pindah fields
+        self.wilayah_rohani_pindah_input.setText(str(self.jemaat_data.get('wilayah_rohani_pindah', '')))
+        self.paroki_pindah_input.setText(str(self.jemaat_data.get('paroki_pindah', '')))
+        self.keuskupan_pindah_input.setText(str(self.jemaat_data.get('keuskupan_pindah', '')))
+        
+        # Trigger status keanggotaan changed to show/hide pindah fields
+        self.on_status_keanggotaan_changed(self.status_keanggotaan_input.currentText())
     
     def set_combo_value(self, combo, value):
         """Set combo box value"""
@@ -590,6 +697,8 @@ class JemaatDialog(QDialog):
             'nama_lengkap': self.nama_lengkap_input.text().strip(),
             'tempat_lahir': self.tempat_lahir_input.text().strip(),
             'tanggal_lahir': self.tanggal_lahir_input.date().toString("yyyy-MM-dd"),
+            'umur': self.umur_input.text().replace(' tahun', ''),
+            'kategori': get_combo_value(self.kategori_input),
             'jenis_kelamin': get_combo_value(self.jenis_kelamin_input),
             'hubungan_keluarga': get_combo_value(self.hubungan_keluarga_input),
             'pendidikan_terakhir': get_combo_value(self.pendidikan_terakhir_input),
@@ -597,7 +706,6 @@ class JemaatDialog(QDialog):
             'detail_pekerjaan': self.detail_pekerjaan_input.text().strip() if self.detail_pekerjaan_input.isVisible() else '',
             'status_menikah': get_combo_value(self.status_menikah_input),
             'alamat': self.alamat_input.text().strip(),
-            'no_telepon': self.no_telepon_input.text().strip(),
             'email': self.email_input.text().strip(),
             
             # Sakramen Babtis
@@ -625,7 +733,10 @@ class JemaatDialog(QDialog):
             'status_perkawinan_detail': get_combo_value(self.status_perkawinan_detail_input) if self.status_perkawinan_detail_input.isVisible() else '',
             
             # Status
-            'status_keanggotaan': get_combo_value(self.status_keanggotaan_input)
+            'status_keanggotaan': get_combo_value(self.status_keanggotaan_input),
+            'wilayah_rohani_pindah': self.wilayah_rohani_pindah_input.text().strip() if self.wilayah_rohani_pindah_input.isVisible() else '',
+            'paroki_pindah': self.paroki_pindah_input.text().strip() if self.paroki_pindah_input.isVisible() else '',
+            'keuskupan_pindah': self.keuskupan_pindah_input.text().strip() if self.keuskupan_pindah_input.isVisible() else ''
         }
         
         return data
@@ -800,6 +911,305 @@ class PengumumanDialog(QDialog):
             'dibuat_oleh': 1  # Default user ID, bisa disesuaikan dengan sistem login
         }
 
+class InventarisDialog(QDialog):
+    """Dialog untuk menambah/edit data inventaris."""
+    def __init__(self, parent=None, inventaris_data=None):
+        super().__init__(parent)
+        self.inventaris_data = inventaris_data
+        self.setWindowTitle("Tambah Inventaris" if not inventaris_data else "Edit Inventaris")
+        self.setModal(True)
+        self.setFixedSize(500, 550)
+
+        # Setup UI
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        
+        scroll_widget = QWidget()
+        layout = QVBoxLayout(scroll_widget)
+        
+        # 1. INFORMASI DASAR
+        self.setup_informasi_dasar(layout)
+        
+        # 2. DETAIL BARANG
+        self.setup_detail_barang(layout)
+        
+        # 3. STATUS & LOKASI
+        self.setup_status_lokasi(layout)
+        
+        scroll.setWidget(scroll_widget)
+        
+        main_layout = QVBoxLayout(self)
+        main_layout.addWidget(scroll)
+
+        # Buttons
+        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        button_box.accepted.connect(self.accept)
+        button_box.rejected.connect(self.reject)
+        main_layout.addWidget(button_box)
+        
+        # Jika edit, isi data
+        if inventaris_data:
+            self.load_data()
+
+    def setup_informasi_dasar(self, layout):
+        """Setup section Informasi Dasar"""
+        info_group = QGroupBox("1. INFORMASI DASAR")
+        info_layout = QFormLayout(info_group)
+        
+        self.nama_barang_input = QLineEdit()
+        self.nama_barang_input.setMinimumWidth(350)
+        
+        self.kode_barang_input = QLineEdit()
+        self.kode_barang_input.setMinimumWidth(350)
+        self.kode_barang_input.setPlaceholderText("Contoh: INV-001")
+        
+        self.kategori_input = QComboBox()
+        self.kategori_input.addItems(["Pilih Kategori", "Peralatan Liturgi", "Furniture", "Elektronik", "Alat Tulis", "Perlengkapan Kantor", "Lainnya"])
+        self.kategori_input.setCurrentIndex(0)
+        self.kategori_input.setMinimumWidth(350)
+        self.setup_placeholder_style(self.kategori_input)
+        
+        self.merk_input = QLineEdit()
+        self.merk_input.setMinimumWidth(350)
+        
+        info_layout.addRow("Nama Barang:", self.nama_barang_input)
+        info_layout.addRow("Kode Barang:", self.kode_barang_input)
+        info_layout.addRow("Kategori:", self.kategori_input)
+        info_layout.addRow("Merk/Brand:", self.merk_input)
+        
+        layout.addWidget(info_group)
+    
+    def setup_detail_barang(self, layout):
+        """Setup section Detail Barang"""
+        detail_group = QGroupBox("2. DETAIL BARANG")
+        detail_layout = QFormLayout(detail_group)
+        
+        self.jumlah_input = QDoubleSpinBox()
+        self.jumlah_input.setRange(1, 1000)
+        self.jumlah_input.setValue(1)
+        self.jumlah_input.setMinimumWidth(350)
+        
+        self.satuan_input = QComboBox()
+        self.satuan_input.addItems(["Pilih Satuan", "Unit", "Buah", "Set", "Pasang", "Lembar", "Roll", "Meter", "Kg", "Liter"])
+        self.satuan_input.setCurrentIndex(0)
+        self.satuan_input.setMinimumWidth(350)
+        self.setup_placeholder_style(self.satuan_input)
+        
+        self.harga_satuan_input = QDoubleSpinBox()
+        self.harga_satuan_input.setRange(0, 1_000_000_000)
+        self.harga_satuan_input.setGroupSeparatorShown(True)
+        self.harga_satuan_input.setValue(0)
+        self.harga_satuan_input.setMinimumWidth(350)
+        
+        # Set locale Indonesia
+        locale = QLocale(QLocale.Indonesian, QLocale.Indonesia)
+        self.harga_satuan_input.setLocale(locale)
+        
+        self.tanggal_beli_input = QDateEdit()
+        self.tanggal_beli_input.setCalendarPopup(True)
+        self.tanggal_beli_input.setDate(QDate.currentDate())
+        self.tanggal_beli_input.setMinimumWidth(350)
+        
+        self.supplier_input = QLineEdit()
+        self.supplier_input.setMinimumWidth(350)
+        
+        detail_layout.addRow("Jumlah:", self.jumlah_input)
+        detail_layout.addRow("Satuan:", self.satuan_input)
+        detail_layout.addRow("Harga Satuan (Rp):", self.harga_satuan_input)
+        detail_layout.addRow("Tanggal Beli:", self.tanggal_beli_input)
+        detail_layout.addRow("Supplier:", self.supplier_input)
+        
+        layout.addWidget(detail_group)
+    
+    def setup_status_lokasi(self, layout):
+        """Setup section Status & Lokasi"""
+        status_group = QGroupBox("3. STATUS & LOKASI")
+        status_layout = QFormLayout(status_group)
+        
+        self.kondisi_input = QComboBox()
+        self.kondisi_input.addItems(["Pilih Kondisi", "Baik", "Rusak Ringan", "Rusak Berat", "Hilang"])
+        self.kondisi_input.setCurrentIndex(0)
+        self.kondisi_input.setMinimumWidth(350)
+        self.setup_placeholder_style(self.kondisi_input)
+        
+        self.lokasi_input = QLineEdit()
+        self.lokasi_input.setMinimumWidth(350)
+        self.lokasi_input.setPlaceholderText("Contoh: Ruang Pastor, Aula, Sekretariat")
+        
+        self.penanggung_jawab_input = QLineEdit()
+        self.penanggung_jawab_input.setMinimumWidth(350)
+        
+        self.keterangan_input = QTextEdit()
+        self.keterangan_input.setMaximumHeight(80)
+        self.keterangan_input.setMinimumWidth(350)
+        
+        status_layout.addRow("Kondisi:", self.kondisi_input)
+        status_layout.addRow("Lokasi:", self.lokasi_input)
+        status_layout.addRow("Penanggung Jawab:", self.penanggung_jawab_input)
+        status_layout.addRow("Keterangan:", self.keterangan_input)
+        
+        layout.addWidget(status_group)
+    
+    def setup_placeholder_style(self, combo_box):
+        """Setup placeholder style for combo box"""
+        combo_box.setStyleSheet("""
+            QComboBox {
+                color: #888888;
+                font-style: italic;
+            }
+            QComboBox QAbstractItemView {
+                background-color: white;
+                border: 1px solid #cccccc;
+            }
+            QComboBox QAbstractItemView::item {
+                color: #000000;
+                font-style: normal;
+                padding: 4px;
+                min-height: 18px;
+            }
+            QComboBox QAbstractItemView::item:first {
+                color: #888888;
+                font-style: italic;
+            }
+            QComboBox QAbstractItemView::item:hover {
+                background-color: #e3f2fd;
+            }
+            QComboBox QAbstractItemView::item:selected {
+                background-color: #3498db;
+                color: white;
+            }
+        """)
+        
+        def on_selection_changed():
+            if combo_box.currentIndex() == 0:
+                combo_box.setStyleSheet("""
+                    QComboBox {
+                        color: #888888;
+                        font-style: italic;
+                    }
+                    QComboBox QAbstractItemView {
+                        background-color: white;
+                        border: 1px solid #cccccc;
+                    }
+                    QComboBox QAbstractItemView::item {
+                        color: #000000;
+                        font-style: normal;
+                        padding: 4px;
+                        min-height: 18px;
+                    }
+                    QComboBox QAbstractItemView::item:first {
+                        color: #888888;
+                        font-style: italic;
+                    }
+                    QComboBox QAbstractItemView::item:hover {
+                        background-color: #e3f2fd;
+                    }
+                    QComboBox QAbstractItemView::item:selected {
+                        background-color: #3498db;
+                        color: white;
+                    }
+                """)
+            else:
+                combo_box.setStyleSheet("""
+                    QComboBox {
+                        color: #000000;
+                        font-style: normal;
+                    }
+                    QComboBox QAbstractItemView {
+                        background-color: white;
+                        border: 1px solid #cccccc;
+                    }
+                    QComboBox QAbstractItemView::item {
+                        color: #000000;
+                        font-style: normal;
+                        padding: 4px;
+                        min-height: 18px;
+                    }
+                    QComboBox QAbstractItemView::item:first {
+                        color: #888888;
+                        font-style: italic;
+                    }
+                    QComboBox QAbstractItemView::item:hover {
+                        background-color: #e3f2fd;
+                    }
+                    QComboBox QAbstractItemView::item:selected {
+                        background-color: #3498db;
+                        color: white;
+                    }
+                """)
+        
+        combo_box.currentIndexChanged.connect(on_selection_changed)
+    
+    def set_combo_value(self, combo, value):
+        """Set combo box value"""
+        if not value or str(value).strip() == '':
+            combo.setCurrentIndex(0)
+            return
+            
+        index = combo.findText(str(value))
+        if index >= 0:
+            combo.setCurrentIndex(index)
+        else:
+            combo.setCurrentIndex(0)
+    
+    def load_data(self):
+        """Load data untuk edit"""
+        if not self.inventaris_data:
+            return
+        
+        # Informasi Dasar
+        self.nama_barang_input.setText(str(self.inventaris_data.get('nama_barang', '')))
+        self.kode_barang_input.setText(str(self.inventaris_data.get('kode_barang', '')))
+        self.set_combo_value(self.kategori_input, self.inventaris_data.get('kategori', ''))
+        self.merk_input.setText(str(self.inventaris_data.get('merk', '')))
+        
+        # Detail Barang
+        self.jumlah_input.setValue(float(self.inventaris_data.get('jumlah', 1)))
+        self.set_combo_value(self.satuan_input, self.inventaris_data.get('satuan', ''))
+        self.harga_satuan_input.setValue(float(self.inventaris_data.get('harga_satuan', 0)))
+        self.supplier_input.setText(str(self.inventaris_data.get('supplier', '')))
+        
+        # Tanggal beli
+        if self.inventaris_data.get('tanggal_beli'):
+            try:
+                if isinstance(self.inventaris_data['tanggal_beli'], str):
+                    date = QDate.fromString(self.inventaris_data['tanggal_beli'], "yyyy-MM-dd")
+                else:
+                    date = QDate(self.inventaris_data['tanggal_beli'])
+                self.tanggal_beli_input.setDate(date)
+            except:
+                pass
+        
+        # Status & Lokasi
+        self.set_combo_value(self.kondisi_input, self.inventaris_data.get('kondisi', ''))
+        self.lokasi_input.setText(str(self.inventaris_data.get('lokasi', '')))
+        self.penanggung_jawab_input.setText(str(self.inventaris_data.get('penanggung_jawab', '')))
+        self.keterangan_input.setText(str(self.inventaris_data.get('keterangan', '')))
+
+    def get_data(self):
+        """Ambil data dari form"""
+        def get_combo_value(combo_box):
+            if combo_box.currentIndex() == 0:
+                return ''
+            return combo_box.currentText()
+        
+        return {
+            'nama_barang': self.nama_barang_input.text().strip(),
+            'kode_barang': self.kode_barang_input.text().strip(),
+            'kategori': get_combo_value(self.kategori_input),
+            'merk': self.merk_input.text().strip(),
+            'jumlah': self.jumlah_input.value(),
+            'satuan': get_combo_value(self.satuan_input),
+            'harga_satuan': self.harga_satuan_input.value(),
+            'tanggal_beli': self.tanggal_beli_input.date().toString("yyyy-MM-dd"),
+            'supplier': self.supplier_input.text().strip(),
+            'kondisi': get_combo_value(self.kondisi_input),
+            'lokasi': self.lokasi_input.text().strip(),
+            'penanggung_jawab': self.penanggung_jawab_input.text().strip(),
+            'keterangan': self.keterangan_input.toPlainText().strip()
+        }
+
+
 class KeuanganDialog(QDialog):
     """Dialog untuk menambah/edit data keuangan."""
     def __init__(self, parent=None, kategori="Pemasukan"):
@@ -865,4 +1275,258 @@ class KeuanganDialog(QDialog):
             'sub_kategori': self.sub_kategori_input.text().strip(),
             'jumlah': self.jumlah_input.value(),
             'penanggung_jawab': self.penanggung_jawab_input.text().strip()
+        }
+
+
+class StrukturDialog(QDialog):
+    """Dialog untuk menambah/edit struktur kepengurusan gereja."""
+    def __init__(self, parent=None, struktur_data=None):
+        super().__init__(parent)
+        self.struktur_data = struktur_data
+        self.setWindowTitle("Tambah Pengurus" if not struktur_data else "Edit Pengurus")
+        self.setModal(True)
+        self.setFixedSize(500, 500)
+
+        # Setup UI - Simplified for table display focus
+        layout = QVBoxLayout(self)
+        
+        # 1. INFORMASI UTAMA (yang akan tampil di tabel)
+        self.setup_informasi_utama(layout)
+        
+        # 2. KONTAK & FOTO
+        self.setup_kontak_foto(layout)
+
+        # Buttons
+        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        button_box.accepted.connect(self.accept)
+        button_box.rejected.connect(self.reject)
+        layout.addWidget(button_box)
+        
+        # Jika edit, isi data
+        if struktur_data:
+            self.load_data()
+
+    def setup_informasi_utama(self, layout):
+        """Setup informasi utama yang tampil di tabel"""
+        main_group = QGroupBox("INFORMASI UTAMA")
+        main_layout = QFormLayout(main_group)
+        
+        # Nama Lengkap (tampil di tabel)
+        self.nama_lengkap_input = QLineEdit()
+        self.nama_lengkap_input.setMinimumWidth(350)
+        
+        # Jabatan (tampil di tabel)
+        self.jabatan_utama_input = QLineEdit()
+        self.jabatan_utama_input.setMinimumWidth(350)
+        self.jabatan_utama_input.setPlaceholderText("Contoh: Pastor Paroki, Ketua Dewan, Koordinator Liturgi")
+        
+        # Wilayah Rohani (tampil di tabel)
+        self.wilayah_rohani_input = QLineEdit()
+        self.wilayah_rohani_input.setMinimumWidth(350)
+        self.wilayah_rohani_input.setPlaceholderText("Contoh: Wilayah Santo Yusuf, Wilayah Santa Maria")
+        
+        # Status Aktif
+        self.status_aktif_input = QComboBox()
+        self.status_aktif_input.addItems(["Aktif", "Tidak Aktif", "Cuti"])
+        self.status_aktif_input.setCurrentIndex(0)
+        self.status_aktif_input.setMinimumWidth(350)
+        
+        main_layout.addRow("Nama Lengkap*:", self.nama_lengkap_input)
+        main_layout.addRow("Jabatan*:", self.jabatan_utama_input)
+        main_layout.addRow("Wilayah Rohani*:", self.wilayah_rohani_input)
+        main_layout.addRow("Status:", self.status_aktif_input)
+        
+        layout.addWidget(main_group)
+    
+    def setup_kontak_foto(self, layout):
+        """Setup kontak dan foto (tampil di tabel sebagai Informasi Kontak)"""
+        kontak_group = QGroupBox("KONTAK & FOTO")
+        kontak_layout = QFormLayout(kontak_group)
+        
+        # Email
+        self.email_input = QLineEdit()
+        self.email_input.setMinimumWidth(350)
+        self.email_input.setPlaceholderText("contoh@gereja.com")
+        
+        # Telepon
+        self.telepon_input = QLineEdit()
+        self.telepon_input.setMinimumWidth(350)
+        self.telepon_input.setPlaceholderText("08123456789")
+        
+        # Foto path dengan tombol browse
+        foto_container = QWidget()
+        foto_layout = QHBoxLayout(foto_container)
+        foto_layout.setContentsMargins(0, 0, 0, 0)
+        
+        self.foto_path_input = QLineEdit()
+        self.foto_path_input.setPlaceholderText("Path ke file foto")
+        
+        browse_button = QPushButton("Browse")
+        browse_button.clicked.connect(self.browse_foto)
+        browse_button.setMaximumWidth(80)
+        
+        foto_layout.addWidget(self.foto_path_input)
+        foto_layout.addWidget(browse_button)
+        
+        kontak_layout.addRow("Email:", self.email_input)
+        kontak_layout.addRow("Telepon:", self.telepon_input)
+        kontak_layout.addRow("Foto:", foto_container)
+        
+        layout.addWidget(kontak_group)
+    
+    
+    def browse_foto(self):
+        """Browse untuk memilih foto"""
+        from PyQt5.QtWidgets import QFileDialog
+        filename, _ = QFileDialog.getOpenFileName(
+            self, "Pilih Foto", "", 
+            "Image Files (*.png *.jpg *.jpeg *.bmp *.gif)"
+        )
+        if filename:
+            self.foto_path_input.setText(filename)
+    
+    def setup_placeholder_style(self, combo_box):
+        """Setup placeholder style for combo box"""
+        combo_box.setStyleSheet("""
+            QComboBox {
+                color: #888888;
+                font-style: italic;
+            }
+            QComboBox QAbstractItemView {
+                background-color: white;
+                border: 1px solid #cccccc;
+            }
+            QComboBox QAbstractItemView::item {
+                color: #000000;
+                font-style: normal;
+                padding: 4px;
+                min-height: 18px;
+            }
+            QComboBox QAbstractItemView::item:first {
+                color: #888888;
+                font-style: italic;
+            }
+            QComboBox QAbstractItemView::item:hover {
+                background-color: #e3f2fd;
+            }
+            QComboBox QAbstractItemView::item:selected {
+                background-color: #3498db;
+                color: white;
+            }
+        """)
+        
+        def on_selection_changed():
+            if combo_box.currentIndex() == 0:
+                combo_box.setStyleSheet("""
+                    QComboBox {
+                        color: #888888;
+                        font-style: italic;
+                    }
+                    QComboBox QAbstractItemView {
+                        background-color: white;
+                        border: 1px solid #cccccc;
+                    }
+                    QComboBox QAbstractItemView::item {
+                        color: #000000;
+                        font-style: normal;
+                        padding: 4px;
+                        min-height: 18px;
+                    }
+                    QComboBox QAbstractItemView::item:first {
+                        color: #888888;
+                        font-style: italic;
+                    }
+                    QComboBox QAbstractItemView::item:hover {
+                        background-color: #e3f2fd;
+                    }
+                    QComboBox QAbstractItemView::item:selected {
+                        background-color: #3498db;
+                        color: white;
+                    }
+                """)
+            else:
+                combo_box.setStyleSheet("""
+                    QComboBox {
+                        color: #000000;
+                        font-style: normal;
+                    }
+                    QComboBox QAbstractItemView {
+                        background-color: white;
+                        border: 1px solid #cccccc;
+                    }
+                    QComboBox QAbstractItemView::item {
+                        color: #000000;
+                        font-style: normal;
+                        padding: 4px;
+                        min-height: 18px;
+                    }
+                    QComboBox QAbstractItemView::item:first {
+                        color: #888888;
+                        font-style: italic;
+                    }
+                    QComboBox QAbstractItemView::item:hover {
+                        background-color: #e3f2fd;
+                    }
+                    QComboBox QAbstractItemView::item:selected {
+                        background-color: #3498db;
+                        color: white;
+                    }
+                """)
+        
+        combo_box.currentIndexChanged.connect(on_selection_changed)
+    
+    def set_combo_value(self, combo, value):
+        """Set combo box value"""
+        if not value or str(value).strip() == '':
+            combo.setCurrentIndex(0)
+            return
+            
+        index = combo.findText(str(value))
+        if index >= 0:
+            combo.setCurrentIndex(index)
+        else:
+            combo.setCurrentIndex(0)
+    
+    def load_data(self):
+        """Load data untuk edit"""
+        if not self.struktur_data:
+            return
+        
+        # 1. INFORMASI UTAMA (tampil di tabel)
+        self.nama_lengkap_input.setText(str(self.struktur_data.get('nama_lengkap', '')))
+        self.jabatan_utama_input.setText(str(self.struktur_data.get('jabatan_utama', '')))
+        self.wilayah_rohani_input.setText(str(self.struktur_data.get('wilayah_rohani', '')))
+        self.set_combo_value(self.status_aktif_input, self.struktur_data.get('status_aktif', 'Aktif'))
+        
+        # 2. KONTAK & FOTO (tampil sebagai Informasi Kontak)
+        self.email_input.setText(str(self.struktur_data.get('email', '')))
+        self.telepon_input.setText(str(self.struktur_data.get('telepon', '')))
+        self.foto_path_input.setText(str(self.struktur_data.get('foto_path', '')))
+
+    def get_data(self):
+        """Ambil data dari form - hanya field yang diperlukan untuk tabel"""
+        return {
+            # INFORMASI UTAMA - tampil di tabel (Foto, Nama Lengkap, Jabatan, Wilayah Rohani, Informasi Kontak)
+            'nama_lengkap': self.nama_lengkap_input.text().strip(),
+            'jabatan_utama': self.jabatan_utama_input.text().strip(),
+            'wilayah_rohani': self.wilayah_rohani_input.text().strip(),
+            'status_aktif': self.status_aktif_input.currentText(),
+            
+            # KONTAK & FOTO - tampil di tabel sebagai Informasi Kontak
+            'email': self.email_input.text().strip(),
+            'telepon': self.telepon_input.text().strip(),
+            'foto_path': self.foto_path_input.text().strip(),
+            
+            # Default values untuk field yang diperlukan oleh sistem
+            'gelar_depan': '',
+            'gelar_belakang': '',
+            'jenis_kelamin': '',
+            'tanggal_lahir': '',
+            'status_klerus': 'Awam',
+            'level_hierarki': 9,
+            'bidang_pelayanan': '',
+            'tanggal_mulai_jabatan': '',
+            'tanggal_berakhir_jabatan': '',
+            'alamat': '',
+            'deskripsi_tugas': ''
         }

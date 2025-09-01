@@ -13,9 +13,10 @@ try:
     from components.login_dialog import LoginDialog
     from components.sidebar import SidebarWidget
     from components.dashboard import DashboardComponent
+    from components.struktur import StrukturComponent
     from components.jemaat import JemaatComponent
     from components.jadwal import JadwalComponent
-    from components.keuangan import KeuanganComponent
+    from components.inventaris import InventarisComponent
     from components.pengumuman import PengumumanComponent
     from components.pengaturan import PengaturanComponent
     from components.server_control import ServerControlComponent
@@ -208,6 +209,10 @@ class ServerMainWindow(QMainWindow):
         self.dashboard_component = DashboardComponent()
         self.content_stack.addWidget(self.dashboard_component)
         
+        self.struktur_component = StrukturComponent()
+        self.struktur_component.set_database_manager(self.db)
+        self.content_stack.addWidget(self.struktur_component)
+        
         self.jemaat_component = JemaatComponent()
         self.jemaat_component.set_database_manager(self.db)
         self.content_stack.addWidget(self.jemaat_component)
@@ -216,9 +221,9 @@ class ServerMainWindow(QMainWindow):
         self.jadwal_component.set_database_manager(self.db)
         self.content_stack.addWidget(self.jadwal_component)
         
-        self.keuangan_component = KeuanganComponent()
-        self.keuangan_component.set_database_manager(self.db)
-        self.content_stack.addWidget(self.keuangan_component)
+        self.inventaris_component = InventarisComponent()
+        self.inventaris_component.set_database_manager(self.db)
+        self.content_stack.addWidget(self.inventaris_component)
         
         self.pengumuman_component = PengumumanComponent()
         self.pengumuman_component.set_database_manager(self.db)
@@ -240,20 +245,22 @@ class ServerMainWindow(QMainWindow):
     
     def setup_connections(self):
         self.sidebar.menu_dashboard.clicked.connect(lambda: self.show_page(0))
-        self.sidebar.menu_jemaat.clicked.connect(lambda: self.show_page(1))
-        self.sidebar.menu_jadwal.clicked.connect(lambda: self.show_page(2))
-        self.sidebar.menu_keuangan.clicked.connect(lambda: self.show_page(3))
-        self.sidebar.menu_pengumuman.clicked.connect(lambda: self.show_page(4))
-        self.sidebar.menu_riwayat.clicked.connect(lambda: self.show_page(5))
-        self.sidebar.menu_dokumen.clicked.connect(lambda: self.show_page(6))
-        self.sidebar.menu_pengaturan.clicked.connect(lambda: self.show_page(7))
+        self.sidebar.menu_struktur.clicked.connect(lambda: self.show_page(1))
+        self.sidebar.menu_jemaat.clicked.connect(lambda: self.show_page(2))
+        self.sidebar.menu_jadwal.clicked.connect(lambda: self.show_page(3))
+        self.sidebar.menu_inventaris.clicked.connect(lambda: self.show_page(4))
+        self.sidebar.menu_pengumuman.clicked.connect(lambda: self.show_page(5))
+        self.sidebar.menu_riwayat.clicked.connect(lambda: self.show_page(6))
+        self.sidebar.menu_dokumen.clicked.connect(lambda: self.show_page(7))
+        self.sidebar.menu_pengaturan.clicked.connect(lambda: self.show_page(8))
         
         self.server_control.log_message.connect(self.server_control.add_log_message)
         
         components = [
+            self.struktur_component,
             self.jemaat_component,
             self.jadwal_component, 
-            self.keuangan_component,
+            self.inventaris_component,
             self.pengumuman_component,
             self.riwayat_component,
             self.dokumen_component,
@@ -371,24 +378,27 @@ class ServerMainWindow(QMainWindow):
             self.sidebar.menu_dashboard.setChecked(True)
             self.update_dashboard_data()
         elif index == 1:
+            self.sidebar.menu_struktur.setChecked(True)
+            self.struktur_component.load_data()
+        elif index == 2:
             self.sidebar.menu_jemaat.setChecked(True)
             self.jemaat_component.load_data()
-        elif index == 2:
+        elif index == 3:
             self.sidebar.menu_jadwal.setChecked(True)
             self.jadwal_component.load_data()
-        elif index == 3:
-            self.sidebar.menu_keuangan.setChecked(True)
-            self.keuangan_component.load_data()
         elif index == 4:
+            self.sidebar.menu_inventaris.setChecked(True)
+            self.inventaris_component.load_data()
+        elif index == 5:
             self.sidebar.menu_pengumuman.setChecked(True)
             self.pengumuman_component.load_data()
-        elif index == 5:
+        elif index == 6:
             self.sidebar.menu_riwayat.setChecked(True)
             self.riwayat_component.load_data()
-        elif index == 6:
+        elif index == 7:
             self.sidebar.menu_dokumen.setChecked(True)
             self.dokumen_component.load_data()
-        elif index == 7:
+        elif index == 8:
             self.sidebar.menu_pengaturan.setChecked(True)
             # Pengaturan tidak perlu load data khusus
         
@@ -411,10 +421,11 @@ class ServerMainWindow(QMainWindow):
             self.server_control.add_log_message("Tidak bisa memuat data, API shared hosting tidak terhubung.")
             return
 
+        self.struktur_component.load_data()
         self.jemaat_component.load_data()
         self.jadwal_component.load_data()
         self.pengumuman_component.load_data()
-        self.keuangan_component.load_data()
+        self.inventaris_component.load_data()
         self.riwayat_component.load_data()
         self.dokumen_component.load_data()
         self.update_dashboard_data()

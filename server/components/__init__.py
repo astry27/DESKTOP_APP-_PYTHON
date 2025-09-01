@@ -9,7 +9,7 @@ Package ini berisi komponen-komponen modular yang membentuk aplikasi:
 - dashboard: Komponen dashboard utama
 - jemaat: Komponen manajemen data jemaat
 - jadwal: Komponen manajemen jadwal kegiatan
-- keuangan: Komponen manajemen keuangan
+- inventaris: Komponen manajemen inventaris
 - pengumuman: Komponen manajemen pengumuman
 - pengaturan: Komponen pengaturan sistem
 - server_control: Komponen kontrol server
