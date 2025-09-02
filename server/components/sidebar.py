@@ -84,8 +84,8 @@ class SidebarWidget(QWidget):
         menu_layout.addWidget(self.menu_jadwal)
         menu_layout.addWidget(self.menu_inventaris)
         menu_layout.addWidget(self.menu_pengumuman)
-        menu_layout.addWidget(self.menu_riwayat)
         menu_layout.addWidget(self.menu_dokumen)
+        menu_layout.addWidget(self.menu_riwayat)
         menu_layout.addWidget(self.menu_pengaturan)
         
         # Tambahkan menu container ke layout utama

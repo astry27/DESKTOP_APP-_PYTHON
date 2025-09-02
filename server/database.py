@@ -690,6 +690,51 @@ class DatabaseManager:
             self.logger.error(f"Error downloading file: {e}")
             return False, str(e)
     
+    # ========== STRUKTUR METHODS ==========
+    def get_struktur_list(self, search: Optional[str] = None) -> Tuple[bool, Any]:
+        result = self.api_client.get_struktur()
+        if result["success"]:
+            data = result["data"].get("data", [])
+            
+            if search:
+                filtered_data = []
+                search_lower = search.lower()
+                for item in data:
+                    if (search_lower in str(item.get('nama_lengkap', '')).lower() or
+                        search_lower in str(item.get('jabatan_utama', '')).lower() or
+                        search_lower in str(item.get('bidang_pelayanan', '')).lower() or
+                        search_lower in str(item.get('wilayah_rohani', '')).lower() or
+                        search_lower in str(item.get('status_klerus', '')).lower() or
+                        search_lower in str(item.get('gelar_depan', '')).lower() or
+                        search_lower in str(item.get('gelar_belakang', '')).lower()):
+                        filtered_data.append(item)
+                data = filtered_data
+            
+            return True, data
+        else:
+            return False, result["data"]
+    
+    def add_struktur(self, data: Dict[str, Any]) -> Tuple[bool, Any]:
+        result = self.api_client.add_struktur(data)
+        if result["success"]:
+            return True, result["data"].get("id", 0)
+        else:
+            return False, result["data"]
+    
+    def update_struktur(self, id_struktur: int, data: Dict[str, Any]) -> Tuple[bool, Any]:
+        result = self.api_client.update_struktur(id_struktur, data)
+        if result["success"]:
+            return True, result["data"]
+        else:
+            return False, result["data"]
+    
+    def delete_struktur(self, id_struktur: int) -> Tuple[bool, Any]:
+        result = self.api_client.delete_struktur(id_struktur)
+        if result["success"]:
+            return True, result["data"]
+        else:
+            return False, result["data"]
+    
     def close(self):
         """Close database manager"""
         self.logger.info("Database manager closed")

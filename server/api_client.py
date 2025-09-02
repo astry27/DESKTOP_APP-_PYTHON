@@ -293,3 +293,20 @@ class ApiClient:
     
     def get_broadcast_messages(self, limit=20):
         return self._make_request('GET', f"{self.base_url}/pesan/broadcast?limit={limit}")
+    
+    # ========== STRUKTUR METHODS ==========
+    def get_struktur(self):
+        return self._make_request('GET', f"{self.base_url}/struktur")
+    
+    def add_struktur(self, data):
+        return self._make_request('POST', f"{self.base_url}/struktur", 
+                               json=data, 
+                               headers={'Content-Type': 'application/json'})
+    
+    def update_struktur(self, struktur_id, data):
+        return self._make_request('PUT', f"{self.base_url}/struktur/{struktur_id}", 
+                              json=data, 
+                              headers={'Content-Type': 'application/json'})
+    
+    def delete_struktur(self, struktur_id):
+        return self._make_request('DELETE', f"{self.base_url}/struktur/{struktur_id}")
