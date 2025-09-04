@@ -5,9 +5,8 @@ import os
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
                             QPushButton, QTableWidget, QTableWidgetItem,
                             QHeaderView, QGroupBox, QMessageBox, 
-                            QFileDialog, QAbstractItemView, QFrame, QLineEdit,
-                            QTreeWidget, QTreeWidgetItem, QTabWidget, QSplitter)
-from PyQt5.QtCore import pyqtSignal, QDate, Qt
+                            QFileDialog, QAbstractItemView, QFrame, QLineEdit)
+from PyQt5.QtCore import pyqtSignal, QDate, Qt, QTimer
 from PyQt5.QtGui import QPixmap, QIcon, QFont
 
 # Import dialog struktur yang baru
@@ -23,7 +22,11 @@ class StrukturComponent(QWidget):
         super().__init__(parent)
         self.struktur_data = []
         self.db_manager = None
+        self.church_label = None
+        self.church_name_label = None
         self.setup_ui()
+        
+        # Tidak perlu timer karena menggunakan style tetap
     
     def set_database_manager(self, db_manager):
         """Set database manager."""
@@ -38,11 +41,28 @@ class StrukturComponent(QWidget):
         
         # Header Frame (matching dokumen.py style)
         header_frame = QFrame()
-        header_frame.setStyleSheet("background-color: #34495e; color: white; padding: 2px;")
+        header_frame.setFixedHeight(50)  # Set fixed height to ensure visibility
+        header_frame.setStyleSheet("""
+            QFrame {
+                background-color: #34495e; 
+                color: white; 
+                border: none;
+                margin: 0px;
+            }
+        """)
         header_layout = QHBoxLayout(header_frame)
+        header_layout.setContentsMargins(15, 10, 15, 10)  # Add proper margins
         
         title_label = QLabel("Struktur Kepengurusan DPP")
-        title_label.setStyleSheet("font-size: 16px; font-weight: bold; color: white;")
+        title_label.setStyleSheet("""
+            QLabel {
+                font-size: 16px; 
+                font-weight: bold; 
+                color: white;
+                background: transparent;
+                border: none;
+            }
+        """)
         header_layout.addWidget(title_label)
         header_layout.addStretch()
         
@@ -52,9 +72,13 @@ class StrukturComponent(QWidget):
         header = self.create_header()
         layout.addWidget(header)
         
-        # Tab untuk tampilan berbeda
-        self.tab_widget = self.create_tabs()
-        layout.addWidget(self.tab_widget)
+        # Header Periode Pengurus
+        periode_header = self.create_periode_header()
+        layout.addWidget(periode_header)
+        
+        # Table view untuk daftar pengurus
+        self.table_widget = self.create_table_view()
+        layout.addWidget(self.table_widget)
         
         # Tombol aksi
         action_layout = self.create_action_buttons()
@@ -76,6 +100,9 @@ class StrukturComponent(QWidget):
         search_button = self.create_button("Cari", "#3498db", self.search_struktur)
         header_layout.addWidget(search_button)
         
+        clear_button = self.create_button("Reset", "#e67e22", self.clear_search)
+        header_layout.addWidget(clear_button)
+        
         header_layout.addStretch()
         
         add_button = self.create_button("Tambah Pengurus", "#27ae60", self.add_struktur)
@@ -84,41 +111,41 @@ class StrukturComponent(QWidget):
         return header
 
 
-    def create_tabs(self):
-        """Buat tab untuk tampilan hierarki dan tabel."""
-        tab_widget = QTabWidget()
+    def create_periode_header(self):
+        """Buat header periode pengurus."""
+        header_frame = QFrame()
+        header_frame.setStyleSheet("QFrame { background-color: white; border: none; }")
         
-        # Tab 1: Struktur Hierarki (Tree View)
-        self.hierarki_widget = self.create_hierarki_view()
-        tab_widget.addTab(self.hierarki_widget, "Struktur Hierarki")
+        header_layout = QVBoxLayout(header_frame)
+        header_layout.setContentsMargins(0, 15, 0, 15)
+        header_layout.setSpacing(8)
         
-        # Tab 2: Daftar Lengkap (Table View)
-        self.table_widget = self.create_table_view()
-        tab_widget.addTab(self.table_widget, "Daftar Lengkap")
+        # Judul gereja - line 1
+        self.church_label = QLabel("Pengurus Dewan Pastoral Paroki")
+        self.church_label.setAlignment(Qt.AlignCenter)
+        font1 = QFont("Arial", 16, QFont.Bold)
+        self.church_label.setFont(font1)
+        self.church_label.setStyleSheet("QLabel { color: #2c3e50; }")
+        header_layout.addWidget(self.church_label)
         
-        return tab_widget
+        # Nama gereja - line 2
+        self.church_name_label = QLabel("Santa Maria Ratu Damai, Tomohon Selatan")
+        self.church_name_label.setAlignment(Qt.AlignCenter)
+        font2 = QFont("Arial", 14, QFont.Bold)
+        self.church_name_label.setFont(font2)
+        self.church_name_label.setStyleSheet("QLabel { color: #34495e; }")
+        header_layout.addWidget(self.church_name_label)
+        
+        # Info total pengurus
+        self.total_pengurus_label = QLabel("Total: 0 pengurus")
+        self.total_pengurus_label.setAlignment(Qt.AlignCenter)
+        font3 = QFont("Arial", 12)
+        self.total_pengurus_label.setFont(font3)
+        self.total_pengurus_label.setStyleSheet("QLabel { color: #7f8c8d; }")
+        header_layout.addWidget(self.total_pengurus_label)
+        
+        return header_frame
 
-    def create_hierarki_view(self):
-        """Buat tampilan hierarki menggunakan QTreeWidget."""
-        tree = QTreeWidget()
-        tree.setHeaderLabels(["Nama & Jabatan", "Bidang", "Status", "Kontak"])
-        tree.setAlternatingRowColors(True)
-        tree.setRootIsDecorated(True)
-        tree.setItemsExpandable(True)
-        tree.setExpandsOnDoubleClick(True)
-        
-        # Set column widths
-        tree.setColumnWidth(0, 300)
-        tree.setColumnWidth(1, 200)
-        tree.setColumnWidth(2, 100)
-        tree.setColumnWidth(3, 150)
-        
-        # Enable context menu
-        tree.setContextMenuPolicy(3)  # Qt.CustomContextMenu
-        tree.customContextMenuRequested.connect(self.show_context_menu_tree)
-        
-        self.struktur_tree = tree
-        return tree
 
     def create_table_view(self):
         """Buat tampilan tabel lengkap."""
@@ -146,24 +173,6 @@ class StrukturComponent(QWidget):
         self.struktur_table = table
         return table
 
-    def show_context_menu_tree(self, position):
-        """Tampilkan context menu untuk tree view"""
-        item = self.struktur_tree.itemAt(position)
-        if not item or not hasattr(item, 'data_id'):
-            return
-            
-        from PyQt5.QtWidgets import QMenu
-        menu = QMenu()
-        
-        edit_action = menu.addAction("Edit")
-        delete_action = menu.addAction("Hapus")
-        
-        action = menu.exec_(self.struktur_tree.mapToGlobal(position))
-        
-        if action == edit_action:
-            self.edit_struktur_by_id(item.data_id)
-        elif action == delete_action:
-            self.delete_struktur_by_id(item.data_id)
 
     def show_context_menu_table(self, position):
         """Tampilkan context menu untuk table view"""
@@ -288,74 +297,15 @@ class StrukturComponent(QWidget):
             self.populate_views()
 
     def populate_views(self):
-        """Populate kedua view dengan data struktur."""
-        self.populate_tree_view()
+        """Populate table view dengan data struktur."""
         self.populate_table_view()
+        self.update_total_pengurus()
 
-    def populate_tree_view(self):
-        """Populate tree view dengan hierarki struktur."""
-        self.struktur_tree.clear()
-        
-        if not self.struktur_data:
-            return
-        
-        # Group data berdasarkan level hierarki
-        levels = {}
-        for data in self.struktur_data:
-            level = data.get('level_hierarki', 9)
-            if level not in levels:
-                levels[level] = []
-            levels[level].append(data)
-        
-        # Buat parent items untuk setiap level
-        level_items = {}
-        for level in sorted(levels.keys()):
-            level_name = self.get_level_name(level)
-            parent = QTreeWidgetItem(self.struktur_tree)
-            parent.setText(0, f"{level_name} ({len(levels[level])} orang)")
-            
-            font = QFont()
-            font.setBold(True)
-            parent.setFont(0, font)
-            
-            level_items[level] = parent
-            
-            # Tambahkan anak-anak untuk level ini
-            for data in levels[level]:
-                child = QTreeWidgetItem(parent)
-                
-                # Nama & Jabatan
-                nama_lengkap = data.get('nama_lengkap', '')
-                gelar_depan = data.get('gelar_depan', '')
-                gelar_belakang = data.get('gelar_belakang', '')
-                jabatan = data.get('jabatan_utama', '')
-                
-                nama_display = f"{gelar_depan} {nama_lengkap} {gelar_belakang}".strip()
-                if jabatan:
-                    nama_display += f" - {jabatan}"
-                
-                child.setText(0, nama_display)
-                child.setText(1, data.get('bidang_pelayanan', ''))
-                child.setText(2, data.get('status_aktif', ''))
-                
-                # Kontak
-                email = data.get('email', '')
-                telepon = data.get('telepon', '')
-                kontak = f"{telepon}"
-                if email:
-                    kontak += f" | {email}"
-                child.setText(3, kontak)
-                
-                # Simpan ID data untuk context menu
-                child.data_id = data.get('id_struktur', 0)
-                
-                # Color coding berdasarkan status
-                if data.get('status_aktif', '') != 'Aktif':
-                    for i in range(4):
-                        child.setBackground(i, Qt.lightGray)
-        
-        # Expand semua level
-        self.struktur_tree.expandAll()
+    def update_total_pengurus(self):
+        """Update label total pengurus."""
+        total = len(self.struktur_data)
+        aktif = len([data for data in self.struktur_data if data.get('status_aktif', '') == 'Aktif'])
+        self.total_pengurus_label.setText(f"Total: {total} pengurus ({aktif} aktif)")
 
     def populate_table_view(self):
         """Populate table view dengan data struktur."""
@@ -457,11 +407,62 @@ class StrukturComponent(QWidget):
             9: "Relawan/Pelayan"
         }
         return level_names.get(level, "Lainnya")
+    
 
 
     def search_struktur(self):
         """Cari struktur berdasarkan keyword"""
-        self.load_data()
+        search_keyword = self.search_input.text().strip()
+        
+        if not search_keyword:
+            # Jika tidak ada keyword, tampilkan semua data
+            self.load_data()
+            return
+        
+        # Jika ada keyword, filter data lokal
+        if not self.struktur_data:
+            self.log_message.emit("Tidak ada data untuk dicari. Load data terlebih dahulu.")
+            return
+        
+        # Filter data berdasarkan keyword
+        filtered_data = []
+        search_lower = search_keyword.lower()
+        
+        for data in self.struktur_data:
+            # Cari di berbagai field
+            nama_lengkap = data.get('nama_lengkap', '').lower()
+            jabatan = data.get('jabatan_utama', '').lower()
+            wilayah = data.get('wilayah_rohani', '').lower()
+            bidang = data.get('bidang_pelayanan', '').lower()
+            gelar_depan = data.get('gelar_depan', '').lower()
+            gelar_belakang = data.get('gelar_belakang', '').lower()
+            status_klerus = data.get('status_klerus', '').lower()
+            
+            if (search_lower in nama_lengkap or 
+                search_lower in jabatan or 
+                search_lower in wilayah or 
+                search_lower in bidang or
+                search_lower in gelar_depan or
+                search_lower in gelar_belakang or
+                search_lower in status_klerus):
+                filtered_data.append(data)
+        
+        # Simpan data asli dan tampilkan hasil filter
+        if not hasattr(self, 'original_struktur_data'):
+            self.original_struktur_data = self.struktur_data.copy()
+        
+        self.struktur_data = filtered_data
+        self.populate_views()
+        
+        self.log_message.emit(f"Pencarian '{search_keyword}': ditemukan {len(filtered_data)} hasil")
+    
+    def clear_search(self):
+        """Clear search dan tampilkan semua data"""
+        if hasattr(self, 'original_struktur_data'):
+            self.struktur_data = self.original_struktur_data
+            self.original_struktur_data = None
+            self.populate_views()
+        self.search_input.clear()
 
     def add_struktur(self):
         """Tambah pengurus baru."""
@@ -610,10 +611,185 @@ class StrukturComponent(QWidget):
                 QMessageBox.critical(self, "Error", "Method delete_struktur tidak tersedia")
 
     def show_org_chart(self):
-        """Tampilkan bagan organisasi (placeholder untuk fitur masa depan)"""
-        QMessageBox.information(self, "Info", 
-            "Fitur Bagan Organisasi akan segera tersedia.\n\n"
-            "Untuk saat ini, gunakan tab 'Struktur Hierarki' untuk melihat struktur kepengurusan.")
+        """Tampilkan bagan organisasi DPP"""
+        if not self.struktur_data:
+            QMessageBox.warning(self, "Warning", "Tidak ada data struktur untuk ditampilkan.")
+            return
+        
+        # Import dialog bagan organisasi
+        try:
+            from PyQt5.QtWidgets import QDialog, QVBoxLayout, QScrollArea, QGraphicsView, QGraphicsScene, QGraphicsProxyWidget
+            from PyQt5.QtCore import QRectF
+            from PyQt5.QtGui import QPainter, QPen, QBrush, QColor
+            
+            # Buat dialog untuk menampilkan bagan organisasi
+            dialog = QDialog(self)
+            dialog.setWindowTitle("Bagan Organisasi DPP - Santa Maria Ratu Damai")
+            dialog.setModal(True)
+            dialog.resize(1000, 700)
+            
+            layout = QVBoxLayout(dialog)
+            
+            # Header info
+            header_label = QLabel(f"Bagan Organisasi DPP\nSanta Maria Ratu Damai, Tomohon Selatan\nTotal: {len(self.struktur_data)} pengurus")
+            header_label.setAlignment(Qt.AlignCenter)
+            header_label.setStyleSheet("QLabel { font-size: 14px; font-weight: bold; margin: 10px; }")
+            layout.addWidget(header_label)
+            
+            # Scroll area untuk bagan
+            scroll_area = QScrollArea()
+            scroll_widget = QWidget()
+            scroll_layout = QVBoxLayout(scroll_widget)
+            
+            # Kelompokkan data berdasarkan level hierarki
+            levels = {}
+            for data in self.struktur_data:
+                level = data.get('level_hierarki', 9)
+                if level not in levels:
+                    levels[level] = []
+                levels[level].append(data)
+            
+            # Tampilkan per level (1 = tertinggi)
+            for level in sorted(levels.keys()):
+                level_frame = QFrame()
+                level_frame.setStyleSheet("""
+                    QFrame {
+                        background-color: #f8f9fa;
+                        border: 2px solid #dee2e6;
+                        border-radius: 8px;
+                        margin: 5px;
+                        padding: 10px;
+                    }
+                """)
+                
+                level_layout = QVBoxLayout(level_frame)
+                
+                # Header level
+                level_name = self.get_level_name(level)
+                level_header = QLabel(f"Level {level}: {level_name}")
+                level_header.setAlignment(Qt.AlignCenter)
+                level_header.setStyleSheet("""
+                    QLabel {
+                        background-color: #34495e;
+                        color: white;
+                        font-weight: bold;
+                        font-size: 12px;
+                        padding: 8px;
+                        border-radius: 4px;
+                    }
+                """)
+                level_layout.addWidget(level_header)
+                
+                # Grid untuk anggota di level ini
+                members_frame = QFrame()
+                members_layout = QHBoxLayout(members_frame)
+                members_layout.setSpacing(10)
+                
+                for person in levels[level]:
+                    person_widget = self.create_person_widget(person)
+                    members_layout.addWidget(person_widget)
+                
+                if not levels[level]:
+                    no_member = QLabel("Tidak ada pengurus")
+                    no_member.setAlignment(Qt.AlignCenter)
+                    no_member.setStyleSheet("color: #7f8c8d; font-style: italic;")
+                    members_layout.addWidget(no_member)
+                
+                members_layout.addStretch()
+                level_layout.addWidget(members_frame)
+                scroll_layout.addWidget(level_frame)
+            
+            scroll_area.setWidget(scroll_widget)
+            scroll_area.setWidgetResizable(True)
+            layout.addWidget(scroll_area)
+            
+            # Tombol tutup
+            close_button = QPushButton("Tutup")
+            close_button.setStyleSheet("""
+                QPushButton {
+                    background-color: #95a5a6;
+                    color: white;
+                    padding: 8px 20px;
+                    border: none;
+                    border-radius: 4px;
+                    font-weight: bold;
+                }
+                QPushButton:hover {
+                    background-color: #7f8c8d;
+                }
+            """)
+            close_button.clicked.connect(dialog.close)
+            layout.addWidget(close_button)
+            
+            dialog.exec_()
+            
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Gagal menampilkan bagan organisasi: {str(e)}")
+            self.log_message.emit(f"Error bagan organisasi: {str(e)}")
+    
+    def create_person_widget(self, person_data):
+        """Buat widget untuk menampilkan informasi pengurus"""
+        widget = QFrame()
+        widget.setFixedSize(180, 120)
+        widget.setStyleSheet("""
+            QFrame {
+                background-color: white;
+                border: 2px solid #3498db;
+                border-radius: 8px;
+                padding: 5px;
+            }
+            QFrame:hover {
+                border-color: #2980b9;
+                background-color: #ecf0f1;
+            }
+        """)
+        
+        layout = QVBoxLayout(widget)
+        layout.setSpacing(3)
+        layout.setContentsMargins(5, 5, 5, 5)
+        
+        # Nama dengan gelar
+        gelar_depan = person_data.get('gelar_depan', '')
+        nama_lengkap = person_data.get('nama_lengkap', '')
+        gelar_belakang = person_data.get('gelar_belakang', '')
+        nama_display = f"{gelar_depan} {nama_lengkap} {gelar_belakang}".strip()
+        
+        nama_label = QLabel(nama_display)
+        nama_label.setAlignment(Qt.AlignCenter)
+        nama_label.setWordWrap(True)
+        nama_label.setStyleSheet("QLabel { font-weight: bold; font-size: 10px; color: #2c3e50; }")
+        layout.addWidget(nama_label)
+        
+        # Jabatan
+        jabatan = person_data.get('jabatan_utama', '')
+        jabatan_label = QLabel(jabatan)
+        jabatan_label.setAlignment(Qt.AlignCenter)
+        jabatan_label.setWordWrap(True)
+        jabatan_label.setStyleSheet("QLabel { font-size: 9px; color: #34495e; }")
+        layout.addWidget(jabatan_label)
+        
+        # Wilayah/Bidang
+        wilayah = person_data.get('wilayah_rohani', '')
+        bidang = person_data.get('bidang_pelayanan', '')
+        area_text = wilayah if wilayah else f"Bidang: {bidang}" if bidang else ""
+        
+        if area_text:
+            area_label = QLabel(area_text)
+            area_label.setAlignment(Qt.AlignCenter)
+            area_label.setWordWrap(True)
+            area_label.setStyleSheet("QLabel { font-size: 8px; color: #7f8c8d; }")
+            layout.addWidget(area_label)
+        
+        # Status
+        status = person_data.get('status_aktif', '')
+        if status:
+            status_color = "#27ae60" if status == "Aktif" else "#e74c3c"
+            status_label = QLabel(f"● {status}")
+            status_label.setAlignment(Qt.AlignCenter)
+            status_label.setStyleSheet(f"QLabel {{ font-size: 8px; color: {status_color}; font-weight: bold; }}")
+            layout.addWidget(status_label)
+        
+        return widget
 
     def export_data(self):
         """Export data struktur ke file CSV."""

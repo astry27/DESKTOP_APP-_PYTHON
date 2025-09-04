@@ -86,7 +86,7 @@ class JemaatDialog(QDialog):
         self.setup_placeholder_style(self.kategori_input)
         
         self.jenis_kelamin_input = QComboBox()
-        self.jenis_kelamin_input.addItems(["Pilih Jenis Kelamin", "L", "P"])
+        self.jenis_kelamin_input.addItems(["Pilih jenis kelamin", "L", "P"])
         self.jenis_kelamin_input.setCurrentIndex(0)
         self.jenis_kelamin_input.setMinimumWidth(300)
         self.setup_placeholder_style(self.jenis_kelamin_input)
@@ -115,9 +115,10 @@ class JemaatDialog(QDialog):
         self.detail_pekerjaan_input.setVisible(False)
         
         self.status_menikah_input = QComboBox()
-        self.status_menikah_input.addItems(["Belum Menikah", "Sudah Menikah", "Duda", "Janda"])
+        self.status_menikah_input.addItems(["Pilih status menikah", "Belum Menikah", "Sudah Menikah", "Duda", "Janda"])
         self.status_menikah_input.setCurrentIndex(0)
         self.status_menikah_input.setMinimumWidth(300)
+        self.setup_placeholder_style(self.status_menikah_input)
         
         # Legacy fields for compatibility
         self.alamat_input = QLineEdit()
@@ -578,7 +579,7 @@ class JemaatDialog(QDialog):
         self.set_combo_value(self.hubungan_keluarga_input, self.jemaat_data.get('hubungan_keluarga', 'Kepala Keluarga'))
         self.set_combo_value(self.pendidikan_terakhir_input, self.jemaat_data.get('pendidikan_terakhir', 'SMA'))
         self.set_combo_value(self.jenis_pekerjaan_input, self.jemaat_data.get('jenis_pekerjaan', 'Bekerja'))
-        self.set_combo_value(self.status_menikah_input, self.jemaat_data.get('status_menikah', 'Belum Menikah'))
+        self.set_combo_value(self.status_menikah_input, self.jemaat_data.get('status_menikah', ''))
         self.set_combo_value(self.kategori_input, self.jemaat_data.get('kategori', ''))
         
         # Calculate age after setting birth date
@@ -1287,14 +1288,11 @@ class StrukturDialog(QDialog):
         self.setModal(True)
         self.setFixedSize(500, 500)
 
-        # Setup UI - Simplified for table display focus
+        # Setup UI - Single unified form
         layout = QVBoxLayout(self)
         
-        # 1. INFORMASI UTAMA (yang akan tampil di tabel)
-        self.setup_informasi_utama(layout)
-        
-        # 2. KONTAK & FOTO
-        self.setup_kontak_foto(layout)
+        # Create single form layout without sub-headers
+        self.setup_unified_form(layout)
 
         # Buttons
         button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
@@ -1306,52 +1304,50 @@ class StrukturDialog(QDialog):
         if struktur_data:
             self.load_data()
 
-    def setup_informasi_utama(self, layout):
-        """Setup informasi utama yang tampil di tabel"""
-        main_group = QGroupBox("INFORMASI UTAMA")
-        main_layout = QFormLayout(main_group)
+    def setup_unified_form(self, layout):
+        """Setup single unified form without sub-headers"""
+        form_layout = QFormLayout()
+        form_layout.setVerticalSpacing(10)
+        form_layout.setHorizontalSpacing(10)
+        form_layout.setFieldGrowthPolicy(QFormLayout.AllNonFixedFieldsGrow)
+        form_layout.setLabelAlignment(Qt.AlignLeft)
+        form_layout.setFormAlignment(Qt.AlignLeft | Qt.AlignTop)
         
-        # Nama Lengkap (tampil di tabel)
+        # Nama Lengkap
         self.nama_lengkap_input = QLineEdit()
         self.nama_lengkap_input.setMinimumWidth(350)
+        form_layout.addRow("Nama Lengkap*:", self.nama_lengkap_input)
         
-        # Jabatan (tampil di tabel)
+        # Jabatan
         self.jabatan_utama_input = QLineEdit()
         self.jabatan_utama_input.setMinimumWidth(350)
         self.jabatan_utama_input.setPlaceholderText("Contoh: Pastor Paroki, Ketua Dewan, Koordinator Liturgi")
+        form_layout.addRow("Jabatan*:", self.jabatan_utama_input)
         
-        # Wilayah Rohani (tampil di tabel)
+        # Wilayah Rohani
         self.wilayah_rohani_input = QLineEdit()
         self.wilayah_rohani_input.setMinimumWidth(350)
         self.wilayah_rohani_input.setPlaceholderText("Contoh: Wilayah Santo Yusuf, Wilayah Santa Maria")
+        form_layout.addRow("Wilayah Rohani*:", self.wilayah_rohani_input)
         
         # Status Aktif
         self.status_aktif_input = QComboBox()
         self.status_aktif_input.addItems(["Aktif", "Tidak Aktif", "Cuti"])
         self.status_aktif_input.setCurrentIndex(0)
         self.status_aktif_input.setMinimumWidth(350)
-        
-        main_layout.addRow("Nama Lengkap*:", self.nama_lengkap_input)
-        main_layout.addRow("Jabatan*:", self.jabatan_utama_input)
-        main_layout.addRow("Wilayah Rohani*:", self.wilayah_rohani_input)
-        main_layout.addRow("Status:", self.status_aktif_input)
-        
-        layout.addWidget(main_group)
-    
-    def setup_kontak_foto(self, layout):
-        """Setup kontak dan foto (tampil di tabel sebagai Informasi Kontak)"""
-        kontak_group = QGroupBox("KONTAK & FOTO")
-        kontak_layout = QFormLayout(kontak_group)
+        form_layout.addRow("Status:", self.status_aktif_input)
         
         # Email
         self.email_input = QLineEdit()
         self.email_input.setMinimumWidth(350)
         self.email_input.setPlaceholderText("contoh@gereja.com")
+        form_layout.addRow("Email:", self.email_input)
         
         # Telepon
         self.telepon_input = QLineEdit()
         self.telepon_input.setMinimumWidth(350)
         self.telepon_input.setPlaceholderText("08123456789")
+        form_layout.addRow("Telepon:", self.telepon_input)
         
         # Foto path dengan tombol browse
         foto_container = QWidget()
@@ -1368,11 +1364,9 @@ class StrukturDialog(QDialog):
         foto_layout.addWidget(self.foto_path_input)
         foto_layout.addWidget(browse_button)
         
-        kontak_layout.addRow("Email:", self.email_input)
-        kontak_layout.addRow("Telepon:", self.telepon_input)
-        kontak_layout.addRow("Foto:", foto_container)
+        form_layout.addRow("Foto:", foto_container)
         
-        layout.addWidget(kontak_group)
+        layout.addLayout(form_layout)
     
     
     def browse_foto(self):
@@ -1492,13 +1486,11 @@ class StrukturDialog(QDialog):
         if not self.struktur_data:
             return
         
-        # 1. INFORMASI UTAMA (tampil di tabel)
+        # Load all form data
         self.nama_lengkap_input.setText(str(self.struktur_data.get('nama_lengkap', '')))
         self.jabatan_utama_input.setText(str(self.struktur_data.get('jabatan_utama', '')))
         self.wilayah_rohani_input.setText(str(self.struktur_data.get('wilayah_rohani', '')))
         self.set_combo_value(self.status_aktif_input, self.struktur_data.get('status_aktif', 'Aktif'))
-        
-        # 2. KONTAK & FOTO (tampil sebagai Informasi Kontak)
         self.email_input.setText(str(self.struktur_data.get('email', '')))
         self.telepon_input.setText(str(self.struktur_data.get('telepon', '')))
         self.foto_path_input.setText(str(self.struktur_data.get('foto_path', '')))

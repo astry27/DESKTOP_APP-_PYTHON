@@ -15,7 +15,7 @@ try:
     from components.dashboard import DashboardComponent
     from components.struktur import StrukturComponent
     from components.jemaat import JemaatComponent
-    from components.jadwal import JadwalComponent
+    from components.program_kerja import ProgramKerjaComponent
     from components.inventaris import InventarisComponent
     from components.pengumuman import PengumumanComponent
     from components.pengaturan import PengaturanComponent
@@ -206,37 +206,46 @@ class ServerMainWindow(QMainWindow):
         self.show_page(0)
     
     def setup_components(self):
+        # Index 0: Dashboard
         self.dashboard_component = DashboardComponent()
         self.content_stack.addWidget(self.dashboard_component)
         
+        # Index 1: Struktur DPP
         self.struktur_component = StrukturComponent()
         self.struktur_component.set_database_manager(self.db)
         self.content_stack.addWidget(self.struktur_component)
         
+        # Index 2: Program Kerja
+        self.program_kerja_component = ProgramKerjaComponent()
+        self.program_kerja_component.set_database_manager(self.db)
+        self.content_stack.addWidget(self.program_kerja_component)
+        
+        # Index 3: Database Umat
         self.jemaat_component = JemaatComponent()
         self.jemaat_component.set_database_manager(self.db)
         self.content_stack.addWidget(self.jemaat_component)
         
-        self.jadwal_component = JadwalComponent()
-        self.jadwal_component.set_database_manager(self.db)
-        self.content_stack.addWidget(self.jadwal_component)
-        
+        # Index 4: Inventaris
         self.inventaris_component = InventarisComponent()
         self.inventaris_component.set_database_manager(self.db)
         self.content_stack.addWidget(self.inventaris_component)
         
+        # Index 5: Pengumuman
         self.pengumuman_component = PengumumanComponent()
         self.pengumuman_component.set_database_manager(self.db)
         self.content_stack.addWidget(self.pengumuman_component)
         
+        # Index 6: Riwayat
         self.riwayat_component = RiwayatComponent()
         self.riwayat_component.set_database_manager(self.db)
         self.content_stack.addWidget(self.riwayat_component)
         
+        # Index 7: Dokumen
         self.dokumen_component = DokumenComponent()
         self.dokumen_component.set_database_manager(self.db)
         self.content_stack.addWidget(self.dokumen_component)
         
+        # Index 8: Pengaturan Sistem
         self.pengaturan_component = PengaturanComponent()
         self.pengaturan_component.set_database_manager(self.db)
         self.content_stack.addWidget(self.pengaturan_component)
@@ -246,8 +255,8 @@ class ServerMainWindow(QMainWindow):
     def setup_connections(self):
         self.sidebar.menu_dashboard.clicked.connect(lambda: self.show_page(0))
         self.sidebar.menu_struktur.clicked.connect(lambda: self.show_page(1))
-        self.sidebar.menu_jemaat.clicked.connect(lambda: self.show_page(2))
-        self.sidebar.menu_jadwal.clicked.connect(lambda: self.show_page(3))
+        self.sidebar.menu_program_kerja.clicked.connect(lambda: self.show_page(2))
+        self.sidebar.menu_jemaat.clicked.connect(lambda: self.show_page(3))
         self.sidebar.menu_inventaris.clicked.connect(lambda: self.show_page(4))
         self.sidebar.menu_pengumuman.clicked.connect(lambda: self.show_page(5))
         self.sidebar.menu_riwayat.clicked.connect(lambda: self.show_page(6))
@@ -258,8 +267,8 @@ class ServerMainWindow(QMainWindow):
         
         components = [
             self.struktur_component,
+            self.program_kerja_component,
             self.jemaat_component,
-            self.jadwal_component, 
             self.inventaris_component,
             self.pengumuman_component,
             self.riwayat_component,
@@ -381,11 +390,11 @@ class ServerMainWindow(QMainWindow):
             self.sidebar.menu_struktur.setChecked(True)
             self.struktur_component.load_data()
         elif index == 2:
+            self.sidebar.menu_program_kerja.setChecked(True)
+            self.program_kerja_component.kalender_widget.load_data()
+        elif index == 3:
             self.sidebar.menu_jemaat.setChecked(True)
             self.jemaat_component.load_data()
-        elif index == 3:
-            self.sidebar.menu_jadwal.setChecked(True)
-            self.jadwal_component.load_data()
         elif index == 4:
             self.sidebar.menu_inventaris.setChecked(True)
             self.inventaris_component.load_data()
@@ -423,7 +432,7 @@ class ServerMainWindow(QMainWindow):
 
         self.struktur_component.load_data()
         self.jemaat_component.load_data()
-        self.jadwal_component.load_data()
+        self.program_kerja_component.kalender_widget.load_data()
         self.pengumuman_component.load_data()
         self.inventaris_component.load_data()
         self.riwayat_component.load_data()
@@ -441,7 +450,7 @@ class ServerMainWindow(QMainWindow):
             return
 
         jemaat_data = self.jemaat_component.get_data()
-        kegiatan_data = self.jadwal_component.get_data()
+        kegiatan_data = self.program_kerja_component.get_data()
         pengumuman_data = self.pengumuman_component.get_data()
         
         self.dashboard_component.update_statistics(

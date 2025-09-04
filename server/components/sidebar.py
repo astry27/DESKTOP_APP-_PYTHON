@@ -69,8 +69,8 @@ class SidebarWidget(QWidget):
         # Buat menu buttons dengan icon
         self.menu_dashboard = SidebarButton("Dashboard", os.path.join(assets_path, "dashboard_icon.png"))
         self.menu_struktur = SidebarButton("Struktur DPP", os.path.join(assets_path, "structure_icon.png"))
+        self.menu_program_kerja = SidebarButton("Program Kerja", os.path.join(assets_path, "jadwal_icon.png"))
         self.menu_jemaat = SidebarButton("Database Umat", os.path.join(assets_path, "jemaat_icon.png"))
-        self.menu_jadwal = SidebarButton("Jadwal Kegiatan", os.path.join(assets_path, "jadwal_icon.png"))
         self.menu_inventaris = SidebarButton("Inventaris", os.path.join(assets_path, "inventory_icon.png"))
         self.menu_pengumuman = SidebarButton("Pengumuman", os.path.join(assets_path, "pengumuman_icon.png"))
         self.menu_riwayat = SidebarButton("Riwayat", os.path.join(assets_path, "riwayat_icon.png"))
@@ -80,8 +80,8 @@ class SidebarWidget(QWidget):
         # Tambahkan menu ke container
         menu_layout.addWidget(self.menu_dashboard)
         menu_layout.addWidget(self.menu_struktur)
+        menu_layout.addWidget(self.menu_program_kerja)
         menu_layout.addWidget(self.menu_jemaat)
-        menu_layout.addWidget(self.menu_jadwal)
         menu_layout.addWidget(self.menu_inventaris)
         menu_layout.addWidget(self.menu_pengumuman)
         menu_layout.addWidget(self.menu_dokumen)
@@ -332,8 +332,8 @@ class SidebarWidget(QWidget):
         """Reset semua pilihan menu"""
         self.menu_dashboard.setChecked(False)
         self.menu_struktur.setChecked(False)
+        self.menu_program_kerja.setChecked(False)
         self.menu_jemaat.setChecked(False)
-        self.menu_jadwal.setChecked(False)
         self.menu_inventaris.setChecked(False)
         self.menu_pengumuman.setChecked(False)
         self.menu_riwayat.setChecked(False)
