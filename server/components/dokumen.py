@@ -135,6 +135,11 @@ class DokumenComponent(QWidget):
         
         self.refresh_button = QPushButton("Refresh")
         self.refresh_button.clicked.connect(self.load_data)
+        # Add refresh icon
+        refresh_icon = QIcon("server/assets/refresh.png")
+        if not refresh_icon.isNull():
+            self.refresh_button.setIcon(refresh_icon)
+            self.refresh_button.setIconSize(QSize(20, 20))  # Larger icon size for better visibility
         self.refresh_button.setStyleSheet("""
             QPushButton {
                 background-color: #3498db;
@@ -142,6 +147,7 @@ class DokumenComponent(QWidget):
                 padding: 6px 12px;
                 border: none;
                 border-radius: 4px;
+                text-align: left;
             }
             QPushButton:hover {
                 background-color: #2980b9;
@@ -151,6 +157,11 @@ class DokumenComponent(QWidget):
         
         self.upload_button = QPushButton("Upload Dokumen")
         self.upload_button.clicked.connect(self.upload_document)
+        # Add upload icon
+        upload_icon = QIcon("server/assets/upload.png")
+        if not upload_icon.isNull():
+            self.upload_button.setIcon(upload_icon)
+            self.upload_button.setIconSize(QSize(20, 20))  # Larger icon size for better visibility
         self.upload_button.setStyleSheet("""
             QPushButton {
                 background-color: #27ae60;
@@ -158,6 +169,7 @@ class DokumenComponent(QWidget):
                 padding: 6px 12px;
                 border: none;
                 border-radius: 4px;
+                text-align: left;
             }
             QPushButton:hover {
                 background-color: #2ecc71;
@@ -506,7 +518,7 @@ class DokumenComponent(QWidget):
             view_button = QPushButton()
             view_icon = QIcon("server/assets/lihat.png")
             view_button.setIcon(view_icon)
-            view_button.setIconSize(QSize(12, 12))
+            view_button.setIconSize(QSize(18, 18))  # Larger icon size for better visibility
             view_button.setStyleSheet("""
                 QPushButton { 
                     background-color: #f1c40f; 
@@ -534,7 +546,7 @@ class DokumenComponent(QWidget):
             download_button = QPushButton()
             download_icon = QIcon("server/assets/unduh.png")
             download_button.setIcon(download_icon)
-            download_button.setIconSize(QSize(12, 12))
+            download_button.setIconSize(QSize(18, 18))  # Larger icon size for better visibility
             download_button.setStyleSheet("""
                 QPushButton { 
                     background-color: #27ae60; 
@@ -562,7 +574,7 @@ class DokumenComponent(QWidget):
             delete_button = QPushButton()
             delete_icon = QIcon("server/assets/hapus.png")
             delete_button.setIcon(delete_icon)
-            delete_button.setIconSize(QSize(12, 12))
+            delete_button.setIconSize(QSize(18, 18))  # Larger icon size for better visibility
             delete_button.setStyleSheet("""
                 QPushButton { 
                     background-color: #e74c3c; 

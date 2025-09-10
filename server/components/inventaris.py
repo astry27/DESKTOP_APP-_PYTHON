@@ -6,7 +6,8 @@ from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                             QPushButton, QTableWidget, QTableWidgetItem,
                             QHeaderView, QGroupBox, QMessageBox, 
                             QFileDialog, QAbstractItemView, QFrame, QLineEdit)
-from PyQt5.QtCore import pyqtSignal, QDate, Qt
+from PyQt5.QtCore import pyqtSignal, QDate, Qt, QSize
+from PyQt5.QtGui import QIcon
 
 # Import dialog inventaris yang baru
 from .dialogs import InventarisDialog
@@ -66,7 +67,7 @@ class InventarisComponent(QWidget):
         """Buat header dengan kontrol pencarian dan tombol tambah."""
         header = QWidget()
         header_layout = QHBoxLayout(header)
-        header_layout.setContentsMargins(0, 0, 0, 0)
+        header_layout.setContentsMargins(0, 0, 10, 0)  # Add right margin for spacing
         
         # Search functionality
         self.search_input = QLineEdit()
@@ -80,7 +81,7 @@ class InventarisComponent(QWidget):
         
         header_layout.addStretch()
         
-        add_button = self.create_button("Tambah Inventaris", "#27ae60", self.add_inventaris)
+        add_button = self.create_button("Tambah Inventaris", "#27ae60", self.add_inventaris, "server/assets/tambah.png")
         header_layout.addWidget(add_button)
         
         return header
@@ -189,23 +190,34 @@ class InventarisComponent(QWidget):
         action_layout = QHBoxLayout()
         action_layout.addStretch()
         
-        edit_button = self.create_button("Edit Terpilih", "#f39c12", self.edit_inventaris)
+        edit_button = self.create_button("Edit Terpilih", "#f39c12", self.edit_inventaris, "server/assets/edit.png")
         action_layout.addWidget(edit_button)
         
-        delete_button = self.create_button("Hapus Terpilih", "#c0392b", self.delete_inventaris)
+        delete_button = self.create_button("Hapus Terpilih", "#c0392b", self.delete_inventaris, "server/assets/hapus.png")
         action_layout.addWidget(delete_button)
         
-        export_button = self.create_button("Export Data", "#16a085", self.export_data)
+        export_button = self.create_button("Export Data", "#16a085", self.export_data, "server/assets/export.png")
         action_layout.addWidget(export_button)
 
-        refresh_button = self.create_button("Refresh", "#8e44ad", self.load_data)
+        refresh_button = self.create_button("Refresh", "#8e44ad", self.load_data, "server/assets/refresh.png")
         action_layout.addWidget(refresh_button)
         
         return action_layout
 
-    def create_button(self, text, color, slot):
-        """Buat button dengan style konsisten."""
+    def create_button(self, text, color, slot, icon_path=None):
+        """Buat button dengan style konsisten dan optional icon."""
         button = QPushButton(text)
+        
+        # Add icon if specified and path exists
+        if icon_path:
+            try:
+                icon = QIcon(icon_path)
+                if not icon.isNull():
+                    button.setIcon(icon)
+                    button.setIconSize(QSize(20, 20))  # Larger icon size for better visibility
+            except Exception:
+                pass  # If icon loading fails, just continue without icon
+        
         hover_color = self.darken_color(color)
         button.setStyleSheet(f"""
             QPushButton {{
@@ -216,6 +228,7 @@ class InventarisComponent(QWidget):
                 border-radius: 4px; 
                 font-weight: bold;
                 font-family: Arial, sans-serif;
+                text-align: left;
             }}
             QPushButton:hover {{
                 background-color: {hover_color};

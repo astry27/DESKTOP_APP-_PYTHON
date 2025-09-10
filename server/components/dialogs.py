@@ -335,7 +335,7 @@ class JemaatDialog(QDialog):
         status_layout = QFormLayout(status_group)
         
         self.status_keanggotaan_input = QComboBox()
-        self.status_keanggotaan_input.addItems(["Pilih Status", "Aktif", "Pindah", "Meninggal Dunia"])
+        self.status_keanggotaan_input.addItems(["Pilih Status", "Menetap", "Pindah", "Meninggal Dunia"])
         self.status_keanggotaan_input.setCurrentIndex(0)
         self.status_keanggotaan_input.setMinimumWidth(300)
         self.setup_placeholder_style(self.status_keanggotaan_input)

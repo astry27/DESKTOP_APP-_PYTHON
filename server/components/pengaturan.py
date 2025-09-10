@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                             QFormLayout, QLineEdit, QComboBox, QCheckBox,
                             QTextEdit, QTabWidget)
 from PyQt5.QtCore import pyqtSignal
-from PyQt5.QtGui import QColor
+from PyQt5.QtGui import QColor, QIcon
 
 class PengaturanComponent(QWidget):
     """Komponen untuk pengaturan sistem dalam API Mode"""
@@ -39,7 +39,7 @@ class PengaturanComponent(QWidget):
         """Buat header dengan title"""
         header = QWidget()
         header_layout = QHBoxLayout(header)
-        header_layout.setContentsMargins(0, 0, 0, 0)
+        header_layout.setContentsMargins(0, 0, 10, 0)  # Add right margin for spacing
         
         title = QLabel("Pengaturan Sistem (API Mode)")
         title.setStyleSheet("font-size: 18px; font-weight: bold;")
@@ -174,7 +174,7 @@ Tidak dapat diubah melalui aplikasi desktop ini.
         # Tombol export/import
         backup_action_layout = QHBoxLayout()
         
-        export_button = self.create_button("Export Data ke CSV", "#3498db", self.export_data)
+        export_button = self.create_button("Export Data ke CSV", "#3498db", self.export_data, "server/assets/export.png")
         backup_action_layout.addWidget(export_button)
         
         import_button = self.create_button("Import Data dari CSV", "#f39c12", self.import_data)
@@ -195,7 +195,7 @@ Tidak dapat diubah melalui aplikasi desktop ini.
         user_action_layout = QHBoxLayout()
         user_action_layout.addStretch()
         
-        add_user_button = self.create_button("Tambah Pengguna", "#27ae60", self.add_user)
+        add_user_button = self.create_button("Tambah Pengguna", "#27ae60", self.add_user, "server/assets/tambah.png")
         user_action_layout.addWidget(add_user_button)
         
         users_layout.addLayout(user_action_layout)
@@ -304,20 +304,31 @@ hubungi administrator IT gereja.
         user_button_layout = QHBoxLayout()
         user_button_layout.addStretch()
         
-        edit_user_button = self.create_button("Edit Terpilih", "#f39c12", self.edit_user)
+        edit_user_button = self.create_button("Edit Terpilih", "#f39c12", self.edit_user, "server/assets/edit.png")
         user_button_layout.addWidget(edit_user_button)
         
         reset_password_button = self.create_button("Reset Password", "#8e44ad", self.reset_password)
         user_button_layout.addWidget(reset_password_button)
         
-        delete_user_button = self.create_button("Hapus Terpilih", "#c0392b", self.delete_user)
+        delete_user_button = self.create_button("Hapus Terpilih", "#c0392b", self.delete_user, "server/assets/hapus.png")
         user_button_layout.addWidget(delete_user_button)
         
         return user_button_layout
     
-    def create_button(self, text, color, slot):
-        """Buat button dengan style konsisten"""
+    def create_button(self, text, color, slot, icon_path=None):
+        """Buat button dengan style konsisten dan optional icon"""
         button = QPushButton(text)
+        
+        # Add icon if specified and path exists
+        if icon_path:
+            try:
+                icon = QIcon(icon_path)
+                if not icon.isNull():
+                    button.setIcon(icon)
+                    button.setIconSize(button.fontMetrics().boundingRect("M").size())
+            except Exception:
+                pass  # If icon loading fails, just continue without icon
+        
         button.setStyleSheet(f"""
             QPushButton {{
                 background-color: {color};
@@ -325,6 +336,7 @@ hubungi administrator IT gereja.
                 padding: 5px 10px;
                 border: none;
                 border-radius: 3px;
+                text-align: left;
             }}
             QPushButton:hover {{
                 background-color: {self.darken_color(color)};

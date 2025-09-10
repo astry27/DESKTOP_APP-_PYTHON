@@ -3,8 +3,9 @@
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
                             QPushButton, QTableWidget, QTableWidgetItem,
                             QHeaderView, QMessageBox, QFileDialog, QGroupBox,
-                            QDateEdit, QFormLayout, QAbstractItemView, QFrame)
-from PyQt5.QtCore import QObject, pyqtSignal, QDate
+                            QDateEdit, QFormLayout, QAbstractItemView, QFrame, QComboBox)
+from PyQt5.QtCore import QObject, pyqtSignal, QDate, QSize
+from PyQt5.QtGui import QIcon
 
 # Import dialog secara langsung untuk menghindari circular import  
 from components.dialogs import KegiatanDialog
@@ -48,8 +49,8 @@ class JadwalComponent(QWidget):
         header = self.create_header()
         layout.addWidget(header)
         
-        # Filter tanggal
-        filter_group = self.create_date_filter()
+        # Filter bulan
+        filter_group = self.create_month_filter()
         layout.addWidget(filter_group)
         
         # Tabel Jadwal (hapus kolom ID, tambah kolom deskripsi)
@@ -58,7 +59,14 @@ class JadwalComponent(QWidget):
             "Nama Kegiatan", "Deskripsi", "Lokasi", "Tanggal Mulai", 
             "Tanggal Selesai", "Penanggung Jawab"
         ])
-        self.jadwal_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        # Make headers bold
+        header = self.jadwal_table.horizontalHeader()
+        from PyQt5.QtGui import QFont
+        font = QFont()
+        font.setBold(True)
+        header.setFont(font)
+        
+        header.setSectionResizeMode(QHeaderView.Stretch)
         self.jadwal_table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.jadwal_table.setAlternatingRowColors(True)
         
@@ -94,37 +102,27 @@ class JadwalComponent(QWidget):
         """Buat header dengan kontrol (tanpa title karena sudah ada di header frame)"""
         header = QWidget()
         header_layout = QHBoxLayout(header)
-        header_layout.setContentsMargins(0, 0, 0, 0)
+        header_layout.setContentsMargins(0, 0, 10, 0)  # Add right margin for spacing
         
         header_layout.addStretch()
         
-        add_button = self.create_button("Tambah Kegiatan", "#27ae60", self.add_kegiatan)
+        add_button = self.create_button("Tambah Kegiatan", "#27ae60", self.add_kegiatan, "server/assets/tambah.png")
         header_layout.addWidget(add_button)
         
         return header
     
-    def create_date_filter(self):
-        """Buat filter tanggal"""
-        filter_group = QGroupBox("Filter Tanggal")
+    def create_month_filter(self):
+        """Buat filter bulan"""
+        filter_group = QGroupBox()  # Remove title like program_kerja.py
         filter_layout = QHBoxLayout(filter_group)
         
-        from_date_label = QLabel("Dari:")
-        filter_layout.addWidget(from_date_label)
+        month_label = QLabel("Bulan:")
+        filter_layout.addWidget(month_label)
         
-        self.from_date = QDateEdit()
-        self.from_date.setCalendarPopup(True)
-        # Set tanggal awal 1 bulan yang lalu
-        self.from_date.setDate(QDate.currentDate().addMonths(-1))
-        filter_layout.addWidget(self.from_date)
-        
-        to_date_label = QLabel("Sampai:")
-        filter_layout.addWidget(to_date_label)
-        
-        self.to_date = QDateEdit()
-        self.to_date.setCalendarPopup(True)
-        # Set tanggal akhir 6 bulan ke depan
-        self.to_date.setDate(QDate.currentDate().addMonths(6))
-        filter_layout.addWidget(self.to_date)
+        self.month_filter = QComboBox()
+        self.populate_month_filter()
+        self.month_filter.currentTextChanged.connect(self.filter_kegiatan)
+        filter_layout.addWidget(self.month_filter)
         
         apply_filter = self.create_button("Terapkan Filter", "#3498db", self.filter_kegiatan)
         filter_layout.addWidget(apply_filter)
@@ -136,28 +134,49 @@ class JadwalComponent(QWidget):
         
         return filter_group
     
+    def populate_month_filter(self):
+        """Populate month filter with all months"""
+        months = [
+            "Semua Bulan",
+            "Januari", "Februari", "Maret", "April", 
+            "Mei", "Juni", "Juli", "Agustus",
+            "September", "Oktober", "November", "Desember"
+        ]
+        self.month_filter.addItems(months)
+    
     def create_action_buttons(self):
         """Buat tombol-tombol aksi"""
         action_layout = QHBoxLayout()
         action_layout.addStretch()
         
-        edit_button = self.create_button("Edit Terpilih", "#f39c12", self.edit_kegiatan)
+        edit_button = self.create_button("Edit Terpilih", "#f39c12", self.edit_kegiatan, "server/assets/edit.png")
         action_layout.addWidget(edit_button)
         
-        delete_button = self.create_button("Hapus Terpilih", "#c0392b", self.delete_kegiatan)
+        delete_button = self.create_button("Hapus Terpilih", "#c0392b", self.delete_kegiatan, "server/assets/hapus.png")
         action_layout.addWidget(delete_button)
         
-        export_button = self.create_button("Export Jadwal", "#16a085", self.export_kegiatan)
+        export_button = self.create_button("Export Jadwal", "#16a085", self.export_kegiatan, "server/assets/export.png")
         action_layout.addWidget(export_button)
         
-        refresh_button = self.create_button("Refresh", "#8e44ad", self.load_data)
+        refresh_button = self.create_button("Refresh", "#8e44ad", self.load_data, "server/assets/refresh.png")
         action_layout.addWidget(refresh_button)
         
         return action_layout
     
-    def create_button(self, text, color, slot):
-        """Buat button dengan style konsisten"""
+    def create_button(self, text, color, slot, icon_path=None):
+        """Buat button dengan style konsisten dan optional icon"""
         button = QPushButton(text)
+        
+        # Add icon if specified and path exists
+        if icon_path:
+            try:
+                icon = QIcon(icon_path)
+                if not icon.isNull():
+                    button.setIcon(icon)
+                    button.setIconSize(QSize(20, 20))  # Larger icon size for better visibility
+            except Exception:
+                pass  # If icon loading fails, just continue without icon
+        
         button.setStyleSheet(f"""
             QPushButton {{
                 background-color: {color};
@@ -165,6 +184,7 @@ class JadwalComponent(QWidget):
                 padding: 5px 10px;
                 border: none;
                 border-radius: 3px;
+                text-align: left;
             }}
             QPushButton:hover {{
                 background-color: {self.darken_color(color)};
@@ -208,6 +228,10 @@ class JadwalComponent(QWidget):
                     self.kegiatan_data = []
                 
                 self.log_message.emit(f"Data kegiatan berhasil dimuat: {len(self.kegiatan_data)} record")
+                
+                # Reset filter data backup
+                if hasattr(self, 'original_kegiatan_data'):
+                    delattr(self, 'original_kegiatan_data')
                 
                 # Debug: print beberapa data untuk memastikan
                 if self.kegiatan_data:
@@ -301,50 +325,55 @@ class JadwalComponent(QWidget):
             return str(date_value) if date_value else ''
     
     def show_all_kegiatan(self):
-        """Tampilkan semua kegiatan tanpa filter tanggal"""
-        self.load_data()
+        """Tampilkan semua kegiatan tanpa filter"""
+        self.month_filter.setCurrentText("Semua Bulan")
+        self.filter_kegiatan()
     
     def filter_kegiatan(self):
-        """Filter kegiatan berdasarkan tanggal"""
-        if not self.kegiatan_data:
-            self.log_message.emit("Tidak ada data untuk difilter")
-            return
+        """Filter kegiatan berdasarkan bulan"""
+        if not hasattr(self, 'original_kegiatan_data'):
+            # Backup data asli saat pertama kali filter
+            self.original_kegiatan_data = self.kegiatan_data.copy()
         
-        try:
-            start_date = self.from_date.date().toPyDate()
-            end_date = self.to_date.date().toPyDate()
-            
+        month_filter = self.month_filter.currentText()
+        
+        if month_filter == "Semua Bulan":
+            # Tampilkan semua data
+            self.kegiatan_data = self.original_kegiatan_data.copy()
+        else:
+            # Filter berdasarkan bulan
             filtered_data = []
-            for item in self.kegiatan_data:
+            
+            for item in self.original_kegiatan_data:
                 tanggal_mulai = item.get('tanggal_mulai')
                 if tanggal_mulai:
                     try:
                         if isinstance(tanggal_mulai, str):
                             import datetime
-                            item_date = datetime.datetime.strptime(tanggal_mulai, '%Y-%m-%d').date()
+                            item_date = datetime.datetime.strptime(tanggal_mulai, '%Y-%m-%d')
                         elif hasattr(tanggal_mulai, 'date'):
-                            item_date = tanggal_mulai.date()
-                        else:
                             item_date = tanggal_mulai
+                        else:
+                            continue
                         
-                        if start_date <= item_date <= end_date:
+                        # Map Indonesian month names
+                        month_names = {
+                            1: "Januari", 2: "Februari", 3: "Maret", 4: "April",
+                            5: "Mei", 6: "Juni", 7: "Juli", 8: "Agustus",
+                            9: "September", 10: "Oktober", 11: "November", 12: "Desember"
+                        }
+                        item_month_name = month_names.get(item_date.month, "")
+                        
+                        if item_month_name == month_filter:
                             filtered_data.append(item)
                     except:
-                        # Jika error parsing tanggal, masukkan ke hasil filter
-                        filtered_data.append(item)
-                else:
-                    # Jika tidak ada tanggal, masukkan ke hasil filter
-                    filtered_data.append(item)
+                        # Jika error parsing tanggal, skip item ini
+                        continue
             
-            # Simpan data asli dan replace dengan data yang difilter
-            original_data = self.kegiatan_data
             self.kegiatan_data = filtered_data
-            self.populate_table()
-            self.kegiatan_data = original_data  # Restore data asli
-            
-            self.log_message.emit(f"Filter diterapkan: {len(filtered_data)} dari {len(original_data)} kegiatan")
-        except Exception as e:
-            self.log_message.emit(f"Error filtering data: {str(e)}")
+        
+        self.populate_table()
+        self.log_message.emit(f"Filter bulan {month_filter}: {len(self.kegiatan_data)} kegiatan ditampilkan")
     
     def add_kegiatan(self):
         """Tambah kegiatan baru"""

@@ -5,8 +5,8 @@ from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QTableWidget,
                             QTableWidgetItem, QHeaderView, QLabel, QLineEdit, 
                             QPushButton, QComboBox, QFrame, QMessageBox, QTabWidget,
                             QTextBrowser, QAbstractItemView, QDateEdit, QGroupBox)
-from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QDate
-from PyQt5.QtGui import QColor
+from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QDate, QSize
+from PyQt5.QtGui import QColor, QIcon
 
 class RiwayatComponent(QWidget):
     
@@ -110,6 +110,11 @@ class RiwayatComponent(QWidget):
         # Refresh button
         self.refresh_button = QPushButton("Refresh")
         self.refresh_button.clicked.connect(self.load_data)
+        # Add refresh icon
+        refresh_icon = QIcon("server/assets/refresh.png")
+        if not refresh_icon.isNull():
+            self.refresh_button.setIcon(refresh_icon)
+            self.refresh_button.setIconSize(QSize(20, 20))  # Larger icon size for better visibility
         self.refresh_button.setStyleSheet("""
             QPushButton {
                 background-color: #27ae60;
@@ -117,6 +122,7 @@ class RiwayatComponent(QWidget):
                 padding: 6px 12px;
                 border: none;
                 border-radius: 4px;
+                text-align: left;
             }
             QPushButton:hover {
                 background-color: #2ecc71;

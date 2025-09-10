@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                             QPushButton, QTableWidget, QTableWidgetItem,
                             QHeaderView, QGroupBox, QMessageBox, 
                             QFileDialog, QAbstractItemView, QFrame, QLineEdit)
-from PyQt5.QtCore import pyqtSignal, QDate, Qt, QTimer
+from PyQt5.QtCore import pyqtSignal, QDate, Qt, QTimer, QSize
 from PyQt5.QtGui import QPixmap, QIcon, QFont
 
 # Import dialog struktur yang baru
@@ -41,7 +41,8 @@ class StrukturComponent(QWidget):
         
         # Header Frame (matching dokumen.py style)
         header_frame = QFrame()
-        header_frame.setFixedHeight(50)  # Set fixed height to ensure visibility
+        header_frame.setMinimumHeight(50)  # Use minimum height instead of fixed
+        header_frame.setMaximumHeight(60)  # Set maximum height for consistency
         header_frame.setStyleSheet("""
             QFrame {
                 background-color: #34495e; 
@@ -51,18 +52,20 @@ class StrukturComponent(QWidget):
             }
         """)
         header_layout = QHBoxLayout(header_frame)
-        header_layout.setContentsMargins(15, 10, 15, 10)  # Add proper margins
+        header_layout.setContentsMargins(20, 15, 20, 15)  # Increase margins for better visibility
         
         title_label = QLabel("Struktur Kepengurusan DPP")
         title_label.setStyleSheet("""
             QLabel {
-                font-size: 16px; 
+                font-size: 18px; 
                 font-weight: bold; 
                 color: white;
                 background: transparent;
                 border: none;
+                min-height: 20px;
             }
         """)
+        title_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)  # Ensure proper alignment
         header_layout.addWidget(title_label)
         header_layout.addStretch()
         
@@ -88,7 +91,7 @@ class StrukturComponent(QWidget):
         """Buat header dengan kontrol pencarian dan tombol tambah."""
         header = QWidget()
         header_layout = QHBoxLayout(header)
-        header_layout.setContentsMargins(0, 0, 0, 0)
+        header_layout.setContentsMargins(0, 0, 10, 0)  # Add right margin for spacing
         
         # Search functionality
         self.search_input = QLineEdit()
@@ -105,7 +108,7 @@ class StrukturComponent(QWidget):
         
         header_layout.addStretch()
         
-        add_button = self.create_button("Tambah Pengurus", "#27ae60", self.add_struktur)
+        add_button = self.create_button("Tambah Pengurus", "#27ae60", self.add_struktur, "server/assets/tambah.png")
         header_layout.addWidget(add_button)
         
         return header
@@ -197,26 +200,37 @@ class StrukturComponent(QWidget):
         action_layout = QHBoxLayout()
         action_layout.addStretch()
         
-        edit_button = self.create_button("Edit Terpilih", "#f39c12", self.edit_struktur)
+        edit_button = self.create_button("Edit Terpilih", "#f39c12", self.edit_struktur, "server/assets/edit.png")
         action_layout.addWidget(edit_button)
         
-        delete_button = self.create_button("Hapus Terpilih", "#c0392b", self.delete_struktur)
+        delete_button = self.create_button("Hapus Terpilih", "#c0392b", self.delete_struktur, "server/assets/hapus.png")
         action_layout.addWidget(delete_button)
         
         org_chart_button = self.create_button("Bagan Organisasi", "#9b59b6", self.show_org_chart)
         action_layout.addWidget(org_chart_button)
         
-        export_button = self.create_button("Export Data", "#16a085", self.export_data)
+        export_button = self.create_button("Export Data", "#16a085", self.export_data, "server/assets/export.png")
         action_layout.addWidget(export_button)
 
-        refresh_button = self.create_button("Refresh", "#8e44ad", self.load_data)
+        refresh_button = self.create_button("Refresh", "#8e44ad", self.load_data, "server/assets/refresh.png")
         action_layout.addWidget(refresh_button)
         
         return action_layout
 
-    def create_button(self, text, color, slot):
-        """Buat button dengan style konsisten."""
+    def create_button(self, text, color, slot, icon_path=None):
+        """Buat button dengan style konsisten dan optional icon."""
         button = QPushButton(text)
+        
+        # Add icon if specified and path exists
+        if icon_path:
+            try:
+                icon = QIcon(icon_path)
+                if not icon.isNull():
+                    button.setIcon(icon)
+                    button.setIconSize(QSize(20, 20))  # Larger icon size for better visibility
+            except Exception:
+                pass  # If icon loading fails, just continue without icon
+        
         hover_color = self.darken_color(color)
         button.setStyleSheet(f"""
             QPushButton {{
@@ -227,6 +241,7 @@ class StrukturComponent(QWidget):
                 border-radius: 4px; 
                 font-weight: bold;
                 font-family: Arial, sans-serif;
+                text-align: left;
             }}
             QPushButton:hover {{
                 background-color: {hover_color};

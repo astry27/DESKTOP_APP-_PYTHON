@@ -7,8 +7,8 @@ from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushBut
                            QDialog, QFormLayout, QLineEdit, QTextEdit as QTextEditDialog, 
                            QDateEdit, QDialogButtonBox, QComboBox, QSpinBox, QTabWidget,
                            QTableWidget, QTableWidgetItem, QHeaderView, QAbstractItemView)
-from PyQt5.QtCore import Qt, QDate, pyqtSignal, QTimer
-from PyQt5.QtGui import QFont, QPalette, QColor, QTextCharFormat, QBrush
+from PyQt5.QtCore import Qt, QDate, pyqtSignal, QTimer, QSize
+from PyQt5.QtGui import QFont, QPalette, QColor, QTextCharFormat, QBrush, QIcon
 import datetime
 
 # Import existing JadwalComponent
@@ -79,10 +79,28 @@ class WorkProgramDialog(QDialog):
         self.description_input.setPlaceholderText("Deskripsi program kerja")
         form_layout.addRow("Deskripsi:", self.description_input)
         
-        # Responsible person
+        # Responsible person (PIC)
         self.responsible_input = QLineEdit()
-        self.responsible_input.setPlaceholderText("Penanggung jawab")
-        form_layout.addRow("Penanggung Jawab:", self.responsible_input)
+        self.responsible_input.setPlaceholderText("Person In Charge (PIC)")
+        form_layout.addRow("PIC:", self.responsible_input)
+        
+        # Target audience
+        self.target_input = QLineEdit()
+        self.target_input.setPlaceholderText("Sasaran/Target peserta")
+        form_layout.addRow("Sasaran:", self.target_input)
+        
+        # Budget amount
+        self.budget_amount_input = QLineEdit()
+        self.budget_amount_input.setPlaceholderText("Jumlah anggaran (Rp)")
+        form_layout.addRow("Jumlah Anggaran:", self.budget_amount_input)
+        
+        # Budget source
+        self.budget_source_input = QComboBox()
+        self.budget_source_input.addItems([
+            "Kas Gereja", "Donasi Jemaat", "Sponsor External", 
+            "Dana Komisi", "APBG", "Kolekte Khusus", "Lainnya"
+        ])
+        form_layout.addRow("Sumber Anggaran:", self.budget_source_input)
         
         layout.addLayout(form_layout)
         
@@ -121,6 +139,9 @@ class WorkProgramDialog(QDialog):
         self.location_input.setText(self.program_data.get('location', ''))
         self.description_input.setPlainText(self.program_data.get('description', ''))
         self.responsible_input.setText(self.program_data.get('responsible', ''))
+        self.target_input.setText(self.program_data.get('target', ''))
+        self.budget_amount_input.setText(self.program_data.get('budget_amount', ''))
+        self.budget_source_input.setCurrentText(self.program_data.get('budget_source', 'Kas Gereja'))
     
     def get_data(self):
         """Get form data"""
@@ -131,7 +152,10 @@ class WorkProgramDialog(QDialog):
             'category': self.category_input.currentText(),
             'location': self.location_input.text().strip(),
             'description': self.description_input.toPlainText().strip(),
-            'responsible': self.responsible_input.text().strip()
+            'responsible': self.responsible_input.text().strip(),
+            'target': self.target_input.text().strip(),
+            'budget_amount': self.budget_amount_input.text().strip(),
+            'budget_source': self.budget_source_input.currentText()
         }
 
 class KalenderKerjaWidget(QWidget):
@@ -159,546 +183,212 @@ class KalenderKerjaWidget(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
         
-        # Upcoming events reminder section
-        reminder_widget = self.create_upcoming_events_widget()
-        layout.addWidget(reminder_widget)
-        
-        # Main program list layout 
+        # Main program list layout only
         main_widget = self.create_main_program_widget()
         layout.addWidget(main_widget)
     
-    def create_upcoming_events_widget(self):
-        """Create upcoming events/reminders widget"""
-        widget = QWidget()
-        layout = QVBoxLayout(widget)
-        layout.setContentsMargins(10, 10, 10, 5)
-        layout.setSpacing(8)
-        
-        # Header
-        header = QLabel("📅 Pengingat Kegiatan Mendatang")
-        header.setStyleSheet("""
-            QLabel {
-                background-color: #27ae60;
-                color: white;
-                padding: 12px;
-                font-size: 14px;
-                font-weight: bold;
-                border-radius: 6px;
-            }
-        """)
-        header.setAlignment(Qt.AlignCenter)
-        layout.addWidget(header)
-        
-        # Upcoming events list
-        self.upcoming_events_widget = QWidget()
-        self.upcoming_events_widget.setStyleSheet("""
-            QWidget {
-                background-color: #f8f9fa;
-                border: 1px solid #e9ecef;
-                border-radius: 6px;
-            }
-        """)
-        
-        self.upcoming_events_layout = QVBoxLayout(self.upcoming_events_widget)
-        self.upcoming_events_layout.setContentsMargins(15, 10, 15, 10)
-        self.upcoming_events_layout.setSpacing(5)
-        
-        # Initially show empty state
-        self.update_upcoming_events()
-        
-        layout.addWidget(self.upcoming_events_widget)
-        
-        return widget
-    
-    def update_upcoming_events(self):
-        """Update upcoming events display"""
-        # Clear current layout
-        for i in reversed(range(self.upcoming_events_layout.count())):
-            self.upcoming_events_layout.itemAt(i).widget().setParent(None)
-        
-        # Get upcoming events (next 7 days)
-        today = datetime.date.today()
-        upcoming = []
-        
-        for program in self.work_programs:
-            try:
-                program_date = datetime.datetime.strptime(program['date'], '%Y-%m-%d').date()
-                days_diff = (program_date - today).days
-                
-                # Include events from today and next 7 days
-                if 0 <= days_diff <= 7:
-                    upcoming.append((program, days_diff))
-            except:
-                continue
-        
-        # Sort by date
-        upcoming.sort(key=lambda x: x[1])
-        
-        if not upcoming:
-            # Show empty state
-            empty_label = QLabel("📝 Tidak ada kegiatan dalam 7 hari ke depan")
-            empty_label.setStyleSheet("""
-                QLabel {
-                    color: #7f8c8d;
-                    font-style: italic;
-                    padding: 20px;
-                    text-align: center;
-                }
-            """)
-            empty_label.setAlignment(Qt.AlignCenter)
-            self.upcoming_events_layout.addWidget(empty_label)
-        else:
-            # Show upcoming events
-            for program, days_diff in upcoming:
-                event_widget = self.create_event_reminder_item(program, days_diff)
-                self.upcoming_events_layout.addWidget(event_widget)
-    
-    def create_event_reminder_item(self, program, days_diff):
-        """Create individual event reminder item"""
-        item_widget = QWidget()
-        item_widget.setStyleSheet("""
-            QWidget {
-                background-color: white;
-                border: 1px solid #dee2e6;
-                border-left: 4px solid #3498db;
-                border-radius: 4px;
-                margin: 2px 0px;
-            }
-            QWidget:hover {
-                background-color: #f8f9fa;
-                border-left-color: #2980b9;
-            }
-        """)
-        
-        layout = QHBoxLayout(item_widget)
-        layout.setContentsMargins(10, 8, 10, 8)
-        layout.setSpacing(10)
-        
-        # Date info
-        if days_diff == 0:
-            date_text = "Hari ini"
-            date_color = "#e74c3c"  # Red for today
-        elif days_diff == 1:
-            date_text = "Besok"
-            date_color = "#f39c12"  # Orange for tomorrow
-        else:
-            date_text = f"{days_diff} hari lagi"
-            date_color = "#3498db"  # Blue for future
-        
-        date_label = QLabel(date_text)
-        date_label.setStyleSheet(f"""
-            QLabel {{
-                color: {date_color};
-                font-weight: bold;
-                font-size: 11px;
-                min-width: 70px;
-            }}
-        """)
-        date_label.setAlignment(Qt.AlignCenter)
-        layout.addWidget(date_label)
-        
-        # Event details
-        details_layout = QVBoxLayout()
-        details_layout.setSpacing(2)
-        
-        # Title and time
-        title_time = QLabel(f"{program.get('title', 'N/A')} - {program.get('time', 'N/A')}")
-        title_time.setStyleSheet("""
-            QLabel {
-                color: #2c3e50;
-                font-weight: bold;
-                font-size: 12px;
-            }
-        """)
-        details_layout.addWidget(title_time)
-        
-        # Location and category
-        location_category = QLabel(f"📍 {program.get('location', 'N/A')} • {program.get('category', 'N/A')}")
-        location_category.setStyleSheet("""
-            QLabel {
-                color: #7f8c8d;
-                font-size: 10px;
-            }
-        """)
-        details_layout.addWidget(location_category)
-        
-        layout.addLayout(details_layout)
-        layout.addStretch()
-        
-        # Responsible person
-        responsible_label = QLabel(program.get('responsible', 'N/A'))
-        responsible_label.setStyleSheet("""
-            QLabel {
-                color: #34495e;
-                font-size: 10px;
-                font-style: italic;
-            }
-        """)
-        responsible_label.setAlignment(Qt.AlignRight)
-        layout.addWidget(responsible_label)
-        
-        return item_widget
     
     
     def create_main_program_widget(self):
         """Create main program widget with search and filters"""
         widget = QWidget()
         layout = QVBoxLayout(widget)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(10)
+        layout.setContentsMargins(10, 0, 10, 0)  # Add left and right margins to match jadwal kegiatan
+        layout.setSpacing(5)  # Reduce spacing to match jadwal.py
         
-        # Control panel with search and filters
-        control_frame = QFrame()
-        control_frame.setStyleSheet("""
-            QFrame {
-                background-color: #f8f9fa;
-                border: 1px solid #e9ecef;
-                border-radius: 8px;
-                padding: 15px;
-            }
-        """)
-        control_layout = QVBoxLayout(control_frame)
-        control_layout.setSpacing(10)
+        # Header with add button (matching jadwal.py style)
+        header = self.create_header()
+        layout.addWidget(header)
         
-        # Title
-        control_title = QLabel("📋 Daftar Program Kerja")
-        control_title.setStyleSheet("font-size: 16px; font-weight: bold; color: #2c3e50; margin-bottom: 5px;")
-        control_layout.addWidget(control_title)
+        # Filter section (matching jadwal.py style with QGroupBox)
+        filter_group = self.create_month_filter()
+        layout.addWidget(filter_group)
         
-        # Search and filter row
-        filter_row = QHBoxLayout()
+        # Simple program table only
+        table_widget = self.create_simple_program_table()
+        layout.addWidget(table_widget)
         
-        # Search by keyword
-        search_label = QLabel("🔍 Cari:")
-        search_label.setStyleSheet("font-weight: bold; color: #34495e;")
-        filter_row.addWidget(search_label)
+        # Action buttons
+        action_layout = self.create_action_buttons()
+        layout.addLayout(action_layout)
         
-        self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Cari program berdasarkan judul, lokasi, atau penanggung jawab...")
-        self.search_input.setStyleSheet("""
-            QLineEdit {
-                padding: 8px;
-                border: 1px solid #bdc3c7;
-                border-radius: 4px;
-                font-size: 12px;
-            }
-            QLineEdit:focus {
-                border-color: #3498db;
-            }
-        """)
-        self.search_input.textChanged.connect(self.filter_programs)
-        filter_row.addWidget(self.search_input)
+        return widget
+    
+    def create_header(self):
+        """Buat header dengan kontrol (matching jadwal.py style)"""
+        header = QWidget()
+        header_layout = QHBoxLayout(header)
+        header_layout.setContentsMargins(0, 5, 10, 5)  # Add right margin for spacing
         
-        control_layout.addLayout(filter_row)
+        header_layout.addStretch()
         
-        # Filter row
-        filter_row2 = QHBoxLayout()
+        add_button = self.create_button("Tambah Program", "#27ae60", self.add_work_program, "server/assets/tambah.png")
+        header_layout.addWidget(add_button)
         
-        # Category filter
-        category_label = QLabel("📂 Kategori:")
-        category_label.setStyleSheet("font-weight: bold; color: #34495e;")
-        filter_row2.addWidget(category_label)
+        return header
+    
+    def create_month_filter(self):
+        """Buat filter bulan (exactly matching jadwal.py style)"""
+        filter_group = QGroupBox()  # Remove title
+        filter_layout = QHBoxLayout(filter_group)
         
-        self.category_filter = QComboBox()
-        self.category_filter.addItems([
-            "Semua Kategori", "Ibadah", "Kegiatan Sosial", "Rapat", 
-            "Pelatihan", "Kunjungan", "Acara Khusus", "Lainnya"
-        ])
-        self.category_filter.setStyleSheet("""
-            QComboBox {
-                padding: 8px;
-                border: 1px solid #bdc3c7;
-                border-radius: 4px;
-                background-color: white;
-                min-width: 150px;
-            }
-        """)
-        self.category_filter.currentTextChanged.connect(self.filter_programs)
-        filter_row2.addWidget(self.category_filter)
-        
-        # Month range filter
-        month_label = QLabel("📅 Bulan:")
-        month_label.setStyleSheet("font-weight: bold; color: #34495e;")
-        filter_row2.addWidget(month_label)
+        month_label = QLabel("Bulan:")
+        filter_layout.addWidget(month_label)
         
         self.month_filter = QComboBox()
         self.populate_month_filter()
-        self.month_filter.setStyleSheet("""
-            QComboBox {
-                padding: 8px;
-                border: 1px solid #bdc3c7;
-                border-radius: 4px;
-                background-color: white;
-                min-width: 150px;
-            }
-        """)
         self.month_filter.currentTextChanged.connect(self.filter_programs)
-        filter_row2.addWidget(self.month_filter)
+        filter_layout.addWidget(self.month_filter)
         
-        filter_row2.addStretch()
+        apply_filter = self.create_button("Terapkan Filter", "#3498db", self.filter_programs)
+        filter_layout.addWidget(apply_filter)
         
-        # Add program button
-        add_button = QPushButton("➕ Tambah Program")
-        add_button.setStyleSheet("""
-            QPushButton {
-                background-color: #27ae60;
-                color: white;
-                padding: 10px 20px;
-                border: none;
-                border-radius: 6px;
-                font-weight: bold;
-                font-size: 14px;
-            }
-            QPushButton:hover {
-                background-color: #2ecc71;
-            }
-        """)
-        add_button.clicked.connect(self.add_work_program)
-        filter_row2.addWidget(add_button)
+        show_all_button = self.create_button("Tampilkan Semua", "#9b59b6", self.show_all_programs)
+        filter_layout.addWidget(show_all_button)
         
-        control_layout.addLayout(filter_row2)
-        layout.addWidget(control_frame)
+        filter_layout.addStretch()
         
-        # Program list with details
-        content_splitter = QSplitter(Qt.Horizontal)
-        
-        # Left: Program list
-        list_widget = self.create_program_list_widget()
-        content_splitter.addWidget(list_widget)
-        
-        # Right: Program details
-        details_widget = self.create_program_details_widget()
-        content_splitter.addWidget(details_widget)
-        
-        # Set splitter proportions
-        content_splitter.setStretchFactor(0, 2)  # Program list gets more space
-        content_splitter.setStretchFactor(1, 1)  # Details gets less space
-        content_splitter.setSizes([500, 300])
-        
-        layout.addWidget(content_splitter)
-        
-        return widget
+        return filter_group
     
     def populate_month_filter(self):
-        """Populate month filter with current and upcoming months"""
-        current_date = datetime.date.today()
-        months = ["Semua Bulan"]
-        
-        # Add current month and next 11 months
-        for i in range(12):
-            month_date = current_date.replace(day=1)
-            if i > 0:
-                # Calculate next month
-                if month_date.month == 12:
-                    month_date = month_date.replace(year=month_date.year + 1, month=1)
-                else:
-                    month_date = month_date.replace(month=month_date.month + 1)
-                current_date = month_date
-            
-            month_text = current_date.strftime("%B %Y")
-            month_value = current_date.strftime("%Y-%m")
-            months.append(f"{month_text}")
-        
+        """Populate month filter with all months"""
+        months = [
+            "Semua Bulan",
+            "Januari", "Februari", "Maret", "April", 
+            "Mei", "Juni", "Juli", "Agustus",
+            "September", "Oktober", "November", "Desember"
+        ]
         self.month_filter.addItems(months)
     
-    def create_program_list_widget(self):
-        """Create program table widget"""
-        widget = QWidget()
-        layout = QVBoxLayout(widget)
-        layout.setContentsMargins(0, 0, 0, 0)
-        
-        # Header
-        header = QLabel("📋 Daftar Program")
-        header.setStyleSheet("""
-            QLabel {
-                background-color: #3498db;
-                color: white;
-                padding: 12px;
-                font-size: 14px;
-                font-weight: bold;
-                border-radius: 6px 6px 0 0;
-            }
-        """)
-        header.setAlignment(Qt.AlignCenter)
-        layout.addWidget(header)
-        
-        # Program count info
-        self.program_count_label = QLabel("Total: 0 program")
-        self.program_count_label.setStyleSheet("""
-            QLabel {
-                background-color: #ecf0f1;
-                padding: 8px 12px;
-                color: #2c3e50;
-                font-weight: bold;
-                border-bottom: 1px solid #bdc3c7;
-            }
-        """)
-        layout.addWidget(self.program_count_label)
-        
-        # Program table
+    def create_simple_program_table(self):
+        """Create simple program table like jadwal.py style"""
+        # Program table with simple styling
         self.program_table = QTableWidget(0, 6)
         self.program_table.setHorizontalHeaderLabels([
-            "Tanggal", "Waktu", "Judul Program", "Kategori", "Lokasi", "Penanggung Jawab"
+            "Tanggal", "Perayaan/Program", "Sasaran", "PIC", "Jumlah Anggaran", "Sumber Anggaran"
         ])
         
-        # Set column widths
-        self.program_table.setColumnWidth(0, 100)  # Tanggal
-        self.program_table.setColumnWidth(1, 70)   # Waktu
-        self.program_table.setColumnWidth(2, 200)  # Judul Program
-        self.program_table.setColumnWidth(3, 120)  # Kategori
-        self.program_table.setColumnWidth(4, 150)  # Lokasi
-        self.program_table.horizontalHeader().setStretchLastSection(True)  # Penanggung Jawab stretches
+        # Make headers bold
+        header = self.program_table.horizontalHeader()
+        font = QFont()
+        font.setBold(True)
+        header.setFont(font)
         
-        # Table styling
-        self.program_table.setStyleSheet("""
-            QTableWidget {
-                background-color: white;
-                border: 1px solid #e9ecef;
-                gridline-color: #f8f9fa;
-                selection-background-color: #3498db;
-                selection-color: white;
-                border-radius: 0 0 6px 6px;
-            }
-            QTableWidget::item {
-                padding: 8px;
-                border-bottom: 1px solid #f8f9fa;
-            }
-            QTableWidget::item:hover {
-                background-color: #f8f9fa;
-            }
-            QHeaderView::section {
-                background-color: #ecf0f1;
-                color: #2c3e50;
-                padding: 8px;
-                font-weight: bold;
-                border: 1px solid #bdc3c7;
-            }
-        """)
-        
-        # Table properties
+        # Use stretch mode like jadwal.py
+        header.setSectionResizeMode(QHeaderView.Stretch)
         self.program_table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.program_table.setAlternatingRowColors(True)
-        self.program_table.verticalHeader().setVisible(False)
         
-        # Connect signals
-        self.program_table.itemClicked.connect(self.update_program_details_from_table)
+        # Enable context menu untuk edit/hapus
+        self.program_table.setContextMenuPolicy(3)  # Qt.CustomContextMenu
+        self.program_table.customContextMenuRequested.connect(self.show_context_menu)
+        
+        # Connect double click to edit
         self.program_table.itemDoubleClicked.connect(self.edit_program)
         
-        layout.addWidget(self.program_table)
-        
-        return widget
+        return self.program_table
     
-    def create_program_details_widget(self):
-        """Create program details widget"""
-        widget = QWidget()
-        layout = QVBoxLayout(widget)
-        layout.setContentsMargins(0, 0, 0, 0)
+    def create_action_buttons(self):
+        """Buat tombol-tombol aksi (exactly matching jadwal.py)"""
+        action_layout = QHBoxLayout()
+        action_layout.addStretch()
         
-        # Header
-        header = QLabel("📄 Detail Program")
-        header.setStyleSheet("""
-            QLabel {
-                background-color: #e74c3c;
+        edit_button = self.create_button("Edit Terpilih", "#f39c12", self.edit_program, "server/assets/edit.png")
+        action_layout.addWidget(edit_button)
+        
+        delete_button = self.create_button("Hapus Terpilih", "#c0392b", self.delete_program, "server/assets/hapus.png")
+        action_layout.addWidget(delete_button)
+        
+        export_button = self.create_button("Export Program", "#16a085", self.export_program, "server/assets/export.png")
+        action_layout.addWidget(export_button)
+        
+        refresh_button = self.create_button("Refresh", "#8e44ad", self.load_data, "server/assets/refresh.png")
+        action_layout.addWidget(refresh_button)
+        
+        return action_layout
+    
+    def create_button(self, text, color, slot, icon_path=None):
+        """Buat button dengan style konsisten dan optional icon"""
+        button = QPushButton(text)
+        
+        # Add icon if specified and path exists
+        if icon_path:
+            try:
+                icon = QIcon(icon_path)
+                if not icon.isNull():
+                    button.setIcon(icon)
+                    button.setIconSize(QSize(20, 20))  # Larger icon size for better visibility
+            except Exception:
+                pass  # If icon loading fails, just continue without icon
+        
+        button.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {color};
                 color: white;
-                padding: 12px;
-                font-size: 14px;
-                font-weight: bold;
-                border-radius: 6px 6px 0 0;
-            }
-        """)
-        header.setAlignment(Qt.AlignCenter)
-        layout.addWidget(header)
-        
-        # Program details
-        self.program_details = QTextEdit()
-        self.program_details.setReadOnly(True)
-        self.program_details.setStyleSheet("""
-            QTextEdit {
-                background-color: white;
-                border: 1px solid #e9ecef;
-                padding: 12px;
-                font-family: 'Segoe UI', Arial, sans-serif;
-                font-size: 12px;
-                border-radius: 0 0 6px 6px;
-            }
-        """)
-        layout.addWidget(self.program_details)
-        
-        # Action buttons
-        button_layout = QHBoxLayout()
-        button_layout.setSpacing(10)
-        
-        edit_button = QPushButton("✏️ Edit")
-        edit_button.setStyleSheet("""
-            QPushButton {
-                background-color: #f39c12;
-                color: white;
-                padding: 10px 20px;
+                padding: 5px 10px;
                 border: none;
-                border-radius: 6px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #e67e22;
-            }
+                border-radius: 3px;
+                text-align: left;
+            }}
+            QPushButton:hover {{
+                background-color: {self.darken_color(color)};
+            }}
         """)
-        edit_button.clicked.connect(self.edit_program)
-        button_layout.addWidget(edit_button)
+        button.clicked.connect(slot)
+        return button
+    
+    def darken_color(self, color):
+        """Buat warna lebih gelap untuk hover effect (exactly matching jadwal.py)"""
+        color_map = {
+            "#3498db": "#2980b9",
+            "#27ae60": "#2ecc71", 
+            "#f39c12": "#f1c40f",
+            "#c0392b": "#e74c3c",
+            "#16a085": "#1abc9c",
+            "#8e44ad": "#9b59b6",
+            "#9b59b6": "#8e44ad"
+        }
+        return color_map.get(color, color)
+    
+    def show_context_menu(self, position):
+        """Tampilkan context menu untuk edit/hapus"""
+        if self.program_table.rowCount() == 0:
+            return
+            
+        from PyQt5.QtWidgets import QMenu
+        menu = QMenu()
         
-        delete_button = QPushButton("🗑️ Hapus")
-        delete_button.setStyleSheet("""
-            QPushButton {
-                background-color: #e74c3c;
-                color: white;
-                padding: 10px 20px;
-                border: none;
-                border-radius: 6px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #c0392b;
-            }
-        """)
-        delete_button.clicked.connect(self.delete_program)
-        button_layout.addWidget(delete_button)
+        edit_action = menu.addAction("Edit")
+        delete_action = menu.addAction("Hapus")
         
-        layout.addLayout(button_layout)
+        action = menu.exec_(self.program_table.mapToGlobal(position))
         
-        return widget
+        if action == edit_action:
+            self.edit_program()
+        elif action == delete_action:
+            self.delete_program()
     
     def filter_programs(self):
-        """Filter programs based on search and filter criteria"""
-        search_text = self.search_input.text().lower().strip()
-        category_filter = self.category_filter.currentText()
+        """Filter programs based on month filter only"""
         month_filter = self.month_filter.currentText()
         
         filtered_programs = []
         
         for program in self.work_programs:
-            # Search filter
-            if search_text:
-                title = program.get('title', '').lower()
-                location = program.get('location', '').lower()
-                responsible = program.get('responsible', '').lower()
-                description = program.get('description', '').lower()
-                
-                if not (search_text in title or search_text in location or 
-                       search_text in responsible or search_text in description):
-                    continue
-            
-            # Category filter
-            if category_filter != "Semua Kategori":
-                if program.get('category', '') != category_filter:
-                    continue
-            
-            # Month filter
+            # Month filter only
             if month_filter != "Semua Bulan":
                 program_date = program.get('date', '')
                 if program_date:
                     try:
                         prog_date_obj = datetime.datetime.strptime(program_date, '%Y-%m-%d')
-                        prog_month_year = prog_date_obj.strftime("%B %Y")
-                        if prog_month_year != month_filter:
+                        # Map Indonesian month names
+                        month_names = {
+                            1: "Januari", 2: "Februari", 3: "Maret", 4: "April",
+                            5: "Mei", 6: "Juni", 7: "Juli", 8: "Agustus",
+                            9: "September", 10: "Oktober", 11: "November", 12: "Desember"
+                        }
+                        prog_month_name = month_names.get(prog_date_obj.month, "")
+                        if prog_month_name != month_filter:
                             continue
                     except:
                         continue
@@ -707,12 +397,14 @@ class KalenderKerjaWidget(QWidget):
         
         self.populate_program_list_filtered(filtered_programs)
     
+    def show_all_programs(self):
+        """Tampilkan semua program tanpa filter"""
+        self.month_filter.setCurrentText("Semua Bulan")
+        self.filter_programs()
+    
     def populate_program_list_filtered(self, programs):
         """Populate program table with filtered programs"""
         self.program_table.setRowCount(0)
-        
-        # Update count
-        self.program_count_label.setText(f"Total: {len(programs)} program")
         
         # Sort programs by date and time
         sorted_programs = sorted(programs, key=lambda x: (x.get('date', ''), x.get('time', '')))
@@ -728,38 +420,52 @@ class KalenderKerjaWidget(QWidget):
             except:
                 formatted_date = date
             
-            # Create table items
+            # Create table items with new structure
             date_item = QTableWidgetItem(formatted_date)
-            time_item = QTableWidgetItem(program.get('time', 'N/A'))
-            title_item = QTableWidgetItem(program.get('title', 'N/A'))
-            category_item = QTableWidgetItem(program.get('category', 'N/A'))
-            location_item = QTableWidgetItem(program.get('location', 'N/A'))
-            responsible_item = QTableWidgetItem(program.get('responsible', 'N/A'))
+            
+            # Combine title and time for program column
+            program_text = f"{program.get('title', 'N/A')} ({program.get('time', 'N/A')})"
+            program_item = QTableWidgetItem(program_text)
+            
+            target_item = QTableWidgetItem(program.get('target', 'N/A'))
+            pic_item = QTableWidgetItem(program.get('responsible', 'N/A'))
+            
+            # Format budget amount
+            budget_amount = program.get('budget_amount', '0')
+            if budget_amount and budget_amount.strip():
+                try:
+                    # Format as currency if it's a number
+                    amount = float(budget_amount.replace(',', '').replace('.', ''))
+                    budget_formatted = f"Rp {amount:,.0f}".replace(',', '.')
+                except:
+                    budget_formatted = f"Rp {budget_amount}"
+            else:
+                budget_formatted = "Rp 0"
+            budget_item = QTableWidgetItem(budget_formatted)
+            
+            budget_source_item = QTableWidgetItem(program.get('budget_source', 'N/A'))
             
             # Store program data in first column
             date_item.setData(Qt.UserRole, program)
             
             # Set items in table
             self.program_table.setItem(row_idx, 0, date_item)
-            self.program_table.setItem(row_idx, 1, time_item)
-            self.program_table.setItem(row_idx, 2, title_item)
-            self.program_table.setItem(row_idx, 3, category_item)
-            self.program_table.setItem(row_idx, 4, location_item)
-            self.program_table.setItem(row_idx, 5, responsible_item)
+            self.program_table.setItem(row_idx, 1, program_item)
+            self.program_table.setItem(row_idx, 2, target_item)
+            self.program_table.setItem(row_idx, 3, pic_item)
+            self.program_table.setItem(row_idx, 4, budget_item)
+            self.program_table.setItem(row_idx, 5, budget_source_item)
         
         # Select first row if available
         if programs and self.program_table.rowCount() > 0:
             self.program_table.selectRow(0)
-            self.update_program_details_from_table()
     
     
     def load_sample_data(self):
-        """Load sample work programs - start empty per user request"""
+        """Initialize empty work programs list - data will be added only when user inputs"""
         self.work_programs = []
-        # Update upcoming events display
-        if hasattr(self, 'upcoming_events_layout'):
-            self.update_upcoming_events()
-        # Use the new filter approach to populate the table
+        
+        # Use the filter approach to populate the empty table
         if hasattr(self, 'program_table'):
             self.filter_programs()
     
@@ -774,38 +480,6 @@ class KalenderKerjaWidget(QWidget):
             # Use the filter_programs method to apply all current filters
             self.filter_programs()
     
-    def update_program_details_from_table(self):
-        """Update program details display from table selection"""
-        current_row = self.program_table.currentRow()
-        if current_row < 0:
-            self.program_details.clear()
-            return
-        
-        date_item = self.program_table.item(current_row, 0)
-        if not date_item or not date_item.data(Qt.UserRole):
-            self.program_details.clear()
-            return
-        
-        program = date_item.data(Qt.UserRole)
-        
-        details_html = f"""
-        <h3 style="color: #2c3e50; margin-bottom: 10px;">{program.get('title', 'N/A')}</h3>
-        <p><strong>Tanggal:</strong> {program.get('date', 'N/A')}</p>
-        <p><strong>Waktu:</strong> {program.get('time', 'N/A')}</p>
-        <p><strong>Kategori:</strong> {program.get('category', 'N/A')}</p>
-        <p><strong>Lokasi:</strong> {program.get('location', 'N/A')}</p>
-        <p><strong>Penanggung Jawab:</strong> {program.get('responsible', 'N/A')}</p>
-        <p><strong>Deskripsi:</strong></p>
-        <p style="background-color: #f8f9fa; padding: 8px; border-left: 3px solid #3498db;">
-        {program.get('description', 'Tidak ada deskripsi')}
-        </p>
-        """
-        
-        self.program_details.setHtml(details_html)
-    
-    def update_program_details(self):
-        """Update program details display - legacy method for compatibility"""
-        self.update_program_details_from_table()
     
     def add_work_program(self):
         """Add new work program"""
@@ -825,7 +499,6 @@ class KalenderKerjaWidget(QWidget):
             self.work_programs.append(new_program)
             
             # Update UI
-            self.update_upcoming_events()
             self.filter_programs()  # Use filtered approach
             
             self.log_message.emit(f"Program kerja baru ditambahkan: {data['title']}")
@@ -856,7 +529,6 @@ class KalenderKerjaWidget(QWidget):
                     break
             
             # Update UI
-            self.update_upcoming_events()
             self.filter_programs()  # Use filtered approach
             
             self.log_message.emit(f"Program kerja diupdate: {data['title']}")
@@ -887,22 +559,77 @@ class KalenderKerjaWidget(QWidget):
             self.work_programs = [p for p in self.work_programs if p.get('id') != program.get('id')]
             
             # Update UI
-            self.update_upcoming_events()
             self.filter_programs()  # Use filtered approach
             
             self.log_message.emit(f"Program kerja dihapus: {title}")
             self.data_updated.emit()
     
+    def export_program(self):
+        """Export program kerja ke CSV (matching jadwal.py functionality)"""
+        if not self.work_programs:
+            QMessageBox.warning(self, "Warning", "Tidak ada data program untuk diekspor.")
+            return
+
+        from PyQt5.QtWidgets import QFileDialog
+        import csv
+        
+        filename, _ = QFileDialog.getSaveFileName(
+            self, "Export Program Kerja", "program_kerja.csv", "CSV Files (*.csv)"
+        )
+        if not filename:
+            return
+
+        try:
+            with open(filename, 'w', newline='', encoding='utf-8') as csvfile:
+                fieldnames = [
+                    "Tanggal", "Perayaan/Program", "Sasaran", "PIC", 
+                    "Jumlah Anggaran", "Sumber Anggaran", "Kategori", 
+                    "Lokasi", "Deskripsi", "Waktu"
+                ]
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                writer.writeheader()
+
+                for item in self.work_programs:
+                    writer.writerow({
+                        "Tanggal": item.get('date', ''),
+                        "Perayaan/Program": item.get('title', ''),
+                        "Sasaran": item.get('target', ''),
+                        "PIC": item.get('responsible', ''),
+                        "Jumlah Anggaran": item.get('budget_amount', ''),
+                        "Sumber Anggaran": item.get('budget_source', ''),
+                        "Kategori": item.get('category', ''),
+                        "Lokasi": item.get('location', ''),
+                        "Deskripsi": item.get('description', ''),
+                        "Waktu": item.get('time', '')
+                    })
+
+            QMessageBox.information(self, "Sukses", f"Data program kerja berhasil diekspor ke {filename}")
+            self.log_message.emit(f"Data program kerja diekspor ke: {filename}")
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Gagal mengekspor data: {str(e)}")
+            self.log_message.emit(f"Gagal mengekspor data: {str(e)}")
+    
     def load_data(self):
-        """Load data from database (placeholder)"""
+        """Load data from database or use sample data"""
         if not self.db_manager:
+            self.log_message.emit("Database tidak tersedia, menggunakan data contoh...")
+            self.load_sample_data()
             return
         
-        # TODO: Implement database loading when API is available
-        self.log_message.emit("Loading calendar data from database...")
-        
-        # For now, use sample data
-        self.load_sample_data()
+        try:
+            # TODO: Implement actual database loading when API is available
+            # For example: self.work_programs = self.db_manager.get_work_programs()
+            
+            self.log_message.emit("Memuat data kalender program kerja dari database...")
+            
+            # For now, use sample data until database methods are implemented
+            self.load_sample_data()
+            self.log_message.emit("Data kalender program kerja berhasil dimuat")
+            
+        except Exception as e:
+            self.log_message.emit(f"Error loading calendar data: {str(e)}")
+            # Fallback to sample data
+            self.load_sample_data()
     
     def get_data(self):
         """Get calendar data for other components"""
@@ -960,9 +687,9 @@ class ProgramKerjaComponent(QWidget):
         # Tab widget
         self.tab_widget = QTabWidget()
         
-        # Tab 1: Kalender Kerja
+        # Tab 1: Daftar Program Kerja
         self.kalender_widget = KalenderKerjaWidget()
-        self.tab_widget.addTab(self.kalender_widget, "Kalender Kerja")
+        self.tab_widget.addTab(self.kalender_widget, "Daftar Program Kerja")
         
         # Tab 2: Jadwal Kegiatan (existing component)
         self.jadwal_widget = JadwalComponent()

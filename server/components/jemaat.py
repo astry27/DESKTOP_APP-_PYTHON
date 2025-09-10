@@ -4,8 +4,8 @@ from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                             QPushButton, QLineEdit, QTableWidget, QTableWidgetItem,
                             QHeaderView, QMessageBox, QFileDialog, QAbstractItemView, QFrame,
                             QScrollArea, QSplitter)
-from PyQt5.QtCore import QObject, pyqtSignal, Qt
-from PyQt5.QtGui import QFont, QPalette, QColor
+from PyQt5.QtCore import QObject, pyqtSignal, Qt, QSize
+from PyQt5.QtGui import QFont, QPalette, QColor, QIcon
 
 # Import dialog secara langsung untuk menghindari circular import
 from components.dialogs import JemaatDialog
@@ -79,7 +79,7 @@ class JemaatComponent(QWidget):
         """Buat header dengan kontrol (tanpa title karena sudah ada di header frame)"""
         header = QWidget()
         header_layout = QHBoxLayout(header)
-        header_layout.setContentsMargins(0, 0, 0, 0)
+        header_layout.setContentsMargins(0, 0, 10, 0)  # Add right margin for spacing
         
         header_layout.addStretch()
         
@@ -92,7 +92,7 @@ class JemaatComponent(QWidget):
         search_button = self.create_button("Cari", "#3498db", self.search_jemaat)
         header_layout.addWidget(search_button)
         
-        add_button = self.create_button("Tambah Jemaat", "#27ae60", self.add_jemaat)
+        add_button = self.create_button("Tambah Jemaat", "#27ae60", self.add_jemaat, "server/assets/tambah.png")
         header_layout.addWidget(add_button)
         
         return header
@@ -102,23 +102,34 @@ class JemaatComponent(QWidget):
         action_layout = QHBoxLayout()
         action_layout.addStretch()
         
-        edit_button = self.create_button("Edit Terpilih", "#f39c12", self.edit_jemaat)
+        edit_button = self.create_button("Edit Terpilih", "#f39c12", self.edit_jemaat, "server/assets/edit.png")
         action_layout.addWidget(edit_button)
         
-        delete_button = self.create_button("Hapus Terpilih", "#c0392b", self.delete_jemaat)
+        delete_button = self.create_button("Hapus Terpilih", "#c0392b", self.delete_jemaat, "server/assets/hapus.png")
         action_layout.addWidget(delete_button)
         
-        export_button = self.create_button("Export Data", "#16a085", self.export_jemaat)
+        export_button = self.create_button("Export Data", "#16a085", self.export_jemaat, "server/assets/export.png")
         action_layout.addWidget(export_button)
         
-        refresh_button = self.create_button("Refresh", "#8e44ad", self.load_data)
+        refresh_button = self.create_button("Refresh", "#8e44ad", self.load_data, "server/assets/refresh.png")
         action_layout.addWidget(refresh_button)
         
         return action_layout
     
-    def create_button(self, text, color, slot):
-        """Buat button dengan style konsisten"""
+    def create_button(self, text, color, slot, icon_path=None):
+        """Buat button dengan style konsisten dan optional icon"""
         button = QPushButton(text)
+        
+        # Add icon if specified and path exists
+        if icon_path:
+            try:
+                icon = QIcon(icon_path)
+                if not icon.isNull():
+                    button.setIcon(icon)
+                    button.setIconSize(QSize(20, 20))  # Larger icon size for better visibility
+            except Exception:
+                pass  # If icon loading fails, just continue without icon
+        
         button.setStyleSheet(f"""
             QPushButton {{
                 background-color: {color};
@@ -126,6 +137,7 @@ class JemaatComponent(QWidget):
                 padding: 5px 10px;
                 border: none;
                 border-radius: 3px;
+                text-align: left;
             }}
             QPushButton:hover {{
                 background-color: {self.darken_color(color)};

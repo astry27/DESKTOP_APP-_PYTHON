@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGroupBox,
                             QFormLayout, QPushButton, QLabel, QTableWidget, 
                             QTableWidgetItem, QHeaderView, QTextEdit, QMessageBox, 
                             QInputDialog, QFileDialog)
-from PyQt5.QtCore import pyqtSignal, QTimer
+from PyQt5.QtCore import pyqtSignal, QTimer, QSize
 from PyQt5.QtGui import QColor, QIcon
 
 class ServerControlComponent(QWidget):
@@ -81,6 +81,11 @@ class ServerControlComponent(QWidget):
         """)
         
         self.refresh_button = QPushButton("Refresh Status")
+        # Add refresh icon
+        refresh_icon = QIcon("server/assets/refresh.png")
+        if not refresh_icon.isNull():
+            self.refresh_button.setIcon(refresh_icon)
+            self.refresh_button.setIconSize(QSize(20, 20))  # Larger icon size for better visibility
         self.refresh_button.setStyleSheet("""
             QPushButton {
                 background-color: #3498db;
@@ -88,6 +93,7 @@ class ServerControlComponent(QWidget):
                 padding: 8px 12px;
                 border: none;
                 border-radius: 4px;
+                text-align: left;
             }
             QPushButton:hover {
                 background-color: #2980b9;
