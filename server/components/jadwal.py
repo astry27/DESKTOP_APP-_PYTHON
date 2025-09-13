@@ -4,7 +4,7 @@ from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                             QPushButton, QTableWidget, QTableWidgetItem,
                             QHeaderView, QMessageBox, QFileDialog, QGroupBox,
                             QDateEdit, QFormLayout, QAbstractItemView, QFrame, QComboBox)
-from PyQt5.QtCore import QObject, pyqtSignal, QDate, QSize
+from PyQt5.QtCore import QObject, pyqtSignal, QDate, QSize, Qt
 from PyQt5.QtGui import QIcon
 
 # Import dialog secara langsung untuk menghindari circular import  
@@ -33,16 +33,16 @@ class JadwalComponent(QWidget):
         """Setup UI untuk halaman jadwal"""
         layout = QVBoxLayout(self)
         
-        # Header Frame (matching dokumen.py style)
-        header_frame = QFrame()
-        header_frame.setStyleSheet("background-color: #34495e; color: white; padding: 2px;")
+        # Clean header without background (matching pengaturan style)
+        header_frame = QWidget()
         header_layout = QHBoxLayout(header_frame)
-        
+        header_layout.setContentsMargins(0, 0, 10, 0)
+
         title_label = QLabel("Jadwal Kegiatan")
-        title_label.setStyleSheet("font-size: 16px; font-weight: bold; color: white;")
+        title_label.setStyleSheet("font-size: 18px; font-weight: bold;")
         header_layout.addWidget(title_label)
         header_layout.addStretch()
-        
+
         layout.addWidget(header_frame)
         
         # Original header with buttons
@@ -53,33 +53,150 @@ class JadwalComponent(QWidget):
         filter_group = self.create_month_filter()
         layout.addWidget(filter_group)
         
-        # Tabel Jadwal (hapus kolom ID, tambah kolom deskripsi)
-        self.jadwal_table = QTableWidget(0, 6)
-        self.jadwal_table.setHorizontalHeaderLabels([
-            "Nama Kegiatan", "Deskripsi", "Lokasi", "Tanggal Mulai", 
-            "Tanggal Selesai", "Penanggung Jawab"
-        ])
-        # Make headers bold
-        header = self.jadwal_table.horizontalHeader()
-        from PyQt5.QtGui import QFont
-        font = QFont()
-        font.setBold(True)
-        header.setFont(font)
+        # Table view untuk daftar jadwal with proper container
+        table_container = QFrame()
+        table_container.setStyleSheet("""
+            QFrame {
+                border: 1px solid #d0d0d0;
+                background-color: white;
+                margin: 0px;
+            }
+        """)
+        table_layout = QVBoxLayout(table_container)
+        table_layout.setContentsMargins(0, 0, 0, 0)
+        table_layout.setSpacing(0)
         
-        header.setSectionResizeMode(QHeaderView.Stretch)
-        self.jadwal_table.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.jadwal_table.setAlternatingRowColors(True)
+        self.jadwal_table = self.create_professional_table()
+        table_layout.addWidget(self.jadwal_table)
         
-        # Enable context menu untuk edit/hapus
-        self.jadwal_table.setContextMenuPolicy(3)  # Qt.CustomContextMenu
-        self.jadwal_table.customContextMenuRequested.connect(self.show_context_menu)
-        
-        layout.addWidget(self.jadwal_table)
+        layout.addWidget(table_container)
         
         # Tombol aksi
         action_layout = self.create_action_buttons()
         layout.addLayout(action_layout)
     
+    def create_professional_table(self):
+        """Create table with professional styling."""
+        table = QTableWidget(0, 6)
+        table.setHorizontalHeaderLabels([
+            "Nama Kegiatan", "Deskripsi", "Lokasi", "Tanggal Mulai", 
+            "Tanggal Selesai", "Penanggung Jawab"
+        ])
+        
+        # Apply professional table styling
+        self.apply_professional_table_style(table)
+        
+        # Set specific column widths
+        column_widths = [150, 200, 120, 110, 110, 130]  # Total: 820px
+        for i, width in enumerate(column_widths):
+            table.setColumnWidth(i, width)
+        
+        # Set minimum table width to sum of all columns
+        table.setMinimumWidth(sum(column_widths) + 50)  # Add padding for scrollbar
+        
+        # Enable context menu
+        table.setContextMenuPolicy(3)  # Qt.CustomContextMenu
+        table.customContextMenuRequested.connect(self.show_context_menu)
+        
+        return table
+        
+    def apply_professional_table_style(self, table):
+        """Apply Excel-like table styling with thin grid lines and minimal borders."""
+        # Header styling - Excel-like headers
+        from PyQt5.QtGui import QFont
+        header_font = QFont()
+        header_font.setBold(False)  # Remove bold from headers
+        header_font.setPointSize(9)
+        table.horizontalHeader().setFont(header_font)
+
+        # Excel-style header styling
+        table.horizontalHeader().setStyleSheet("""
+            QHeaderView::section {
+                background-color: #f2f2f2;
+                border: none;
+                border-bottom: 1px solid #d4d4d4;
+                border-right: 1px solid #d4d4d4;
+                padding: 6px 4px;
+                font-weight: normal;
+                color: #333333;
+                text-align: left;
+            }
+        """)
+
+        # Excel-style table body styling
+        table.setStyleSheet("""
+            QTableWidget {
+                gridline-color: #d4d4d4;
+                background-color: white;
+                border: 1px solid #d4d4d4;
+                selection-background-color: #cce7ff;
+                font-family: 'Calibri', 'Segoe UI', Arial, sans-serif;
+                font-size: 9pt;
+                outline: none;
+            }
+            QTableWidget::item {
+                border: none;
+                padding: 4px 6px;
+                min-height: 18px;
+            }
+            QTableWidget::item:selected {
+                background-color: #cce7ff;
+                color: black;
+            }
+            QTableWidget::item:focus {
+                border: 2px solid #0078d4;
+                background-color: white;
+            }
+        """)
+
+        # Excel-style table settings (matching program_kerja.py exactly)
+        header = table.horizontalHeader()
+        header.setMinimumSectionSize(50)
+        header.setDefaultSectionSize(80)
+        # Allow adjustable header height - removed setMaximumHeight constraint
+
+        # Excel-like column resizing - all columns can be resized (matching program_kerja.py)
+        header.setSectionResizeMode(QHeaderView.Interactive)  # All columns resizable
+        header.setStretchLastSection(True)  # Last column stretches to fill space
+
+        # Enable scrolling
+        table.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        table.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        table.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
+        table.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
+
+        # Excel-style row settings with better content visibility
+        table.verticalHeader().setDefaultSectionSize(24)  # Slightly taller for schedule content
+        table.setSelectionBehavior(QAbstractItemView.SelectItems)  # Select individual cells
+        table.setAlternatingRowColors(False)
+        table.verticalHeader().setVisible(True)  # Show row numbers like Excel
+        table.verticalHeader().setStyleSheet("""
+            QHeaderView::section {
+                background-color: #f2f2f2;
+                border: none;
+                border-bottom: 1px solid #d4d4d4;
+                border-right: 1px solid #d4d4d4;
+                padding: 2px;
+                font-weight: normal;
+                color: #333333;
+                text-align: center;
+                width: 30px;
+            }
+        """)
+
+        # Enable grid display with thin lines
+        table.setShowGrid(True)
+        table.setGridStyle(Qt.SolidLine)
+
+        # Excel-style editing and selection
+        table.setEditTriggers(QAbstractItemView.DoubleClicked | QAbstractItemView.EditKeyPressed)
+        table.setSelectionMode(QAbstractItemView.ExtendedSelection)
+
+        # Set proper size for Excel look with better visibility
+        table.setMinimumHeight(200)
+        table.setSizePolicy(table.sizePolicy().Expanding, table.sizePolicy().Expanding)
+        table.setSizeAdjustPolicy(QAbstractItemView.AdjustToContents)
+
     def show_context_menu(self, position):
         """Tampilkan context menu untuk edit/hapus"""
         if self.jadwal_table.rowCount() == 0:
@@ -164,19 +281,19 @@ class JadwalComponent(QWidget):
         return action_layout
     
     def create_button(self, text, color, slot, icon_path=None):
-        """Buat button dengan style konsisten dan optional icon"""
+        """Buat button dengan style konsisten dan optional icon matching sidebar menu buttons"""
         button = QPushButton(text)
-        
+
         # Add icon if specified and path exists
         if icon_path:
             try:
                 icon = QIcon(icon_path)
                 if not icon.isNull():
                     button.setIcon(icon)
-                    button.setIconSize(QSize(20, 20))  # Larger icon size for better visibility
+                    button.setIconSize(QSize(20, 20))  # Standard icon size matching other sidebar components
             except Exception:
                 pass  # If icon loading fails, just continue without icon
-        
+
         button.setStyleSheet(f"""
             QPushButton {{
                 background-color: {color};
@@ -194,10 +311,10 @@ class JadwalComponent(QWidget):
         return button
     
     def darken_color(self, color):
-        """Buat warna lebih gelap untuk hover effect"""
+        """Buat warna lebih gelap untuk hover effect matching pengaturan style"""
         color_map = {
             "#3498db": "#2980b9",
-            "#27ae60": "#2ecc71", 
+            "#27ae60": "#2ecc71",
             "#f39c12": "#f1c40f",
             "#c0392b": "#e74c3c",
             "#16a085": "#1abc9c",

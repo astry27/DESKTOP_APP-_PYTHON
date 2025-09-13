@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QTableWidget,
                             QPushButton, QComboBox, QFrame, QMessageBox, QTabWidget,
                             QTextBrowser, QAbstractItemView, QDateEdit, QGroupBox)
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QDate, QSize
-from PyQt5.QtGui import QColor, QIcon
+from PyQt5.QtGui import QColor, QIcon, QFont
 
 class RiwayatComponent(QWidget):
     
@@ -17,7 +17,6 @@ class RiwayatComponent(QWidget):
         self.database_manager = None
         self.all_logs = []
         self.admin_activities = []
-        self.system_messages = []
         self.client_activities = []
         self.setup_ui()
         self.setup_timer()
@@ -29,16 +28,16 @@ class RiwayatComponent(QWidget):
     def setup_ui(self):
         layout = QVBoxLayout(self)
         
-        # Header
-        header_frame = QFrame()
-        header_frame.setStyleSheet("background-color: #34495e; color: white; padding: 2px;")
+        # Clean header without background (matching pengaturan style)
+        header_frame = QWidget()
         header_layout = QHBoxLayout(header_frame)
-        
+        header_layout.setContentsMargins(0, 0, 10, 0)
+
         title_label = QLabel("Riwayat Aktivitas Sistem")
-        title_label.setStyleSheet("font-size: 16px; font-weight: bold; color: white;")
+        title_label.setStyleSheet("font-size: 18px; font-weight: bold;")
         header_layout.addWidget(title_label)
         header_layout.addStretch()
-        
+
         layout.addWidget(header_frame)
         
         # Filter controls
@@ -52,11 +51,7 @@ class RiwayatComponent(QWidget):
         self.admin_tab = self.create_admin_activity_tab()
         self.tab_widget.addTab(self.admin_tab, "Aktivitas Admin")
         
-        # Tab 2: Pesan Broadcast
-        self.message_tab = self.create_message_tab()
-        self.tab_widget.addTab(self.message_tab, "Pesan Broadcast")
-        
-        # Tab 3: Client Activities
+        # Tab 2: Client Activities
         self.client_tab = self.create_client_activity_tab()
         self.tab_widget.addTab(self.client_tab, "Aktivitas Client")
         
@@ -138,81 +133,196 @@ class RiwayatComponent(QWidget):
         tab = QWidget()
         layout = QVBoxLayout(tab)
         
-        self.admin_table = QTableWidget(0, 4)
-        self.admin_table.setHorizontalHeaderLabels([
+        # Table view untuk daftar admin activities with proper container
+        table_container = QFrame()
+        table_container.setStyleSheet("""
+            QFrame {
+                border: 1px solid #d0d0d0;
+                background-color: white;
+                margin: 0px;
+            }
+        """)
+        table_layout = QVBoxLayout(table_container)
+        table_layout.setContentsMargins(0, 0, 0, 0)
+        table_layout.setSpacing(0)
+        
+        self.admin_table = self.create_professional_admin_table()
+        table_layout.addWidget(self.admin_table)
+        
+        layout.addWidget(table_container)
+        
+        return tab
+        
+    def create_professional_admin_table(self):
+        """Create admin table with professional styling."""
+        table = QTableWidget(0, 4)
+        table.setHorizontalHeaderLabels([
             "Waktu", "Admin", "Aktivitas", "Detail"
         ])
         
-        header = self.admin_table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(3, QHeaderView.Stretch)
+        # Apply professional table styling
+        self.apply_professional_table_style(table)
         
-        self.admin_table.setAlternatingRowColors(True)
-        self.admin_table.setSelectionBehavior(QAbstractItemView.SelectRows)
-        layout.addWidget(self.admin_table)
+        # Set specific column widths for admin table
+        column_widths = [120, 100, 150, 200]  # Total: 570px
+        for i, width in enumerate(column_widths):
+            table.setColumnWidth(i, width)
         
-        return tab
+        # Set minimum table width to sum of all columns
+        table.setMinimumWidth(sum(column_widths) + 50)  # Add padding for scrollbar
+        
+        return table
     
-    def create_message_tab(self):
-        """Tab untuk pesan broadcast"""
-        tab = QWidget()
-        layout = QVBoxLayout(tab)
-        
-        self.message_table = QTableWidget(0, 4)
-        self.message_table.setHorizontalHeaderLabels([
-            "Waktu", "Pengirim", "Pesan", "Status"
-        ])
-        
-        header = self.message_table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(2, QHeaderView.Stretch)
-        header.setSectionResizeMode(3, QHeaderView.ResizeToContents)
-        
-        self.message_table.setAlternatingRowColors(True)
-        self.message_table.setSelectionBehavior(QAbstractItemView.SelectRows)
-        layout.addWidget(self.message_table)
-        
-        return tab
     
     def create_client_activity_tab(self):
         """Tab untuk aktivitas client"""
         tab = QWidget()
         layout = QVBoxLayout(tab)
         
-        self.client_table = QTableWidget(0, 5)
-        self.client_table.setHorizontalHeaderLabels([
+        # Table view untuk daftar client activities with proper container
+        table_container = QFrame()
+        table_container.setStyleSheet("""
+            QFrame {
+                border: 1px solid #d0d0d0;
+                background-color: white;
+                margin: 0px;
+            }
+        """)
+        table_layout = QVBoxLayout(table_container)
+        table_layout.setContentsMargins(0, 0, 0, 0)
+        table_layout.setSpacing(0)
+        
+        self.client_table = self.create_professional_client_table()
+        table_layout.addWidget(self.client_table)
+        
+        layout.addWidget(table_container)
+        
+        return tab
+        
+    def create_professional_client_table(self):
+        """Create client table with professional styling."""
+        table = QTableWidget(0, 5)
+        table.setHorizontalHeaderLabels([
             "Waktu", "Client IP", "Aktivitas", "Terakhir Aktif", "Status"
         ])
         
-        header = self.client_table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(2, QHeaderView.Stretch)
-        header.setSectionResizeMode(3, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(4, QHeaderView.ResizeToContents)
+        # Apply professional table styling
+        self.apply_professional_table_style(table)
         
-        self.client_table.setAlternatingRowColors(True)
-        self.client_table.setSelectionBehavior(QAbstractItemView.SelectRows)
-        layout.addWidget(self.client_table)
+        # Set specific column widths for client table
+        column_widths = [120, 120, 150, 120, 100]  # Total: 610px
+        for i, width in enumerate(column_widths):
+            table.setColumnWidth(i, width)
         
-        return tab
+        # Set minimum table width to sum of all columns
+        table.setMinimumWidth(sum(column_widths) + 50)  # Add padding for scrollbar
+        
+        return table
     
+    def apply_professional_table_style(self, table):
+        """Apply Excel-like table styling with thin grid lines and minimal borders."""
+        # Header styling - Excel-like headers
+        header_font = QFont()
+        header_font.setBold(False)  # Remove bold from headers
+        header_font.setPointSize(9)
+        table.horizontalHeader().setFont(header_font)
+
+        # Excel-style header styling
+        table.horizontalHeader().setStyleSheet("""
+            QHeaderView::section {
+                background-color: #f2f2f2;
+                border: none;
+                border-bottom: 1px solid #d4d4d4;
+                border-right: 1px solid #d4d4d4;
+                padding: 6px 4px;
+                font-weight: normal;
+                color: #333333;
+                text-align: left;
+            }
+        """)
+
+        # Excel-style table body styling
+        table.setStyleSheet("""
+            QTableWidget {
+                gridline-color: #d4d4d4;
+                background-color: white;
+                border: 1px solid #d4d4d4;
+                selection-background-color: #cce7ff;
+                font-family: 'Calibri', 'Segoe UI', Arial, sans-serif;
+                font-size: 9pt;
+                outline: none;
+            }
+            QTableWidget::item {
+                border: none;
+                padding: 4px 6px;
+                min-height: 18px;
+            }
+            QTableWidget::item:selected {
+                background-color: #cce7ff;
+                color: black;
+            }
+            QTableWidget::item:focus {
+                border: 2px solid #0078d4;
+                background-color: white;
+            }
+        """)
+
+        # Excel-style table settings
+        header = table.horizontalHeader()
+        header.setSectionResizeMode(QHeaderView.Interactive)  # Allow column resizing
+        header.setStretchLastSection(False)  # Don't stretch last column
+        header.setMinimumSectionSize(50)
+        header.setDefaultSectionSize(80)
+        # Allow adjustable header height - removed setMaximumHeight constraint
+
+        # Enable scrolling
+        table.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        table.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        table.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
+        table.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
+
+        # Excel-style row settings
+        table.verticalHeader().setDefaultSectionSize(20)  # Thin rows like Excel
+        table.setSelectionBehavior(QAbstractItemView.SelectItems)  # Select individual cells
+        table.setAlternatingRowColors(False)
+        table.verticalHeader().setVisible(True)  # Show row numbers like Excel
+        table.verticalHeader().setStyleSheet("""
+            QHeaderView::section {
+                background-color: #f2f2f2;
+                border: none;
+                border-bottom: 1px solid #d4d4d4;
+                border-right: 1px solid #d4d4d4;
+                padding: 2px;
+                font-weight: normal;
+                color: #333333;
+                text-align: center;
+                width: 30px;
+            }
+        """)
+
+        # Enable grid display with thin lines
+        table.setShowGrid(True)
+        table.setGridStyle(Qt.SolidLine)
+
+        # Excel-style editing and selection
+        table.setEditTriggers(QAbstractItemView.DoubleClicked | QAbstractItemView.EditKeyPressed)
+        table.setSelectionMode(QAbstractItemView.ExtendedSelection)
+
+        # Set compact size for Excel look
+        table.setMinimumHeight(150)
+        table.setSizeAdjustPolicy(QAbstractItemView.AdjustToContents)
+
     def create_statistics(self):
         """Buat panel statistik"""
         stats_layout = QHBoxLayout()
         
         self.total_label = QLabel("Total aktivitas: 0")
         self.admin_count_label = QLabel("Admin: 0")
-        self.message_count_label = QLabel("Pesan: 0")
         self.client_count_label = QLabel("Client: 0")
         self.last_update_label = QLabel("Terakhir diperbarui: -")
         
         stats_layout.addWidget(self.total_label)
         stats_layout.addWidget(self.admin_count_label)
-        stats_layout.addWidget(self.message_count_label)
         stats_layout.addWidget(self.client_count_label)
         stats_layout.addStretch()
         stats_layout.addWidget(self.last_update_label)
@@ -233,9 +343,6 @@ class RiwayatComponent(QWidget):
         try:
             # Load admin activities dari endpoint log
             self.load_admin_activities()
-            
-            # Load broadcast messages
-            self.load_broadcast_messages()
             
             # Load client activities
             self.load_client_activities()
@@ -273,34 +380,6 @@ class RiwayatComponent(QWidget):
         except Exception as e:
             self.log_message.emit(f"Error loading admin activities: {str(e)}")
     
-    def load_broadcast_messages(self):
-        """Load pesan broadcast dari API"""
-        self.system_messages = []
-        
-        if not self.database_manager:
-            return
-            
-        try:
-            success, result = self.database_manager.get_recent_messages(limit=50)
-            
-            if success:
-                if isinstance(result, dict) and 'data' in result:
-                    messages = result['data']
-                elif isinstance(result, list):
-                    messages = result
-                else:
-                    messages = []
-                
-                for msg in messages:
-                    if msg.get('is_broadcast', False):
-                        self.system_messages.append({
-                            'timestamp': msg.get('waktu_kirim'),
-                            'sender': msg.get('pengirim_nama', 'System'),
-                            'message': msg.get('pesan', ''),
-                            'status': msg.get('status', 'Terkirim')
-                        })
-        except Exception as e:
-            self.log_message.emit(f"Error loading broadcast messages: {str(e)}")
     
     def load_client_activities(self):
         """Load aktivitas client dengan status yang akurat"""
@@ -419,7 +498,6 @@ class RiwayatComponent(QWidget):
     def update_all_tables(self):
         """Update semua tabel dengan data yang dimuat"""
         self.update_admin_table()
-        self.update_message_table()
         self.update_client_table()
     
     def update_admin_table(self):
@@ -462,42 +540,6 @@ class RiwayatComponent(QWidget):
                 if item:
                     item.setBackground(color)
     
-    def update_message_table(self):
-        """Update tabel pesan broadcast"""
-        self.message_table.setRowCount(0)
-        
-        for i, message in enumerate(self.system_messages):
-            self.message_table.insertRow(i)
-            
-            timestamp = message.get('timestamp')
-            if isinstance(timestamp, datetime.datetime):
-                time_str = timestamp.strftime('%d/%m/%Y %H:%M:%S')
-            elif isinstance(timestamp, str):
-                try:
-                    dt = datetime.datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
-                    time_str = dt.strftime('%d/%m/%Y %H:%M:%S')
-                except:
-                    time_str = str(timestamp)
-            else:
-                time_str = str(timestamp)
-            
-            self.message_table.setItem(i, 0, QTableWidgetItem(time_str))
-            self.message_table.setItem(i, 1, QTableWidgetItem(message.get('sender', 'Unknown')))
-            
-            # Truncate pesan jika terlalu panjang
-            msg_text = message.get('message', '')
-            if len(msg_text) > 100:
-                msg_text = msg_text[:100] + "..."
-            self.message_table.setItem(i, 2, QTableWidgetItem(msg_text))
-            
-            status = message.get('status', 'Unknown')
-            status_item = QTableWidgetItem(status)
-            if status == 'Terkirim':
-                status_item.setBackground(QColor(200, 255, 200))
-            else:
-                status_item.setBackground(QColor(255, 200, 200))
-            
-            self.message_table.setItem(i, 3, status_item)
     
     def update_client_table(self):
         """Update tabel aktivitas client dengan status yang akurat"""
@@ -567,12 +609,6 @@ class RiwayatComponent(QWidget):
                 search_text in activity.get('detail', '').lower()):
                 filtered_admin.append(activity)
         
-        # Filter messages
-        filtered_messages = []
-        for msg in self.system_messages:
-            if (search_text in msg.get('sender', '').lower() or
-                search_text in msg.get('message', '').lower()):
-                filtered_messages.append(msg)
         
         # Filter client activities
         filtered_clients = []
@@ -583,18 +619,15 @@ class RiwayatComponent(QWidget):
         
         # Update tables with filtered data
         original_admin = self.admin_activities
-        original_messages = self.system_messages
         original_clients = self.client_activities
         
         self.admin_activities = filtered_admin
-        self.system_messages = filtered_messages
         self.client_activities = filtered_clients
         
         self.update_all_tables()
         
         # Restore original data
         self.admin_activities = original_admin
-        self.system_messages = original_messages
         self.client_activities = original_clients
     
     def apply_date_filter(self):
@@ -608,12 +641,10 @@ class RiwayatComponent(QWidget):
     def update_statistics(self):
         """Update statistik riwayat"""
         total_activities = (len(self.admin_activities) + 
-                          len(self.system_messages) + 
                           len(self.client_activities))
         
         self.total_label.setText(f"Total aktivitas: {total_activities}")
         self.admin_count_label.setText(f"Admin: {len(self.admin_activities)}")
-        self.message_count_label.setText(f"Pesan: {len(self.system_messages)}")
         self.client_count_label.setText(f"Client: {len(self.client_activities)}")
         self.last_update_label.setText(f"Terakhir diperbarui: {datetime.datetime.now().strftime('%H:%M:%S')}")
     
@@ -625,6 +656,5 @@ class RiwayatComponent(QWidget):
         """Get semua data untuk komponen lain"""
         return {
             'admin_activities': self.admin_activities,
-            'system_messages': self.system_messages,
             'client_activities': self.client_activities
         }

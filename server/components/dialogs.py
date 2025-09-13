@@ -833,13 +833,12 @@ class KegiatanDialog(QDialog):
 
 class PengumumanDialog(QDialog):
     """Dialog untuk menambah/edit pengumuman"""
-    # ... (kode PengumumanDialog yang sudah ada)
     def __init__(self, parent=None, pengumuman_data=None):
         super().__init__(parent)
         self.pengumuman_data = pengumuman_data
         self.setWindowTitle("Tambah Pengumuman" if not pengumuman_data else "Edit Pengumuman")
         self.setModal(True)
-        self.setFixedSize(500, 400)
+        self.setFixedSize(500, 450)
         
         # Setup UI
         layout = QVBoxLayout(self)
@@ -848,20 +847,41 @@ class PengumumanDialog(QDialog):
         form_group = QGroupBox("Data Pengumuman")
         form_layout = QFormLayout(form_group)
         
-        self.judul_input = QLineEdit()
-        self.isi_input = QTextEdit()
-        self.isi_input.setMaximumHeight(150)
-        self.tanggal_mulai_input = QDateEdit()
-        self.tanggal_mulai_input.setCalendarPopup(True)
-        self.tanggal_mulai_input.setDate(QDate.currentDate())
-        self.tanggal_selesai_input = QDateEdit()
-        self.tanggal_selesai_input.setCalendarPopup(True)
-        self.tanggal_selesai_input.setDate(QDate.currentDate().addDays(7))
+        # 1. Tanggal - otomatis mengikuti data realtime dengan format Hari + Tanggal
+        self.tanggal_input = QDateEdit()
+        self.tanggal_input.setCalendarPopup(True)
+        self.tanggal_input.setDate(QDate.currentDate())
+        # Set custom display format: Day, dd/MM/yyyy (e.g., Senin, 12/09/2025)
+        self.tanggal_input.setDisplayFormat("dddd, dd/MM/yyyy")
+        self.tanggal_input.setReadOnly(False)  # Allow editing if needed
         
-        form_layout.addRow("Judul:", self.judul_input)
-        form_layout.addRow("Isi:", self.isi_input)
-        form_layout.addRow("Tanggal Mulai:", self.tanggal_mulai_input)
-        form_layout.addRow("Tanggal Selesai:", self.tanggal_selesai_input)
+        # 2. Pembuat Pengumuman
+        self.pembuat_input = QLineEdit()
+        self.pembuat_input.setPlaceholderText("Nama pembuat pengumuman")
+        
+        # 3. Sasaran/Tujuan
+        self.sasaran_input = QComboBox()
+        self.sasaran_input.addItems([
+            "Umum", "Jemaat Dewasa", "Anak-anak", "Remaja", "OMK", 
+            "KBK", "KIK", "Lansia", "Pengurus", "Komisi", "Seksi"
+        ])
+        self.sasaran_input.setEditable(True)  # Allow custom input
+        
+        # 4. Judul Pengumuman
+        self.judul_input = QLineEdit()
+        self.judul_input.setPlaceholderText("Masukkan judul pengumuman")
+        
+        # 5. Isi Pengumuman
+        self.isi_input = QTextEdit()
+        self.isi_input.setMaximumHeight(120)
+        self.isi_input.setPlaceholderText("Masukkan isi pengumuman lengkap")
+        
+        # Add form rows in the correct order matching table layout
+        form_layout.addRow("Tanggal Pengumuman:", self.tanggal_input)
+        form_layout.addRow("Pembuat Pengumuman:", self.pembuat_input)
+        form_layout.addRow("Sasaran/Tujuan:", self.sasaran_input)
+        form_layout.addRow("Judul Pengumuman:", self.judul_input)
+        form_layout.addRow("Isi Pengumuman:", self.isi_input)
         
         layout.addWidget(form_group)
         
@@ -881,34 +901,51 @@ class PengumumanDialog(QDialog):
             self.judul_input.setText(str(self.pengumuman_data.get('judul', '')))
             self.isi_input.setText(str(self.pengumuman_data.get('isi', '')))
             
-            # Handle tanggal
-            if self.pengumuman_data.get('tanggal_mulai'):
-                try:
-                    if isinstance(self.pengumuman_data['tanggal_mulai'], str):
-                        date = QDate.fromString(self.pengumuman_data['tanggal_mulai'], "yyyy-MM-dd")
-                    else:
-                        date = QDate(self.pengumuman_data['tanggal_mulai'])
-                    self.tanggal_mulai_input.setDate(date)
-                except:
-                    pass
+            # Load pembuat - check different possible field names
+            pembuat = (self.pengumuman_data.get('pembuat') or 
+                      self.pengumuman_data.get('dibuat_oleh_nama') or 
+                      self.pengumuman_data.get('created_by_name') or 
+                      self.pengumuman_data.get('admin_name') or 'Administrator')
+            self.pembuat_input.setText(str(pembuat))
             
-            if self.pengumuman_data.get('tanggal_selesai'):
+            # Load sasaran - check different possible field names
+            sasaran = (self.pengumuman_data.get('sasaran') or 
+                      self.pengumuman_data.get('target_audience') or 
+                      self.pengumuman_data.get('kategori') or 'Umum')
+            
+            # Try to find exact match in combo box items
+            index = self.sasaran_input.findText(str(sasaran))
+            if index >= 0:
+                self.sasaran_input.setCurrentIndex(index)
+            else:
+                # If not found in predefined items, set as custom text
+                self.sasaran_input.setCurrentText(str(sasaran))
+            
+            # Handle tanggal - check for different date field names for compatibility
+            tanggal_value = (self.pengumuman_data.get('tanggal') or 
+                           self.pengumuman_data.get('tanggal_mulai') or 
+                           self.pengumuman_data.get('tanggal_dibuat'))
+            
+            if tanggal_value:
                 try:
-                    if isinstance(self.pengumuman_data['tanggal_selesai'], str):
-                        date = QDate.fromString(self.pengumuman_data['tanggal_selesai'], "yyyy-MM-dd")
+                    if isinstance(tanggal_value, str):
+                        date = QDate.fromString(tanggal_value, "yyyy-MM-dd")
                     else:
-                        date = QDate(self.pengumuman_data['tanggal_selesai'])
-                    self.tanggal_selesai_input.setDate(date)
+                        date = QDate(tanggal_value)
+                    self.tanggal_input.setDate(date)
                 except:
-                    pass
+                    # If date parsing fails, use current date
+                    self.tanggal_input.setDate(QDate.currentDate())
     
     def get_data(self):
         """Ambil data dari form"""
         return {
             'judul': self.judul_input.text().strip(),
             'isi': self.isi_input.toPlainText().strip(),
-            'tanggal_mulai': self.tanggal_mulai_input.date().toString("yyyy-MM-dd"),
-            'tanggal_selesai': self.tanggal_selesai_input.date().toString("yyyy-MM-dd"),
+            'sasaran': self.sasaran_input.currentText().strip(),
+            'pembuat': self.pembuat_input.text().strip(),
+            'tanggal': self.tanggal_input.date().toString("yyyy-MM-dd"),
+            'tanggal_mulai': self.tanggal_input.date().toString("yyyy-MM-dd"),  # For compatibility with existing database
             'dibuat_oleh': 1  # Default user ID, bisa disesuaikan dengan sistem login
         }
 

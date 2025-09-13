@@ -39,33 +39,13 @@ class StrukturComponent(QWidget):
         """Setup UI untuk halaman struktur kepengurusan."""
         layout = QVBoxLayout(self)
         
-        # Header Frame (matching dokumen.py style)
-        header_frame = QFrame()
-        header_frame.setMinimumHeight(50)  # Use minimum height instead of fixed
-        header_frame.setMaximumHeight(60)  # Set maximum height for consistency
-        header_frame.setStyleSheet("""
-            QFrame {
-                background-color: #34495e; 
-                color: white; 
-                border: none;
-                margin: 0px;
-            }
-        """)
+        # Clean header without background (matching pengaturan style)
+        header_frame = QWidget()
         header_layout = QHBoxLayout(header_frame)
-        header_layout.setContentsMargins(20, 15, 20, 15)  # Increase margins for better visibility
-        
+        header_layout.setContentsMargins(0, 0, 10, 0)
+
         title_label = QLabel("Struktur Kepengurusan DPP")
-        title_label.setStyleSheet("""
-            QLabel {
-                font-size: 18px; 
-                font-weight: bold; 
-                color: white;
-                background: transparent;
-                border: none;
-                min-height: 20px;
-            }
-        """)
-        title_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)  # Ensure proper alignment
+        title_label.setStyleSheet("font-size: 18px; font-weight: bold;")
         header_layout.addWidget(title_label)
         header_layout.addStretch()
         
@@ -79,9 +59,23 @@ class StrukturComponent(QWidget):
         periode_header = self.create_periode_header()
         layout.addWidget(periode_header)
         
-        # Table view untuk daftar pengurus
+        # Table view untuk daftar pengurus with proper container
+        table_container = QFrame()
+        table_container.setStyleSheet("""
+            QFrame {
+                border: 1px solid #d0d0d0;
+                background-color: white;
+                margin: 0px;
+            }
+        """)
+        table_layout = QVBoxLayout(table_container)
+        table_layout.setContentsMargins(0, 0, 0, 0)
+        table_layout.setSpacing(0)
+        
         self.table_widget = self.create_table_view()
-        layout.addWidget(self.table_widget)
+        table_layout.addWidget(self.table_widget)
+        
+        layout.addWidget(table_container)
         
         # Tombol aksi
         action_layout = self.create_action_buttons()
@@ -123,20 +117,24 @@ class StrukturComponent(QWidget):
         header_layout.setContentsMargins(0, 15, 0, 15)
         header_layout.setSpacing(8)
         
-        # Judul gereja - line 1
+        # Judul gereja - line 1 (fixed text truncation)
         self.church_label = QLabel("Pengurus Dewan Pastoral Paroki")
         self.church_label.setAlignment(Qt.AlignCenter)
         font1 = QFont("Arial", 16, QFont.Bold)
         self.church_label.setFont(font1)
-        self.church_label.setStyleSheet("QLabel { color: #2c3e50; }")
+        self.church_label.setStyleSheet("QLabel { color: #2c3e50; padding: 5px; }")
+        self.church_label.setMinimumHeight(30)  # Ensure minimum height
+        self.church_label.setSizePolicy(self.church_label.sizePolicy().Expanding, self.church_label.sizePolicy().Fixed)
         header_layout.addWidget(self.church_label)
         
-        # Nama gereja - line 2
+        # Nama gereja - line 2 (fixed text truncation)
         self.church_name_label = QLabel("Santa Maria Ratu Damai, Tomohon Selatan")
         self.church_name_label.setAlignment(Qt.AlignCenter)
         font2 = QFont("Arial", 14, QFont.Bold)
         self.church_name_label.setFont(font2)
-        self.church_name_label.setStyleSheet("QLabel { color: #34495e; }")
+        self.church_name_label.setStyleSheet("QLabel { color: #34495e; padding: 5px; }")
+        self.church_name_label.setMinimumHeight(25)  # Ensure minimum height
+        self.church_name_label.setSizePolicy(self.church_name_label.sizePolicy().Expanding, self.church_name_label.sizePolicy().Fixed)
         header_layout.addWidget(self.church_name_label)
         
         # Info total pengurus
@@ -151,23 +149,28 @@ class StrukturComponent(QWidget):
 
 
     def create_table_view(self):
-        """Buat tampilan tabel lengkap."""
-        table = QTableWidget(0, 5)
+        """Buat tampilan tabel dengan style profesional."""
+        table = QTableWidget(0, 7)
         table.setHorizontalHeaderLabels([
-            "Foto", "Nama Lengkap", "Jabatan", "Wilayah Rohani", "Informasi Kontak"
+            "Foto", "Nama Lengkap", "Jabatan", "Wilayah Rohani", "Status", "Email", "Telepon"
         ])
         
-        # Set column widths specifically for better display
-        table.setColumnWidth(0, 80)   # Foto column - fixed width
-        table.setColumnWidth(1, 200)  # Nama Lengkap - wider
+        # Apply professional table styling
+        self.apply_professional_table_style(table)
+
+        # Excel-like column resizing - all columns can be resized
+        header = table.horizontalHeader()
+        header.setSectionResizeMode(QHeaderView.Interactive)  # All columns resizable
+        header.setStretchLastSection(True)  # Last column stretches to fill space
+
+        # Set initial column widths (all can be adjusted by user)
+        table.setColumnWidth(0, 80)   # Foto
+        table.setColumnWidth(1, 200)  # Nama Lengkap
         table.setColumnWidth(2, 180)  # Jabatan
-        table.setColumnWidth(3, 150)  # Wilayah Rohani
-        table.horizontalHeader().setStretchLastSection(True)  # Kontak column stretches
-        
-        # Set row height for photo display
-        table.verticalHeader().setDefaultSectionSize(60)
-        table.setSelectionBehavior(QAbstractItemView.SelectRows)
-        table.setAlternatingRowColors(True)
+        table.setColumnWidth(3, 180)  # Wilayah Rohani
+        table.setColumnWidth(4, 100)  # Status
+        table.setColumnWidth(5, 200)  # Email
+        table.setColumnWidth(6, 120)  # Telepon
         
         # Enable context menu
         table.setContextMenuPolicy(3)  # Qt.CustomContextMenu
@@ -175,6 +178,97 @@ class StrukturComponent(QWidget):
         
         self.struktur_table = table
         return table
+        
+    def apply_professional_table_style(self, table):
+        """Apply Excel-like table styling with thin grid lines and minimal borders."""
+        # Header styling - Excel-like headers
+        header_font = QFont()
+        header_font.setBold(False)  # Remove bold from headers
+        header_font.setPointSize(9)
+        table.horizontalHeader().setFont(header_font)
+
+        # Excel-style header styling
+        table.horizontalHeader().setStyleSheet("""
+            QHeaderView::section {
+                background-color: #f2f2f2;
+                border: none;
+                border-bottom: 1px solid #d4d4d4;
+                border-right: 1px solid #d4d4d4;
+                padding: 6px 4px;
+                font-weight: normal;
+                color: #333333;
+                text-align: left;
+            }
+        """)
+
+        # Excel-style table body styling
+        table.setStyleSheet("""
+            QTableWidget {
+                gridline-color: #d4d4d4;
+                background-color: white;
+                border: 1px solid #d4d4d4;
+                selection-background-color: #cce7ff;
+                font-family: 'Calibri', 'Segoe UI', Arial, sans-serif;
+                font-size: 9pt;
+                outline: none;
+            }
+            QTableWidget::item {
+                border: none;
+                padding: 4px 6px;
+                min-height: 18px;
+            }
+            QTableWidget::item:selected {
+                background-color: #cce7ff;
+                color: black;
+            }
+            QTableWidget::item:focus {
+                border: 2px solid #0078d4;
+                background-color: white;
+            }
+        """)
+
+        # Excel-style table settings - header configuration moved to create_table_view
+        header = table.horizontalHeader()
+        header.setMinimumSectionSize(50)
+        header.setDefaultSectionSize(80)
+        # Allow adjustable header height - removed setMaximumHeight constraint
+
+        # Enable scrolling
+        table.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        table.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        table.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
+        table.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
+
+        # Excel-style row settings
+        table.verticalHeader().setDefaultSectionSize(20)  # Thin rows like Excel
+        table.setSelectionBehavior(QAbstractItemView.SelectItems)  # Select individual cells
+        table.setAlternatingRowColors(False)
+        table.verticalHeader().setVisible(True)  # Show row numbers like Excel
+        table.verticalHeader().setStyleSheet("""
+            QHeaderView::section {
+                background-color: #f2f2f2;
+                border: none;
+                border-bottom: 1px solid #d4d4d4;
+                border-right: 1px solid #d4d4d4;
+                padding: 2px;
+                font-weight: normal;
+                color: #333333;
+                text-align: center;
+                width: 30px;
+            }
+        """)
+
+        # Enable grid display with thin lines
+        table.setShowGrid(True)
+        table.setGridStyle(Qt.SolidLine)
+
+        # Excel-style editing and selection
+        table.setEditTriggers(QAbstractItemView.DoubleClicked | QAbstractItemView.EditKeyPressed)
+        table.setSelectionMode(QAbstractItemView.ExtendedSelection)
+
+        # Set compact size for Excel look
+        table.setMinimumHeight(150)
+        table.setSizeAdjustPolicy(QAbstractItemView.AdjustToContents)
 
 
     def show_context_menu_table(self, position):
@@ -323,90 +417,73 @@ class StrukturComponent(QWidget):
         self.total_pengurus_label.setText(f"Total: {total} pengurus ({aktif} aktif)")
 
     def populate_table_view(self):
-        """Populate table view dengan data struktur."""
+        """Populate table view dengan data sesuai dengan field input dialog."""
         self.struktur_table.setRowCount(0)
         
         for row_data in self.struktur_data:
             row_pos = self.struktur_table.rowCount()
             self.struktur_table.insertRow(row_pos)
             
-            # Foto - Column 0
+            # Column 0: Foto
             foto_path = row_data.get('foto_path', '')
             foto_item = QTableWidgetItem()
             if foto_path and os.path.exists(foto_path):
                 try:
                     pixmap = QPixmap(foto_path)
                     if not pixmap.isNull():
-                        # Resize photo to fit in cell (50x50 pixels)
                         scaled_pixmap = pixmap.scaled(50, 50, Qt.KeepAspectRatio, Qt.SmoothTransformation)
                         foto_item.setData(Qt.DecorationRole, scaled_pixmap)
-                        foto_item.setText("")  # No text, just image
+                        foto_item.setText("")
                     else:
-                        foto_item.setText("📷")  # Camera icon if image can't load
+                        foto_item.setText("📷")
                 except Exception:
-                    foto_item.setText("📷")  # Camera icon if error loading
+                    foto_item.setText("📷")
             else:
-                foto_item.setText("👤")  # Person icon if no photo
+                foto_item.setText("👤")
             foto_item.setTextAlignment(Qt.AlignCenter)
             self.struktur_table.setItem(row_pos, 0, foto_item)
             
-            # Nama Lengkap dengan gelar - Column 1
-            gelar_depan = row_data.get('gelar_depan', '')
+            # Column 1: Nama Lengkap (simple display as entered in dialog)
             nama_lengkap = row_data.get('nama_lengkap', '')
-            gelar_belakang = row_data.get('gelar_belakang', '')
-            nama_display = f"{gelar_depan} {nama_lengkap} {gelar_belakang}".strip()
-            
-            nama_item = QTableWidgetItem(nama_display)
-            # Add status klerus as subtitle
-            status_klerus = row_data.get('status_klerus', '')
-            if status_klerus:
-                nama_item.setToolTip(f"Status: {status_klerus}")
+            nama_item = QTableWidgetItem(nama_lengkap)
             self.struktur_table.setItem(row_pos, 1, nama_item)
             
-            # Jabatan dengan level - Column 2
+            # Column 2: Jabatan (simple display as entered in dialog)
             jabatan = row_data.get('jabatan_utama', '')
-            level = row_data.get('level_hierarki', 9)
-            level_name = self.get_level_name(level)
-            jabatan_display = jabatan
-            if jabatan:
-                jabatan_display += f"\n({level_name})"
-            
-            jabatan_item = QTableWidgetItem(jabatan_display)
-            jabatan_item.setToolTip(f"Level {level}: {level_name}")
+            jabatan_item = QTableWidgetItem(jabatan)
             self.struktur_table.setItem(row_pos, 2, jabatan_item)
             
-            # Wilayah Rohani - Column 3
+            # Column 3: Wilayah Rohani (as entered in dialog)
             wilayah_rohani = row_data.get('wilayah_rohani', '')
-            bidang_pelayanan = row_data.get('bidang_pelayanan', '')
-            wilayah_display = wilayah_rohani
-            if not wilayah_display and bidang_pelayanan:
-                wilayah_display = f"Bidang: {bidang_pelayanan}"
-            
-            wilayah_item = QTableWidgetItem(wilayah_display)
-            if bidang_pelayanan:
-                wilayah_item.setToolTip(f"Bidang Pelayanan: {bidang_pelayanan}")
+            wilayah_item = QTableWidgetItem(wilayah_rohani)
             self.struktur_table.setItem(row_pos, 3, wilayah_item)
             
-            # Informasi Kontak - Column 4
-            telepon = row_data.get('telepon', '')
-            email = row_data.get('email', '')
+            # Column 4: Status (as selected in dialog)
             status_aktif = row_data.get('status_aktif', '')
+            status_item = QTableWidgetItem(status_aktif)
             
-            kontak_parts = []
-            if telepon:
-                kontak_parts.append(f"📞 {telepon}")
-            if email:
-                kontak_parts.append(f"✉️ {email}")
-            if status_aktif:
-                status_icon = "🟢" if status_aktif == "Aktif" else "🔴"
-                kontak_parts.append(f"{status_icon} {status_aktif}")
+            # Color coding for status
+            if status_aktif == "Aktif":
+                status_item.setBackground(Qt.green)
+                status_item.setText("🟢 Aktif")
+            elif status_aktif == "Tidak Aktif":
+                status_item.setBackground(Qt.lightGray)
+                status_item.setText("🔴 Tidak Aktif")
+            elif status_aktif == "Cuti":
+                status_item.setBackground(Qt.yellow)
+                status_item.setText("🟡 Cuti")
             
-            kontak_display = "\n".join(kontak_parts) if kontak_parts else "Tidak ada info kontak"
+            self.struktur_table.setItem(row_pos, 4, status_item)
             
-            kontak_item = QTableWidgetItem(kontak_display)
-            if status_aktif != 'Aktif':
-                kontak_item.setBackground(Qt.lightGray)
-            self.struktur_table.setItem(row_pos, 4, kontak_item)
+            # Column 5: Email
+            email = row_data.get('email', '')
+            email_item = QTableWidgetItem(email if email else "-")
+            self.struktur_table.setItem(row_pos, 5, email_item)
+            
+            # Column 6: Telepon
+            telepon = row_data.get('telepon', '')
+            telepon_item = QTableWidgetItem(telepon if telepon else "-")
+            self.struktur_table.setItem(row_pos, 6, telepon_item)
 
     def get_level_name(self, level):
         """Dapatkan nama level berdasarkan nomor."""

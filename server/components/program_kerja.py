@@ -28,76 +28,44 @@ class WorkProgramDialog(QDialog):
     def setup_ui(self):
         self.setWindowTitle("Program Kerja" if not self.program_data else "Edit Program Kerja")
         self.setModal(True)
-        self.setFixedSize(500, 400)
+        self.setFixedSize(450, 300)  # Ukuran lebih kecil karena field lebih sedikit
         
         layout = QVBoxLayout(self)
         
-        # Form layout
+        # Form layout - hanya field yang sesuai dengan kolom tabel
         form_layout = QFormLayout()
-        
-        # Title
-        self.title_input = QLineEdit()
-        self.title_input.setPlaceholderText("Masukkan judul program kerja")
-        form_layout.addRow("Judul Program:", self.title_input)
-        
-        # Date
+
+        # Tanggal (hanya format tanggal saja)
         self.date_input = QDateEdit()
         self.date_input.setDate(QDate.currentDate())
         self.date_input.setCalendarPopup(True)
+        self.date_input.setDisplayFormat("dd/MM/yyyy")  # Format tanggal saja
         form_layout.addRow("Tanggal:", self.date_input)
-        
-        # Time
-        time_layout = QHBoxLayout()
-        self.hour_input = QSpinBox()
-        self.hour_input.setRange(0, 23)
-        self.hour_input.setValue(9)
-        self.minute_input = QSpinBox()
-        self.minute_input.setRange(0, 59)
-        self.minute_input.setValue(0)
-        time_layout.addWidget(self.hour_input)
-        time_layout.addWidget(QLabel(":"))
-        time_layout.addWidget(self.minute_input)
-        time_layout.addStretch()
-        form_layout.addRow("Waktu:", time_layout)
-        
-        # Category
-        self.category_input = QComboBox()
-        self.category_input.addItems([
-            "Ibadah", "Kegiatan Sosial", "Rapat", "Pelatihan", 
-            "Kunjungan", "Acara Khusus", "Lainnya"
-        ])
-        form_layout.addRow("Kategori:", self.category_input)
-        
-        # Location
-        self.location_input = QLineEdit()
-        self.location_input.setPlaceholderText("Tempat kegiatan")
-        form_layout.addRow("Lokasi:", self.location_input)
-        
-        # Description
-        self.description_input = QTextEditDialog()
-        self.description_input.setMaximumHeight(100)
-        self.description_input.setPlaceholderText("Deskripsi program kerja")
-        form_layout.addRow("Deskripsi:", self.description_input)
-        
-        # Responsible person (PIC)
+
+        # Perayaan/Program (Judul Program yang akan direncanakan)
+        self.title_input = QLineEdit()
+        self.title_input.setPlaceholderText("Masukkan judul program/perayaan")
+        form_layout.addRow("Perayaan/Program:", self.title_input)
+
+        # Sasaran (tujuan dari program/tokoh yang dituju)
+        self.target_input = QLineEdit()
+        self.target_input.setPlaceholderText("Sasaran/tujuan program atau tokoh yang dituju")
+        form_layout.addRow("Sasaran:", self.target_input)
+
+        # PIC (penanggung jawab)
         self.responsible_input = QLineEdit()
         self.responsible_input.setPlaceholderText("Person In Charge (PIC)")
         form_layout.addRow("PIC:", self.responsible_input)
-        
-        # Target audience
-        self.target_input = QLineEdit()
-        self.target_input.setPlaceholderText("Sasaran/Target peserta")
-        form_layout.addRow("Sasaran:", self.target_input)
-        
-        # Budget amount
+
+        # Anggaran
         self.budget_amount_input = QLineEdit()
         self.budget_amount_input.setPlaceholderText("Jumlah anggaran (Rp)")
-        form_layout.addRow("Jumlah Anggaran:", self.budget_amount_input)
-        
-        # Budget source
+        form_layout.addRow("Anggaran:", self.budget_amount_input)
+
+        # Sumber Anggaran
         self.budget_source_input = QComboBox()
         self.budget_source_input.addItems([
-            "Kas Gereja", "Donasi Jemaat", "Sponsor External", 
+            "Kas Gereja", "Donasi Jemaat", "Sponsor External",
             "Dana Komisi", "APBG", "Kolekte Khusus", "Lainnya"
         ])
         form_layout.addRow("Sumber Anggaran:", self.budget_source_input)
@@ -116,9 +84,8 @@ class WorkProgramDialog(QDialog):
         """Load data for editing"""
         if not self.program_data:
             return
-            
-        self.title_input.setText(self.program_data.get('title', ''))
-        
+
+        # Load date
         date_str = self.program_data.get('date', '')
         if date_str:
             try:
@@ -126,34 +93,29 @@ class WorkProgramDialog(QDialog):
                 self.date_input.setDate(QDate(date_obj))
             except:
                 pass
-        
-        time_str = self.program_data.get('time', '09:00')
-        try:
-            hour, minute = time_str.split(':')
-            self.hour_input.setValue(int(hour))
-            self.minute_input.setValue(int(minute))
-        except:
-            pass
-        
-        self.category_input.setCurrentText(self.program_data.get('category', 'Lainnya'))
-        self.location_input.setText(self.program_data.get('location', ''))
-        self.description_input.setPlainText(self.program_data.get('description', ''))
-        self.responsible_input.setText(self.program_data.get('responsible', ''))
+
+        # Load program title
+        self.title_input.setText(self.program_data.get('title', ''))
+
+        # Load target/sasaran
         self.target_input.setText(self.program_data.get('target', ''))
+
+        # Load PIC
+        self.responsible_input.setText(self.program_data.get('responsible', ''))
+
+        # Load budget amount
         self.budget_amount_input.setText(self.program_data.get('budget_amount', ''))
+
+        # Load budget source
         self.budget_source_input.setCurrentText(self.program_data.get('budget_source', 'Kas Gereja'))
     
     def get_data(self):
-        """Get form data"""
+        """Get form data sesuai dengan kolom tabel"""
         return {
-            'title': self.title_input.text().strip(),
             'date': self.date_input.date().toString('yyyy-MM-dd'),
-            'time': f"{self.hour_input.value():02d}:{self.minute_input.value():02d}",
-            'category': self.category_input.currentText(),
-            'location': self.location_input.text().strip(),
-            'description': self.description_input.toPlainText().strip(),
-            'responsible': self.responsible_input.text().strip(),
+            'title': self.title_input.text().strip(),
             'target': self.target_input.text().strip(),
+            'responsible': self.responsible_input.text().strip(),
             'budget_amount': self.budget_amount_input.text().strip(),
             'budget_source': self.budget_source_input.currentText()
         }
@@ -190,28 +152,28 @@ class KalenderKerjaWidget(QWidget):
     
     
     def create_main_program_widget(self):
-        """Create main program widget with search and filters"""
+        """Create main program widget with search and filters that fills the layout"""
         widget = QWidget()
         layout = QVBoxLayout(widget)
         layout.setContentsMargins(10, 0, 10, 0)  # Add left and right margins to match jadwal kegiatan
         layout.setSpacing(5)  # Reduce spacing to match jadwal.py
-        
+
         # Header with add button (matching jadwal.py style)
         header = self.create_header()
         layout.addWidget(header)
-        
+
         # Filter section (matching jadwal.py style with QGroupBox)
         filter_group = self.create_month_filter()
         layout.addWidget(filter_group)
-        
-        # Simple program table only
+
+        # Simple program table only - with stretch factor to fill space
         table_widget = self.create_simple_program_table()
-        layout.addWidget(table_widget)
-        
-        # Action buttons
+        layout.addWidget(table_widget, 1)  # Add stretch factor 1 to make table expand
+
+        # Action buttons - fixed size, no stretch
         action_layout = self.create_action_buttons()
-        layout.addLayout(action_layout)
-        
+        layout.addLayout(action_layout, 0)  # No stretch for action buttons
+
         return widget
     
     def create_header(self):
@@ -261,32 +223,148 @@ class KalenderKerjaWidget(QWidget):
         self.month_filter.addItems(months)
     
     def create_simple_program_table(self):
-        """Create simple program table like jadwal.py style"""
-        # Program table with simple styling
-        self.program_table = QTableWidget(0, 6)
-        self.program_table.setHorizontalHeaderLabels([
-            "Tanggal", "Perayaan/Program", "Sasaran", "PIC", "Jumlah Anggaran", "Sumber Anggaran"
+        """Create simple program table with professional styling that fills layout - matching struktur.py style"""
+        # Table view untuk daftar program with proper container (exactly matching struktur.py)
+        table_container = QFrame()
+        table_container.setStyleSheet("""
+            QFrame {
+                border: 1px solid #d0d0d0;
+                background-color: white;
+                margin: 0px;
+            }
+        """)
+        table_layout = QVBoxLayout(table_container)
+        table_layout.setContentsMargins(0, 0, 0, 0)
+        table_layout.setSpacing(0)
+
+        self.program_table = self.create_professional_table()
+        table_layout.addWidget(self.program_table)
+
+        return table_container
+        
+    def create_professional_table(self):
+        """Create table with professional styling."""
+        table = QTableWidget(0, 6)
+        table.setHorizontalHeaderLabels([
+            "Tanggal", "Perayaan/Program", "Sasaran", "PIC", "Anggaran", "Sumber Anggaran"
         ])
         
-        # Make headers bold
-        header = self.program_table.horizontalHeader()
-        font = QFont()
-        font.setBold(True)
-        header.setFont(font)
-        
-        # Use stretch mode like jadwal.py
-        header.setSectionResizeMode(QHeaderView.Stretch)
-        self.program_table.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.program_table.setAlternatingRowColors(True)
-        
-        # Enable context menu untuk edit/hapus
-        self.program_table.setContextMenuPolicy(3)  # Qt.CustomContextMenu
-        self.program_table.customContextMenuRequested.connect(self.show_context_menu)
-        
+        # Apply professional table styling
+        self.apply_professional_table_style(table)
+
+        # Set initial column widths with better proportions for full layout
+        table.setColumnWidth(0, 100)   # Tanggal
+        table.setColumnWidth(1, 280)   # Perayaan/Program - wider for content
+        table.setColumnWidth(2, 160)   # Sasaran
+        table.setColumnWidth(3, 120)   # PIC
+        table.setColumnWidth(4, 130)   # Anggaran
+        table.setColumnWidth(5, 160)   # Sumber Anggaran - wider for dropdown text
+
+        # Excel-like column resizing - all columns can be resized (matching struktur.py)
+        header = table.horizontalHeader()
+        header.setSectionResizeMode(QHeaderView.Interactive)  # All columns resizable
+        header.setStretchLastSection(True)  # Last column stretches to fill space
+
+        # Enable context menu
+        table.setContextMenuPolicy(3)  # Qt.CustomContextMenu
+        table.customContextMenuRequested.connect(self.show_context_menu)
+
         # Connect double click to edit
-        self.program_table.itemDoubleClicked.connect(self.edit_program)
+        table.itemDoubleClicked.connect(self.edit_program)
         
-        return self.program_table
+        return table
+        
+    def apply_professional_table_style(self, table):
+        """Apply Excel-like table styling with thin grid lines and minimal borders."""
+        # Header styling - Excel-like headers
+        header_font = QFont()
+        header_font.setBold(False)  # Remove bold from headers
+        header_font.setPointSize(9)
+        table.horizontalHeader().setFont(header_font)
+
+        # Excel-style header styling
+        table.horizontalHeader().setStyleSheet("""
+            QHeaderView::section {
+                background-color: #f2f2f2;
+                border: none;
+                border-bottom: 1px solid #d4d4d4;
+                border-right: 1px solid #d4d4d4;
+                padding: 6px 4px;
+                font-weight: normal;
+                color: #333333;
+                text-align: left;
+            }
+        """)
+
+        # Excel-style table body styling
+        table.setStyleSheet("""
+            QTableWidget {
+                gridline-color: #d4d4d4;
+                background-color: white;
+                border: 1px solid #d4d4d4;
+                selection-background-color: #cce7ff;
+                font-family: 'Calibri', 'Segoe UI', Arial, sans-serif;
+                font-size: 9pt;
+                outline: none;
+            }
+            QTableWidget::item {
+                border: none;
+                padding: 4px 6px;
+                min-height: 18px;
+            }
+            QTableWidget::item:selected {
+                background-color: #cce7ff;
+                color: black;
+            }
+            QTableWidget::item:focus {
+                border: 2px solid #0078d4;
+                background-color: white;
+            }
+        """)
+
+        # Excel-style table settings (matching struktur.py exactly)
+        header = table.horizontalHeader()
+        header.setMinimumSectionSize(50)
+        header.setDefaultSectionSize(80)
+        # Allow adjustable header height - removed setMaximumHeight constraint
+
+        # Enable scrolling
+        table.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        table.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        table.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
+        table.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
+
+        # Excel-style row settings with better content visibility
+        table.verticalHeader().setDefaultSectionSize(24)  # Slightly taller for program content
+        table.setSelectionBehavior(QAbstractItemView.SelectItems)  # Select individual cells
+        table.setAlternatingRowColors(False)
+        table.verticalHeader().setVisible(True)  # Show row numbers like Excel
+        table.verticalHeader().setStyleSheet("""
+            QHeaderView::section {
+                background-color: #f2f2f2;
+                border: none;
+                border-bottom: 1px solid #d4d4d4;
+                border-right: 1px solid #d4d4d4;
+                padding: 2px;
+                font-weight: normal;
+                color: #333333;
+                text-align: center;
+                width: 30px;
+            }
+        """)
+
+        # Enable grid display with thin lines
+        table.setShowGrid(True)
+        table.setGridStyle(Qt.SolidLine)
+
+        # Excel-style editing and selection
+        table.setEditTriggers(QAbstractItemView.DoubleClicked | QAbstractItemView.EditKeyPressed)
+        table.setSelectionMode(QAbstractItemView.ExtendedSelection)
+
+        # Set proper size for Excel look with better visibility
+        table.setMinimumHeight(200)
+        table.setSizePolicy(table.sizePolicy().Expanding, table.sizePolicy().Expanding)
+        table.setSizeAdjustPolicy(QAbstractItemView.AdjustToContents)
     
     def create_action_buttons(self):
         """Buat tombol-tombol aksi (exactly matching jadwal.py)"""
@@ -308,19 +386,19 @@ class KalenderKerjaWidget(QWidget):
         return action_layout
     
     def create_button(self, text, color, slot, icon_path=None):
-        """Buat button dengan style konsisten dan optional icon"""
+        """Buat button dengan style konsisten dan optional icon matching sidebar menu buttons"""
         button = QPushButton(text)
-        
+
         # Add icon if specified and path exists
         if icon_path:
             try:
                 icon = QIcon(icon_path)
                 if not icon.isNull():
                     button.setIcon(icon)
-                    button.setIconSize(QSize(20, 20))  # Larger icon size for better visibility
+                    button.setIconSize(QSize(20, 20))  # Standard icon size matching other sidebar components
             except Exception:
                 pass  # If icon loading fails, just continue without icon
-        
+
         button.setStyleSheet(f"""
             QPushButton {{
                 background-color: {color};
@@ -423,8 +501,8 @@ class KalenderKerjaWidget(QWidget):
             # Create table items with new structure
             date_item = QTableWidgetItem(formatted_date)
             
-            # Combine title and time for program column
-            program_text = f"{program.get('title', 'N/A')} ({program.get('time', 'N/A')})"
+            # Program column hanya judul program (tanpa waktu)
+            program_text = program.get('title', 'N/A')
             program_item = QTableWidgetItem(program_text)
             
             target_item = QTableWidgetItem(program.get('target', 'N/A'))
@@ -654,47 +732,46 @@ class ProgramKerjaComponent(QWidget):
         self.kalender_widget.set_database_manager(db_manager)
         self.jadwal_widget.set_database_manager(db_manager)
     
+    def create_header(self):
+        """Buat header dengan title matching sidebar menu style"""
+        header = QWidget()
+        header_layout = QHBoxLayout(header)
+        header_layout.setContentsMargins(10, 10, 10, 10)  # Add proper margins: left, top, right, bottom
+
+        title = QLabel("Program Kerja dan Penjadwalan")
+        title.setStyleSheet("font-size: 18px; font-weight: bold;")
+        header_layout.addWidget(title)
+
+        header_layout.addStretch()
+
+        return header
+
+    def create_tabs(self):
+        """Buat tab untuk komponen program kerja matching pengaturan style"""
+        tab_widget = QTabWidget()
+
+        # Tab 1: Daftar Program Kerja
+        self.kalender_widget = KalenderKerjaWidget()
+        tab_widget.addTab(self.kalender_widget, "Daftar Program Kerja")
+
+        # Tab 2: Jadwal Kegiatan (existing component)
+        self.jadwal_widget = JadwalComponent()
+        tab_widget.addTab(self.jadwal_widget, "Jadwal Kegiatan")
+
+        return tab_widget
+
     def setup_ui(self):
         """Setup UI dengan tab widget"""
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
-        
-        # Header
-        header_frame = QFrame()
-        header_frame.setStyleSheet("background-color: #34495e; color: white; padding: 2px;")
-        header_layout = QHBoxLayout(header_frame)
-        
-        title_label = QLabel("Program Kerja")
-        title_label.setStyleSheet("font-size: 16px; font-weight: bold; color: white;")
-        header_layout.addWidget(title_label)
-        header_layout.addStretch()
-        
-        layout.addWidget(header_frame)
-        
-        # Sub judul
-        subtitle_frame = QFrame()
-        subtitle_frame.setStyleSheet("background-color: #f0f0f0; padding: 8px;")
-        subtitle_layout = QHBoxLayout(subtitle_frame)
-        
-        subtitle_label = QLabel("Pusat Penjadwalan dan Manajemen Kegiatan")
-        subtitle_label.setStyleSheet("font-size: 16px; font-weight: bold; color: black;")
-        subtitle_layout.addWidget(subtitle_label)
-        subtitle_layout.addStretch()
-        
-        layout.addWidget(subtitle_frame)
-        
-        # Tab widget
-        self.tab_widget = QTabWidget()
-        
-        # Tab 1: Daftar Program Kerja
-        self.kalender_widget = KalenderKerjaWidget()
-        self.tab_widget.addTab(self.kalender_widget, "Daftar Program Kerja")
-        
-        # Tab 2: Jadwal Kegiatan (existing component)
-        self.jadwal_widget = JadwalComponent()
-        self.tab_widget.addTab(self.jadwal_widget, "Jadwal Kegiatan")
-        
+
+        # Header matching pengaturan style exactly
+        header = self.create_header()
+        layout.addWidget(header)
+
+        # Tab widget matching pengaturan style
+        self.tab_widget = self.create_tabs()
         layout.addWidget(self.tab_widget)
         
         # Connect signals
@@ -706,19 +783,33 @@ class ProgramKerjaComponent(QWidget):
     def hide_jadwal_header(self):
         """Hide the header frame of jadwal component when used in tab"""
         try:
-            # Find and hide the header frame with the specific style
+            # Find and hide both the old style header and the new clean header
             layout = self.jadwal_widget.layout()
             if layout:
                 for i in range(layout.count()):
                     item = layout.itemAt(i)
                     if item and item.widget():
                         widget = item.widget()
-                        if (isinstance(widget, QFrame) and 
-                            hasattr(widget, 'styleSheet') and 
-                            widget.styleSheet() and 
+                        # Hide old style header with background color
+                        if (isinstance(widget, QFrame) and
+                            hasattr(widget, 'styleSheet') and
+                            widget.styleSheet() and
                             "background-color: #34495e" in widget.styleSheet()):
                             widget.hide()
                             break
+                        # Also hide the clean header with "Jadwal Kegiatan" title
+                        elif (isinstance(widget, QWidget) and
+                              widget.layout() and
+                              isinstance(widget.layout(), QHBoxLayout)):
+                            # Check if this widget contains a label with "Jadwal Kegiatan"
+                            widget_layout = widget.layout()
+                            for j in range(widget_layout.count()):
+                                sub_item = widget_layout.itemAt(j)
+                                if (sub_item and sub_item.widget() and
+                                    isinstance(sub_item.widget(), QLabel) and
+                                    "Jadwal Kegiatan" in sub_item.widget().text()):
+                                    widget.hide()
+                                    return
         except Exception as e:
             # If there's any error, just ignore it
             pass

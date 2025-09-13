@@ -1,21 +1,23 @@
 # Path: server/components/server_control.py
 
 import datetime
-from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGroupBox, 
-                            QFormLayout, QPushButton, QLabel, QTableWidget, 
-                            QTableWidgetItem, QHeaderView, QTextEdit, QMessageBox, 
-                            QInputDialog, QFileDialog)
-from PyQt5.QtCore import pyqtSignal, QTimer, QSize
+from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGroupBox,
+                            QFormLayout, QPushButton, QLabel, QTableWidget,
+                            QTableWidgetItem, QHeaderView, QTextEdit, QMessageBox,
+                            QInputDialog, QFileDialog, QAbstractItemView, QFrame)
+from PyQt5.QtCore import pyqtSignal, QTimer, QSize, Qt
 from PyQt5.QtGui import QColor, QIcon
 
 class ServerControlComponent(QWidget):
     
     log_message = pyqtSignal(str)
+    visibility_changed = pyqtSignal(bool)  # Signal for layout visibility change
     
     def __init__(self, parent=None):
         super().__init__(parent)
         self.database_manager = None
         self.connected_clients = []
+        self.is_visible = True  # Track visibility state
         self.setup_ui()
         
         # Timer untuk auto-refresh status API dan client
@@ -30,8 +32,31 @@ class ServerControlComponent(QWidget):
     def setup_ui(self):
         layout = QVBoxLayout(self)
         
-        control_group = self.create_control_panel()
-        layout.addWidget(control_group)
+        # Toggle button for hide/show
+        toggle_layout = QHBoxLayout()
+        self.toggle_button = QPushButton("▼ Sembunyikan Kontrol Server")
+        self.toggle_button.setStyleSheet("""
+            QPushButton {
+                background-color: #4a90e2;
+                color: white;
+                padding: 5px 10px;
+                border: none;
+                border-radius: 3px;
+                text-align: left;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #357abd;
+            }
+        """)
+        self.toggle_button.clicked.connect(self.toggle_visibility)
+        toggle_layout.addWidget(self.toggle_button)
+        toggle_layout.addStretch()
+        layout.addLayout(toggle_layout)
+        
+        # Control panel
+        self.control_group = self.create_control_panel()
+        layout.addWidget(self.control_group)
     
     def create_control_panel(self):
         control_group = QGroupBox("Kontrol API Server")
@@ -113,13 +138,27 @@ class ServerControlComponent(QWidget):
         # Client and Log Layout
         client_log_layout = QVBoxLayout()
         
-        # Client Table
+        # Client Table with professional styling
         client_group = QGroupBox("Client Terhubung")
         client_layout = QVBoxLayout(client_group)
-        self.client_table = QTableWidget(0, 5)
-        self.client_table.setHorizontalHeaderLabels(["IP Address", "Hostname", "Waktu Koneksi", "Terakhir Aktif", "Status"])
-        self.client_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        client_layout.addWidget(self.client_table)
+        
+        # Table view untuk daftar client with proper container
+        table_container = QFrame()
+        table_container.setStyleSheet("""
+            QFrame {
+                border: 1px solid #d0d0d0;
+                background-color: white;
+                margin: 0px;
+            }
+        """)
+        table_layout = QVBoxLayout(table_container)
+        table_layout.setContentsMargins(0, 0, 0, 0)
+        table_layout.setSpacing(0)
+        
+        self.client_table = self.create_professional_table()
+        table_layout.addWidget(self.client_table)
+        
+        client_layout.addWidget(table_container)
         
         # Log Section
         log_group = QGroupBox("Log Aktivitas")
@@ -195,6 +234,118 @@ class ServerControlComponent(QWidget):
         
         return log_button_layout
     
+    def create_professional_table(self):
+        """Create table with professional styling."""
+        table = QTableWidget(0, 5)
+        table.setHorizontalHeaderLabels(["IP Address", "Hostname", "Waktu Koneksi", "Terakhir Aktif", "Status"])
+        
+        # Apply professional table styling
+        self.apply_professional_table_style(table)
+        
+        # Set specific column widths
+        column_widths = [120, 150, 130, 120, 100]  # Total: 620px
+        for i, width in enumerate(column_widths):
+            table.setColumnWidth(i, width)
+        
+        # Set minimum table width to sum of all columns
+        table.setMinimumWidth(sum(column_widths) + 50)  # Add padding for scrollbar
+        
+        return table
+        
+    def apply_professional_table_style(self, table):
+        """Apply Excel-like table styling with thin grid lines and minimal borders."""
+        # Header styling - Excel-like headers
+        from PyQt5.QtGui import QFont
+        header_font = QFont()
+        header_font.setBold(False)  # Remove bold from headers
+        header_font.setPointSize(9)
+        table.horizontalHeader().setFont(header_font)
+
+        # Excel-style header styling
+        table.horizontalHeader().setStyleSheet("""
+            QHeaderView::section {
+                background-color: #f2f2f2;
+                border: none;
+                border-bottom: 1px solid #d4d4d4;
+                border-right: 1px solid #d4d4d4;
+                padding: 6px 4px;
+                font-weight: normal;
+                color: #333333;
+                text-align: left;
+            }
+        """)
+
+        # Excel-style table body styling
+        table.setStyleSheet("""
+            QTableWidget {
+                gridline-color: #d4d4d4;
+                background-color: white;
+                border: 1px solid #d4d4d4;
+                selection-background-color: #cce7ff;
+                font-family: 'Calibri', 'Segoe UI', Arial, sans-serif;
+                font-size: 9pt;
+                outline: none;
+            }
+            QTableWidget::item {
+                border: none;
+                padding: 4px 6px;
+                min-height: 18px;
+            }
+            QTableWidget::item:selected {
+                background-color: #cce7ff;
+                color: black;
+            }
+            QTableWidget::item:focus {
+                border: 2px solid #0078d4;
+                background-color: white;
+            }
+        """)
+
+        # Excel-style table settings
+        header = table.horizontalHeader()
+        header.setSectionResizeMode(QHeaderView.Interactive)  # Allow column resizing
+        header.setStretchLastSection(False)  # Don't stretch last column
+        header.setMinimumSectionSize(50)
+        header.setDefaultSectionSize(80)
+        # Allow adjustable header height - removed setMaximumHeight constraint
+
+        # Enable scrolling
+        table.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        table.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        table.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
+        table.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
+
+        # Excel-style row settings
+        table.verticalHeader().setDefaultSectionSize(20)  # Thin rows like Excel
+        table.setSelectionBehavior(QAbstractItemView.SelectItems)  # Select individual cells
+        table.setAlternatingRowColors(False)
+        table.verticalHeader().setVisible(True)  # Show row numbers like Excel
+        table.verticalHeader().setStyleSheet("""
+            QHeaderView::section {
+                background-color: #f2f2f2;
+                border: none;
+                border-bottom: 1px solid #d4d4d4;
+                border-right: 1px solid #d4d4d4;
+                padding: 2px;
+                font-weight: normal;
+                color: #333333;
+                text-align: center;
+                width: 30px;
+            }
+        """)
+
+        # Enable grid display with thin lines
+        table.setShowGrid(True)
+        table.setGridStyle(Qt.SolidLine)
+
+        # Excel-style editing and selection
+        table.setEditTriggers(QAbstractItemView.DoubleClicked | QAbstractItemView.EditKeyPressed)
+        table.setSelectionMode(QAbstractItemView.ExtendedSelection)
+
+        # Set compact size for Excel look
+        table.setMinimumHeight(150)
+        table.setSizeAdjustPolicy(QAbstractItemView.AdjustToContents)
+
     def auto_refresh_status(self):
         """Auto refresh status API dan client yang terhubung"""
         self.check_api_status()
@@ -484,3 +635,28 @@ class ServerControlComponent(QWidget):
     def is_api_active(self):
         """Cek apakah API sedang aktif"""
         return self.check_api_status()
+    
+    def toggle_visibility(self):
+        """Toggle visibility of server control panel"""
+        self.is_visible = not self.is_visible
+        
+        if self.is_visible:
+            # Show the control panel
+            self.control_group.show()
+            self.toggle_button.setText("▼ Sembunyikan Kontrol Server")
+        else:
+            # Hide the control panel
+            self.control_group.hide()
+            self.toggle_button.setText("▶ Tampilkan Kontrol Server")
+        
+        # Emit signal to notify main layout of visibility change
+        self.visibility_changed.emit(self.is_visible)
+    
+    def get_visibility_state(self):
+        """Get current visibility state"""
+        return self.is_visible
+    
+    def set_visibility(self, visible):
+        """Set visibility programmatically"""
+        if self.is_visible != visible:
+            self.toggle_visibility()

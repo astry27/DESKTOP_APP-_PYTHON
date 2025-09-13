@@ -1,6 +1,6 @@
 # Path: server/components/jemaat.py
 
-from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
+from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                             QPushButton, QLineEdit, QTableWidget, QTableWidgetItem,
                             QHeaderView, QMessageBox, QFileDialog, QAbstractItemView, QFrame,
                             QScrollArea, QSplitter)
@@ -30,16 +30,16 @@ class JemaatComponent(QWidget):
         """Setup UI untuk halaman jemaat"""
         layout = QVBoxLayout(self)
         
-        # Header Frame (matching dokumen.py style)
-        header_frame = QFrame()
-        header_frame.setStyleSheet("background-color: #34495e; color: white; padding: 2px;")
+        # Clean header without background (matching pengaturan style)
+        header_frame = QWidget()
         header_layout = QHBoxLayout(header_frame)
-        
+        header_layout.setContentsMargins(0, 0, 10, 0)
+
         title_label = QLabel("Database Umat")
-        title_label.setStyleSheet("font-size: 16px; font-weight: bold; color: white;")
+        title_label.setStyleSheet("font-size: 18px; font-weight: bold;")
         header_layout.addWidget(title_label)
         header_layout.addStretch()
-        
+
         layout.addWidget(header_frame)
         
         # Original header with buttons
@@ -181,196 +181,450 @@ class JemaatComponent(QWidget):
             QMessageBox.critical(self, "Error", f"Error loading jemaat data: {str(e)}")
     
     def create_spreadsheet_grid(self, layout):
-        """Create simple white table with multi-level headers"""
-        # Create container for headers and table
-        table_container = QWidget()
-        container_layout = QVBoxLayout(table_container)
-        container_layout.setContentsMargins(0, 0, 0, 0)
-        container_layout.setSpacing(0)
-        
-        # Add main header row
-        self.create_main_header_row(container_layout)
-        
-        # Single table with all columns - no splitting or frozen columns
-        self.jemaat_table = QTableWidget(0, 32)  # All fields from dialog
-        
-        # Set up all column headers to match dialog fields exactly
-        self.setup_complete_headers()
-        
-        # Configure simple white table styling
-        self.configure_simple_style(self.jemaat_table)
-        
+        """Create table with proper header format like struktur.py"""
+        # Create table with 34 columns, start with 0 rows (header will be proper header)
+        self.jemaat_table = QTableWidget(0, 34)
+
+        # Set up column headers like struktur.py
+        self.setup_table_headers()
+
+        # Configure table styling exactly like struktur.py
+        self.apply_professional_table_style(self.jemaat_table)
+
         # Enable context menu
         self.jemaat_table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.jemaat_table.customContextMenuRequested.connect(self.show_context_menu)
-        
-        container_layout.addWidget(self.jemaat_table)
-        layout.addWidget(table_container)
-    
-    def create_main_header_row(self, layout):
-        """Create main header row with category labels - clean white styling with proper alignment"""
-        main_header_frame = QFrame()
-        main_header_frame.setFixedHeight(35)
-        main_header_frame.setStyleSheet("""
+
+        # Table container for proper alignment
+        table_container = QFrame()
+        table_container.setStyleSheet("""
             QFrame {
-                background: white;
-                border-bottom: 1px solid #e0e0e0;
+                border: 1px solid #d0d0d0;
+                background-color: white;
+                margin: 0px;
             }
         """)
-        
-        main_header_layout = QHBoxLayout(main_header_frame)
-        main_header_layout.setContentsMargins(0, 0, 0, 0)
-        main_header_layout.setSpacing(0)
-        
-        # Define header groups with their column counts (removed colors)
-        header_groups = [
-            ("DATA DIRI", 15),        # 15 columns: Nama Lengkap to Email
-            ("SAKRAMEN BABTIS", 4),   # 4 columns: Status to Nama Babtis
-            ("SAKRAMEN EKARISTI", 3),  # 3 columns: Status to Tanggal Komuni
-            ("SAKRAMEN KRISMA", 3),    # 3 columns: Status to Tanggal Krisma
-            ("SAKRAMEN PERKAWINAN", 6), # 6 columns: Status to Detail
-            ("STATUS", 1)             # 1 column: Status Keanggotaan
-        ]
-        
-        # Create main header labels with exact width matching table columns
-        for i, (group_name, col_count) in enumerate(header_groups):
-            # Calculate exact width to match table columns perfectly
-            exact_width = col_count * 120
-            
-            group_label = QLabel(group_name)
-            group_label.setFixedWidth(exact_width)
-            group_label.setFixedHeight(35)
-            group_label.setAlignment(Qt.AlignCenter)
-            
-            # Apply border only to the right except for the last header
-            border_style = "border-right: 1px solid #e0e0e0;" if i < len(header_groups) - 1 else ""
-            
-            group_label.setStyleSheet(f"""
-                QLabel {{
-                    background: white;
-                    color: #333;
-                    font-weight: bold;
-                    font-size: 10px;
-                    {border_style}
-                    padding: 8px;
-                    margin: 0px;
-                }}
-            """)
-            main_header_layout.addWidget(group_label)
-        
-        # Add stretch to fill remaining space
-        main_header_layout.addStretch()
-        
-        layout.addWidget(main_header_frame)
-    
-    def setup_complete_headers(self):
-        """Setup sub-column headers under main categories with exact width alignment"""
-        sub_header_labels = [
-            # DATA DIRI (15 columns)
-            "Nama Lengkap", "Wilayah Rohani", "Nama Keluarga", "Tempat Lahir", 
-            "Tanggal Lahir", "Umur", "Kategori", "Jenis Kelamin", 
-            "Hubungan Keluarga", "Pendidikan Terakhir", "Status Pekerjaan", "Detail Pekerjaan",
-            "Status Menikah", "Alamat", "Email",
-            # SAKRAMEN BABTIS (4 columns)
+        table_layout = QVBoxLayout(table_container)
+        table_layout.setContentsMargins(0, 0, 0, 0)
+        table_layout.setSpacing(0)
+
+        table_layout.addWidget(self.jemaat_table)
+        layout.addWidget(table_container)
+
+    def setup_table_headers(self):
+        """Set up table headers like struktur.py with proper column names"""
+        # Define all column headers in order
+        column_headers = [
+            "No",  # Column 0
+            # DATA PRIBADI (columns 1-15)
+            "Wilayah Rohani", "Nama Keluarga", "Nama Lengkap", "Tempat Lahir",
+            "Tanggal Lahir", "Umur", "Kategori", "J. Kelamin",
+            "Hubungan Keluarga", "Pend. Terakhir", "Status Menikah", "Status Pekerjaan",
+            "Detail Pekerjaan", "Alamat", "Email/No.Hp",
+            # SAKRAMEN BABTIS (columns 16-19)
             "Status Babtis", "Tempat Babtis", "Tanggal Babtis", "Nama Babtis",
-            # SAKRAMEN EKARISTI (3 columns)
+            # SAKRAMEN EKARISTI (columns 20-22)
             "Status Ekaristi", "Tempat Komuni", "Tanggal Komuni",
-            # SAKRAMEN KRISMA (3 columns)
+            # SAKRAMEN KRISMA (columns 23-25)
             "Status Krisma", "Tempat Krisma", "Tanggal Krisma",
-            # SAKRAMEN PERKAWINAN (6 columns)
-            "Status Perkawinan", "Keuskupan", "Paroki", "Kota Perkawinan", 
-            "Tanggal Perkawinan", "Status Perkawinan Detail",
-            # STATUS (1 column)
-            "Status Keanggotaan"
+            # SAKRAMEN PERKAWINAN (columns 26-31)
+            "Status Perkawinan", "Keuskupan", "Paroki", "Kota", "Tanggal Perkawinan", "Status Perkawinan",
+            # STATUS (columns 32-34)
+            "Status Keanggotaan", "WR Tujuan", "Paroki Tujuan"
         ]
-        
-        self.jemaat_table.setHorizontalHeaderLabels(sub_header_labels)
-        
-        # Set exact column widths to match main header calculations
-        column_width = 120
-        for i in range(len(sub_header_labels)):
-            self.jemaat_table.setColumnWidth(i, column_width)
-        
-        # Ensure horizontal header is visible and properly styled
-        horizontal_header = self.jemaat_table.horizontalHeader()
-        horizontal_header.setVisible(True)
-        horizontal_header.setStretchLastSection(False)
-        horizontal_header.setSectionResizeMode(QHeaderView.Fixed)
-    
-    def configure_simple_style(self, table):
-        """Configure table with simple white styling"""
-        # Basic table settings
-        table.setAlternatingRowColors(True)
-        table.setGridStyle(Qt.SolidLine)
-        table.setShowGrid(True)
-        
-        # Simple white styling
+
+        # Set column headers
+        self.jemaat_table.setHorizontalHeaderLabels(column_headers)
+
+        # Set initial column widths
+        self.setup_column_widths()
+
+    def apply_professional_table_style(self, table):
+        """Apply Excel-style table styling exactly like struktur.py"""
+        # Header styling - Excel-like headers (same as struktur.py)
+        header_font = QFont()
+        header_font.setBold(False)  # Remove bold from headers
+        header_font.setPointSize(9)
+        table.horizontalHeader().setFont(header_font)
+
+        # Excel-style header styling (exact copy from struktur.py)
+        table.horizontalHeader().setStyleSheet("""
+            QHeaderView::section {
+                background-color: #f2f2f2;
+                border: none;
+                border-bottom: 1px solid #d4d4d4;
+                border-right: 1px solid #d4d4d4;
+                padding: 6px 4px;
+                font-weight: normal;
+                color: #333333;
+                text-align: left;
+            }
+        """)
+
+        # Excel-style table body styling (exact copy from struktur.py)
         table.setStyleSheet("""
             QTableWidget {
-                gridline-color: #e0e0e0;
+                gridline-color: #d4d4d4;
                 background-color: white;
-                alternate-background-color: #fafafa;
-                selection-background-color: #b3d9ff;
-                selection-color: black;
-                border: 1px solid #e0e0e0;
+                border: 1px solid #d4d4d4;
+                selection-background-color: #cce7ff;
+                font-family: 'Calibri', 'Segoe UI', Arial, sans-serif;
+                font-size: 9pt;
+                outline: none;
             }
             QTableWidget::item {
-                padding: 6px 8px;
                 border: none;
-                font-size: 9pt;
-                font-family: 'Segoe UI', Arial, sans-serif;
+                padding: 4px 6px;
+                min-height: 18px;
             }
             QTableWidget::item:selected {
-                background: #b3d9ff;
+                background-color: #cce7ff;
                 color: black;
             }
-            QHeaderView::section {
-                background: white;
-                border: 1px solid #e0e0e0;
-                padding: 8px;
-                font-weight: bold;
-                font-size: 9pt;
-                color: #333;
-            }
-            QHeaderView::section:hover {
-                background: #f5f5f5;
+            QTableWidget::item:focus {
+                border: 2px solid #0078d4;
+                background-color: white;
             }
         """)
-        
-        # Row selection behavior
-        table.setSelectionBehavior(QAbstractItemView.SelectRows)
-        table.setSelectionMode(QAbstractItemView.SingleSelection)
-        
-        # Set default row height
-        table.verticalHeader().setDefaultSectionSize(32)
-        table.verticalHeader().setVisible(True)
+
+        # Excel-style table settings (exact copy from struktur.py)
+        header = table.horizontalHeader()
+        header.setSectionResizeMode(QHeaderView.Interactive)  # All columns resizable
+        header.setStretchLastSection(True)  # Last column stretches to fill space
+        header.setMinimumSectionSize(50)
+        header.setDefaultSectionSize(80)
+
+        # Enable scrolling (exact copy from struktur.py)
+        table.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        table.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        table.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
+        table.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
+
+        # Excel-style row settings (exact copy from struktur.py)
+        table.verticalHeader().setDefaultSectionSize(20)  # Thin rows like Excel
+        table.setSelectionBehavior(QAbstractItemView.SelectItems)  # Select individual cells
+        table.setAlternatingRowColors(False)
+        table.verticalHeader().setVisible(True)  # Show row numbers like Excel
         table.verticalHeader().setStyleSheet("""
             QHeaderView::section {
-                background: white;
-                border: 1px solid #e0e0e0;
-                padding: 4px;
-                font-size: 8pt;
-                color: #666;
+                background-color: #f2f2f2;
+                border: none;
+                border-bottom: 1px solid #d4d4d4;
+                border-right: 1px solid #d4d4d4;
+                padding: 2px;
+                font-weight: normal;
+                color: #333333;
                 text-align: center;
-                min-width: 30px;
+                width: 30px;
             }
         """)
+
+        # Enable grid display with thin lines (exact copy from struktur.py)
+        table.setShowGrid(True)
+        table.setGridStyle(Qt.SolidLine)
+
+        # Excel-style editing and selection (exact copy from struktur.py)
+        table.setEditTriggers(QAbstractItemView.DoubleClicked | QAbstractItemView.EditKeyPressed)
+        table.setSelectionMode(QAbstractItemView.ExtendedSelection)
+
+        # Set compact size for Excel look (exact copy from struktur.py)
+        table.setMinimumHeight(150)
+        table.setSizeAdjustPolicy(QAbstractItemView.AdjustToContents)
+
+    def setup_three_level_headers_with_colspan(self):
+        """Setup table with proper three-level headers using table cells with spans"""
+
+        # Hide horizontal header since we'll use table cells as headers, but keep vertical header like struktur.py
+        self.jemaat_table.horizontalHeader().setVisible(False)
+        self.jemaat_table.verticalHeader().setVisible(True)  # Show row numbers like Excel/struktur.py
+
+        # ROW 1: Sub-category headers (all use struktur.py styling)
+        sub_categories = [
+            ("No", 1),  # Column 0: spans 1 column with header style
+            ("DATA PRIBADI", 15),  # Columns 1-15: spans 15 columns
+            ("SAKRAMEN BABTIS", 4),  # Columns 16-19: spans 4 columns
+            ("SAKRAMEN EKARISTI", 3),  # Columns 20-22: spans 3 columns
+            ("SAKRAMEN KRISMA", 3),  # Columns 23-25: spans 3 columns
+            ("SAKRAMEN PERKAWINAN", 6),  # Columns 26-31: spans 6 columns
+            ("STATUS", 3)  # Columns 32-34: spans 3 columns
+        ]
+
+        # ROW 2: Individual column headers
+        column_headers = [
+            "No",  # Column 0
+            # DATA PRIBADI (15 columns: 1-15)
+            "Wilayah Rohani", "Nama Keluarga", "Nama Lengkap", "Tempat Lahir",
+            "Tanggal Lahir", "Umur", "Kategori", "J. Kelamin",
+            "Hubungan Keluarga", "Pend. Terakhir", "Status Menikah", "Status Pekerjaan",
+            "Detail Pekerjaan", "Alamat", "Email/No.Hp",
+            # SAKRAMEN BABTIS (4 columns: 16-19)
+            "Status", "Tempat Babtis", "Tanggal Babtis", "Nama Babtis",
+            # SAKRAMEN EKARISTI (3 columns: 20-22)
+            "Status", "Tempat Komuni", "Tanggal Komuni",
+            # SAKRAMEN KRISMA (3 columns: 23-25)
+            "Status", "Tempat Krisma", "Tanggal Krisma",
+            # SAKRAMEN PERKAWINAN (6 columns: 26-31)
+            "Status", "Keuskupan", "Paroki", "Kota", "Tanggal Perkawinan", "Status Perkawinan",
+            # STATUS (3 columns: 32-34) as per user specification
+            "Status Keanggotaan", "WR Tujuan", "Paroki Tujuan"
+        ]
+
+        # Create ROW 1: Sub-category headers with colspan
+        current_col = 0
+        for category_name, span in sub_categories:
+            item = QTableWidgetItem(category_name)
+            item.setTextAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+
+            # Apply Excel-style header background like struktur.py for all headers
+            item.setBackground(QColor("#f2f2f2"))  # Same header color as struktur.py
+            item.setForeground(QColor("#333333"))  # Same text color as struktur.py
+
+            # Enhanced font styling for better visibility
+            font = QFont()
+            font.setBold(False)  # Remove bold like struktur.py
+            font.setPointSize(9)  # Same font size as struktur.py
+            item.setFont(font)
+
+            # Make header cells non-editable but always visible
+            item.setFlags(Qt.ItemIsEnabled)
+
+            self.jemaat_table.setItem(0, current_col, item)
+
+            # Apply colspan for sub-categories
+            if span > 1:
+                self.jemaat_table.setSpan(0, current_col, 1, span)
+
+            # Apply rowspan for "No" column only (merge row 0 and row 1 for column 0)
+            if current_col == 0 and category_name == "No":
+                self.jemaat_table.setSpan(0, 0, 2, 1)  # rowspan of 2 for column 0
+
+            current_col += span
+
+        # Create ROW 2: Individual column headers
+        for col, column_header in enumerate(column_headers):
+            # Skip column 0 since it's merged with rowspan
+            if col == 0:
+                continue
+
+            item = QTableWidgetItem(column_header)
+            item.setTextAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+            item.setBackground(QColor("#f2f2f2"))  # Same header color as struktur.py
+            item.setForeground(QColor("#333333"))  # Same text color as struktur.py
+
+            # Enhanced font styling for better visibility (matching struktur.py)
+            font = QFont()
+            font.setBold(False)  # No bold like struktur.py
+            font.setPointSize(9)  # Same size as struktur.py
+            item.setFont(font)
+
+            # Ensure text is always visible
+            item.setFlags(Qt.ItemIsEnabled)
+
+            self.jemaat_table.setItem(1, col, item)
+
+        # Set row heights for headers
+        self.jemaat_table.setRowHeight(0, 30)  # Sub-category row
+        self.jemaat_table.setRowHeight(1, 25)  # Individual column row
+
+        # Set column widths
+        self.setup_column_widths()
+
+        # Make header rows non-editable and force refresh display
+        for row in range(2):
+            for col in range(34):
+                item = self.jemaat_table.item(row, col)
+                if item:
+                    item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+
+        # Ensure text is visible in spanned cells by explicitly setting text again
+        self.ensure_spanned_text_visible()
+
+        # Final step: ensure all styling is applied correctly
+        self.apply_final_header_styling()
+
+        # Force table to refresh and display all text properly
+        self.jemaat_table.viewport().update()
+        self.jemaat_table.repaint()
+
+    def ensure_spanned_text_visible(self):
+        """Ensure text in spanned cells is visible by explicitly setting text and styling again"""
+        # Re-apply text and styling for rowspan cell (No column)
+        no_item = self.jemaat_table.item(0, 0)
+        if no_item:
+            no_item.setText("No")
+            no_item.setTextAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+            # Apply struktur.py styling
+            no_item.setBackground(QColor("#f2f2f2"))
+            no_item.setForeground(QColor("#333333"))
+            font = QFont()
+            font.setBold(False)
+            font.setPointSize(9)
+            no_item.setFont(font)
+
+        # Re-apply text and styling for colspan cells in first row
+        sub_categories = [
+            (1, "DATA PRIBADI"),
+            (16, "SAKRAMEN BABTIS"),
+            (20, "SAKRAMEN EKARISTI"),
+            (23, "SAKRAMEN KRISMA"),
+            (26, "SAKRAMEN PERKAWINAN"),
+            (32, "STATUS")
+        ]
+
+        for col, text in sub_categories:
+            item = self.jemaat_table.item(0, col)
+            if item:
+                item.setText(text)
+                item.setTextAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+                # Apply struktur.py styling
+                item.setBackground(QColor("#f2f2f2"))
+                item.setForeground(QColor("#333333"))
+                font = QFont()
+                font.setBold(False)
+                font.setPointSize(9)
+                item.setFont(font)
+
+    def apply_final_header_styling(self):
+        """Apply final header styling to ensure struktur.py consistency"""
+        # Apply styling to all header cells in rows 0 and 1
+        for row in range(2):  # Header rows
+            for col in range(34):  # All columns
+                item = self.jemaat_table.item(row, col)
+                if item and item.text():  # Only apply to non-empty cells
+                    # Apply struktur.py header styling
+                    item.setBackground(QColor("#f2f2f2"))
+                    item.setForeground(QColor("#333333"))
+                    font = QFont()
+                    font.setBold(False)
+                    font.setPointSize(9)
+                    item.setFont(font)
+                    item.setTextAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+
+    def setup_column_widths(self):
+        """Set up column widths for better display"""
+        self.jemaat_table.setColumnWidth(0, 50)   # No. column
+        # Make important columns wider
+        self.jemaat_table.setColumnWidth(3, 150)  # Nama Lengkap - wider
+        self.jemaat_table.setColumnWidth(14, 180)  # Alamat - wider
+        self.jemaat_table.setColumnWidth(15, 140)  # Kontak - wider
+
+        # Set standard width for other columns
+        for i in [1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]:  # DATA columns
+            self.jemaat_table.setColumnWidth(i, 110)
+        for i in range(16, 34):  # Sakramen and Status columns (updated to 34)
+            self.jemaat_table.setColumnWidth(i, 100)
+    
+    
+    def configure_simple_style(self, table):
+        """Configure table with Excel-like styling and thin grid lines."""
+        # Excel-style table styling
+        header_font = QFont()
+        header_font.setBold(False)  # Remove bold from headers
+        header_font.setPointSize(9)
+        table.horizontalHeader().setFont(header_font)
+
+        # Excel-style professional styling matching struktur.py exactly
+        table.setStyleSheet("""
+            QTableWidget {
+                gridline-color: #d4d4d4;
+                background-color: white;
+                border: 1px solid #d4d4d4;
+                selection-background-color: #cce7ff;
+                font-family: 'Calibri', 'Segoe UI', Arial, sans-serif;
+                font-size: 9pt;
+                outline: none;
+            }
+            QTableWidget::item {
+                border: none;
+                padding: 4px 6px;
+                min-height: 18px;
+            }
+            QTableWidget::item:selected {
+                background-color: #cce7ff;
+                color: black;
+            }
+            QTableWidget::item:focus {
+                border: 2px solid #0078d4;
+                background-color: white;
+            }
+        """)
+
+        # Excel-style table settings with proper sizing (matching struktur.py)
+        header = table.horizontalHeader()
+        header.setSectionResizeMode(QHeaderView.Interactive)  # All columns resizable like struktur.py
+        header.setStretchLastSection(True)  # Last column stretches to fill space like struktur.py
+        header.setMinimumSectionSize(50)
+        header.setDefaultSectionSize(80)
+
+        # Enable proper scrolling
+        table.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        table.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        table.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
+        table.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
+
+        # Excel-style row settings
+        table.verticalHeader().setDefaultSectionSize(20)  # Thin rows like Excel
+        table.setSelectionBehavior(QAbstractItemView.SelectItems)  # Select individual cells
+        table.setAlternatingRowColors(False)
+        table.verticalHeader().setVisible(True)  # Show row numbers like Excel
+        table.verticalHeader().setStyleSheet("""
+            QHeaderView::section {
+                background-color: #f2f2f2;
+                border: none;
+                border-bottom: 1px solid #d4d4d4;
+                border-right: 1px solid #d4d4d4;
+                padding: 2px;
+                font-weight: normal;
+                color: #333333;
+                text-align: center;
+                width: 30px;
+            }
+        """)
+        table.setGridStyle(Qt.SolidLine)
+        table.setShowGrid(True)
+
+        # Excel-style editing and selection
+        table.setEditTriggers(QAbstractItemView.DoubleClicked | QAbstractItemView.EditKeyPressed)
+        table.setSelectionMode(QAbstractItemView.ExtendedSelection)
+
+        # Set compact size for Excel look
+        table.setMinimumHeight(150)
+        table.setSizeAdjustPolicy(QAbstractItemView.AdjustToContents)
+        
+        # Configure horizontal header (hidden since we use table cells)
+        horizontal_header = table.horizontalHeader()
+        horizontal_header.setSectionResizeMode(QHeaderView.Interactive)  # Allow drag resizing
+        horizontal_header.setMinimumSectionSize(80)
+        horizontal_header.setDefaultSectionSize(110)
+
+        # Enable horizontal and vertical scrollbars
+        table.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        table.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        table.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
+        table.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
     
     
     def populate_table(self):
-        """Populate table with all complete data matching dialog fields"""
-        self.jemaat_table.setRowCount(0)
-        
-        for row_data in self.jemaat_data:
-            row_pos = self.jemaat_table.rowCount()
-            self.jemaat_table.insertRow(row_pos)
+        """Populate table with numbered rows and complete data starting from row 3"""
+        # Set row count to 2 header rows + data rows
+        total_rows = 2 + len(self.jemaat_data)
+        self.jemaat_table.setRowCount(total_rows)
+
+        # Populate data starting from row 2 (index 2, which is the 3rd row)
+        for index, row_data in enumerate(self.jemaat_data):
+            row_pos = 2 + index  # Start from row 3 (index 2)
+
+            # Column 0: Row number (starting from 1)
+            no_item = QTableWidgetItem(str(index + 1))
+            no_item.setTextAlignment(Qt.AlignCenter)
+            self.jemaat_table.setItem(row_pos, 0, no_item)
             
-            # All columns matching dialog fields exactly in order
+            # All data columns (1-34)
             data_items = [
-                # DATA DIRI (15 columns)
-                str(row_data.get('nama_lengkap', '')),
+                # DATA PRIBADI (columns 1-15)
                 str(row_data.get('wilayah_rohani', '')),
                 str(row_data.get('nama_keluarga', '')),
+                str(row_data.get('nama_lengkap', '')),
                 str(row_data.get('tempat_lahir', '')),
                 self.format_date(row_data.get('tanggal_lahir')),
                 str(row_data.get('umur', '')),
@@ -378,37 +632,45 @@ class JemaatComponent(QWidget):
                 self.format_gender(row_data.get('jenis_kelamin', '')),
                 str(row_data.get('hubungan_keluarga', '')),
                 str(row_data.get('pendidikan_terakhir', '')),
+                str(row_data.get('status_menikah', '')),
                 str(row_data.get('jenis_pekerjaan', '')),
                 str(row_data.get('detail_pekerjaan', '')),
-                str(row_data.get('status_menikah', '')),
                 str(row_data.get('alamat', '')),
                 str(row_data.get('email', '')),
-                # SAKRAMEN BABTIS (4 columns)
+                # SAKRAMEN BABTIS (columns 16-19)
                 str(row_data.get('status_babtis', '')),
                 str(row_data.get('tempat_babtis', '')),
                 self.format_date(row_data.get('tanggal_babtis')),
                 str(row_data.get('nama_babtis', '')),
-                # SAKRAMEN EKARISTI (3 columns)
+                # SAKRAMEN EKARISTI (columns 20-22)
                 str(row_data.get('status_ekaristi', '')),
                 str(row_data.get('tempat_komuni', '')),
                 self.format_date(row_data.get('tanggal_komuni')),
-                # SAKRAMEN KRISMA (3 columns)
+                # SAKRAMEN KRISMA (columns 23-25)
                 str(row_data.get('status_krisma', '')),
                 str(row_data.get('tempat_krisma', '')),
                 self.format_date(row_data.get('tanggal_krisma')),
-                # SAKRAMEN PERKAWINAN (6 columns)
+                # SAKRAMEN PERKAWINAN (columns 26-31)
                 str(row_data.get('status_perkawinan', '')),
                 str(row_data.get('keuskupan', '')),
                 str(row_data.get('paroki', '')),
                 str(row_data.get('kota_perkawinan', '')),
                 self.format_date(row_data.get('tanggal_perkawinan')),
                 str(row_data.get('status_perkawinan_detail', '')),
-                # STATUS (1 column)
-                str(row_data.get('status_keanggotaan', 'Aktif'))
+                # STATUS (columns 32-34) - as per user specification
+                str(row_data.get('status_keanggotaan', 'Aktif')),
+                str(row_data.get('wr_tujuan', '')),
+                str(row_data.get('paroki_tujuan', ''))
             ]
             
-            for col, item_text in enumerate(data_items):
+            # Add data to columns 1-33 (total 34 columns including No. column)
+            for col, item_text in enumerate(data_items, 1):
                 item = QTableWidgetItem(item_text)
+                # Center align certain columns for better readability
+                if col in [0, 6, 7, 8, 16, 17, 20, 21, 23, 24, 26, 32]:  # Status and categorical columns
+                    item.setTextAlignment(Qt.AlignCenter)
+                else:
+                    item.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
                 self.jemaat_table.setItem(row_pos, col, item)
     
     def format_date(self, date_value):
@@ -477,8 +739,12 @@ class JemaatComponent(QWidget):
                 self.log_message.emit(f"Exception adding jemaat: {str(e)}")
     
     def get_selected_row(self):
-        """Get currently selected row index"""
-        return self.jemaat_table.currentRow()
+        """Get currently selected row index (adjusted for header rows)"""
+        current_row = self.jemaat_table.currentRow()
+        # Subtract 2 to account for header rows (rows 0 and 1)
+        if current_row >= 2:
+            return current_row - 2
+        return -1  # Invalid selection (header row selected)
     
     def edit_jemaat(self):
         """Edit jemaat terpilih"""

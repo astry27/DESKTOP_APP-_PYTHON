@@ -5,8 +5,8 @@ from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                             QPushButton, QTableWidget, QTableWidgetItem,
                             QHeaderView, QMessageBox, QGroupBox, QCheckBox,
                             QTextBrowser, QAbstractItemView, QFrame)
-from PyQt5.QtCore import pyqtSignal, QSize
-from PyQt5.QtGui import QColor, QIcon
+from PyQt5.QtCore import pyqtSignal, QSize, Qt
+from PyQt5.QtGui import QColor, QIcon, QFont
 
 # Import dialog secara langsung untuk menghindari circular import
 from components.dialogs import PengumumanDialog
@@ -31,16 +31,16 @@ class PengumumanComponent(QWidget):
         """Setup UI untuk halaman pengumuman"""
         layout = QVBoxLayout(self)
         
-        # Header Frame (matching dokumen.py style)
-        header_frame = QFrame()
-        header_frame.setStyleSheet("background-color: #34495e; color: white; padding: 2px;")
+        # Clean header without background (matching pengaturan style)
+        header_frame = QWidget()
         header_layout = QHBoxLayout(header_frame)
-        
+        header_layout.setContentsMargins(0, 0, 10, 0)
+
         title_label = QLabel("Manajemen Pengumuman")
-        title_label.setStyleSheet("font-size: 16px; font-weight: bold; color: white;")
+        title_label.setStyleSheet("font-size: 18px; font-weight: bold;")
         header_layout.addWidget(title_label)
         header_layout.addStretch()
-        
+
         layout.addWidget(header_frame)
         
         # Original header with buttons
@@ -51,21 +51,23 @@ class PengumumanComponent(QWidget):
         filter_group = self.create_filter()
         layout.addWidget(filter_group)
         
-        # Tabel Pengumuman (hapus kolom ID)
-        self.pengumuman_table = QTableWidget(0, 4)
-        self.pengumuman_table.setHorizontalHeaderLabels([
-            "Judul", "Mulai", "Selesai", "Pembuat"
-        ])
-        self.pengumuman_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        self.pengumuman_table.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.pengumuman_table.setAlternatingRowColors(True)
-        self.pengumuman_table.itemSelectionChanged.connect(self.show_pengumuman_detail)
+        # Table view untuk daftar pengumuman with proper container
+        table_container = QFrame()
+        table_container.setStyleSheet("""
+            QFrame {
+                border: 1px solid #d0d0d0;
+                background-color: white;
+                margin: 0px;
+            }
+        """)
+        table_layout = QVBoxLayout(table_container)
+        table_layout.setContentsMargins(0, 0, 0, 0)
+        table_layout.setSpacing(0)
         
-        # Enable context menu untuk edit/hapus
-        self.pengumuman_table.setContextMenuPolicy(3)  # Qt.CustomContextMenu
-        self.pengumuman_table.customContextMenuRequested.connect(self.show_context_menu)
+        self.pengumuman_table = self.create_professional_table()
+        table_layout.addWidget(self.pengumuman_table)
         
-        layout.addWidget(self.pengumuman_table)
+        layout.addWidget(table_container)
         
         # Tampilan detail pengumuman
         detail_group = QGroupBox("Detail Pengumuman")
@@ -80,6 +82,127 @@ class PengumumanComponent(QWidget):
         action_layout = self.create_action_buttons()
         layout.addLayout(action_layout)
     
+    def create_professional_table(self):
+        """Create table with professional styling."""
+        table = QTableWidget(0, 5)
+        table.setHorizontalHeaderLabels([
+            "Tanggal", "Pembuat", "Sasaran/Tujuan", "Judul Pengumuman", "Isi Pengumuman"
+        ])
+        
+        # Apply professional table styling
+        self.apply_professional_table_style(table)
+        
+        # Set specific column widths
+        column_widths = [120, 100, 120, 200, 250]  # Total: 790px
+        for i, width in enumerate(column_widths):
+            table.setColumnWidth(i, width)
+        
+        # Set minimum table width to sum of all columns
+        table.setMinimumWidth(sum(column_widths) + 50)  # Add padding for scrollbar
+        
+        # Additional table settings
+        table.setWordWrap(True)  # Enable word wrap for content
+        table.itemSelectionChanged.connect(self.show_pengumuman_detail)
+        
+        # Enable context menu
+        table.setContextMenuPolicy(3)  # Qt.CustomContextMenu
+        table.customContextMenuRequested.connect(self.show_context_menu)
+        
+        return table
+        
+    def apply_professional_table_style(self, table):
+        """Apply Excel-like table styling with thin grid lines and minimal borders."""
+        # Header styling - Excel-like headers
+        header_font = QFont()
+        header_font.setBold(False)  # Remove bold from headers
+        header_font.setPointSize(9)
+        table.horizontalHeader().setFont(header_font)
+
+        # Excel-style header styling
+        table.horizontalHeader().setStyleSheet("""
+            QHeaderView::section {
+                background-color: #f2f2f2;
+                border: none;
+                border-bottom: 1px solid #d4d4d4;
+                border-right: 1px solid #d4d4d4;
+                padding: 6px 4px;
+                font-weight: normal;
+                color: #333333;
+                text-align: left;
+            }
+        """)
+
+        # Excel-style table body styling
+        table.setStyleSheet("""
+            QTableWidget {
+                gridline-color: #d4d4d4;
+                background-color: white;
+                border: 1px solid #d4d4d4;
+                selection-background-color: #cce7ff;
+                font-family: 'Calibri', 'Segoe UI', Arial, sans-serif;
+                font-size: 9pt;
+                outline: none;
+            }
+            QTableWidget::item {
+                border: none;
+                padding: 4px 6px;
+                min-height: 20px;
+            }
+            QTableWidget::item:selected {
+                background-color: #cce7ff;
+                color: black;
+            }
+            QTableWidget::item:focus {
+                border: 2px solid #0078d4;
+                background-color: white;
+            }
+        """)
+
+        # Excel-style table settings
+        header = table.horizontalHeader()
+        header.setSectionResizeMode(QHeaderView.Interactive)  # Allow column resizing
+        header.setStretchLastSection(False)  # Don't stretch last column
+        header.setMinimumSectionSize(50)
+        header.setDefaultSectionSize(80)
+        # Allow adjustable header height - removed setMaximumHeight constraint
+
+        # Enable scrolling
+        table.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        table.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        table.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
+        table.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
+
+        # Excel-style row settings
+        table.verticalHeader().setDefaultSectionSize(25)  # Slightly taller for announcement content
+        table.setSelectionBehavior(QAbstractItemView.SelectItems)  # Select individual cells
+        table.setAlternatingRowColors(False)
+        table.verticalHeader().setVisible(True)  # Show row numbers like Excel
+        table.verticalHeader().setStyleSheet("""
+            QHeaderView::section {
+                background-color: #f2f2f2;
+                border: none;
+                border-bottom: 1px solid #d4d4d4;
+                border-right: 1px solid #d4d4d4;
+                padding: 2px;
+                font-weight: normal;
+                color: #333333;
+                text-align: center;
+                width: 30px;
+            }
+        """)
+
+        # Enable grid display with thin lines
+        table.setShowGrid(True)
+        table.setGridStyle(Qt.SolidLine)
+
+        # Excel-style editing and selection
+        table.setEditTriggers(QAbstractItemView.DoubleClicked | QAbstractItemView.EditKeyPressed)
+        table.setSelectionMode(QAbstractItemView.ExtendedSelection)
+
+        # Set compact size for Excel look
+        table.setMinimumHeight(150)
+        table.setSizeAdjustPolicy(QAbstractItemView.AdjustToContents)
+
     def show_context_menu(self, position):
         """Tampilkan context menu untuk edit/hapus"""
         if self.pengumuman_table.rowCount() == 0:
@@ -220,31 +343,87 @@ class PengumumanComponent(QWidget):
             row_pos = self.pengumuman_table.rowCount()
             self.pengumuman_table.insertRow(row_pos)
             
-            # Kolom tanpa ID
-            self.pengumuman_table.setItem(row_pos, 0, QTableWidgetItem(str(row_data.get('judul', ''))))
+            # Column 0: Tanggal (format Hari, dd/MM/yyyy)
+            # Check different possible date field names for compatibility
+            tanggal_value = (row_data.get('tanggal') or 
+                           row_data.get('tanggal_mulai') or 
+                           row_data.get('tanggal_dibuat'))
             
-            # Handle tanggal
-            tanggal_mulai = row_data.get('tanggal_mulai')
-            if tanggal_mulai:
-                if hasattr(tanggal_mulai, 'strftime'):
-                    tanggal_mulai_str = tanggal_mulai.strftime('%d/%m/%Y')
-                else:
-                    tanggal_mulai_str = str(tanggal_mulai)
+            if tanggal_value:
+                try:
+                    if hasattr(tanggal_value, 'strftime'):
+                        # If it's a datetime object, format it with day name (Indonesian day names)
+                        day_names = {
+                            'Monday': 'Senin', 'Tuesday': 'Selasa', 'Wednesday': 'Rabu',
+                            'Thursday': 'Kamis', 'Friday': 'Jumat', 'Saturday': 'Sabtu', 'Sunday': 'Minggu'
+                        }
+                        english_day = tanggal_value.strftime('%A')
+                        indonesian_day = day_names.get(english_day, english_day)
+                        tanggal_display = f"{indonesian_day}, {tanggal_value.strftime('%d/%m/%Y')}"
+                    else:
+                        # If it's a string, parse and format it
+                        if isinstance(tanggal_value, str):
+                            try:
+                                date_obj = datetime.datetime.strptime(str(tanggal_value), '%Y-%m-%d')
+                                day_names = {
+                                    'Monday': 'Senin', 'Tuesday': 'Selasa', 'Wednesday': 'Rabu',
+                                    'Thursday': 'Kamis', 'Friday': 'Jumat', 'Saturday': 'Sabtu', 'Sunday': 'Minggu'
+                                }
+                                english_day = date_obj.strftime('%A')
+                                indonesian_day = day_names.get(english_day, english_day)
+                                tanggal_display = f"{indonesian_day}, {date_obj.strftime('%d/%m/%Y')}"
+                            except:
+                                # If parsing fails, just use the string as is
+                                tanggal_display = str(tanggal_value)
+                        else:
+                            tanggal_display = str(tanggal_value)
+                except:
+                    tanggal_display = str(tanggal_value) if tanggal_value else ''
             else:
-                tanggal_mulai_str = ''
+                tanggal_display = ''
             
-            tanggal_selesai = row_data.get('tanggal_selesai')
-            if tanggal_selesai:
-                if hasattr(tanggal_selesai, 'strftime'):
-                    tanggal_selesai_str = tanggal_selesai.strftime('%d/%m/%Y')
-                else:
-                    tanggal_selesai_str = str(tanggal_selesai)
+            tanggal_item = QTableWidgetItem(tanggal_display)
+            tanggal_item.setTextAlignment(Qt.AlignCenter)
+            self.pengumuman_table.setItem(row_pos, 0, tanggal_item)
+            
+            # Column 1: Pembuat - try various field names for creator
+            pembuat = (row_data.get('pembuat') or 
+                      row_data.get('dibuat_oleh_nama') or 
+                      row_data.get('created_by_name') or 
+                      row_data.get('admin_name') or 
+                      'System')
+            pembuat_item = QTableWidgetItem(str(pembuat))
+            pembuat_item.setTextAlignment(Qt.AlignCenter)
+            self.pengumuman_table.setItem(row_pos, 1, pembuat_item)
+            
+            # Column 2: Sasaran/Tujuan - now directly from input field
+            sasaran = row_data.get('sasaran', row_data.get('target_audience', row_data.get('kategori', 'Umum')))
+            sasaran_item = QTableWidgetItem(str(sasaran))
+            sasaran_item.setTextAlignment(Qt.AlignCenter)
+            self.pengumuman_table.setItem(row_pos, 2, sasaran_item)
+            
+            # Column 3: Judul Pengumuman
+            judul = str(row_data.get('judul', ''))
+            judul_item = QTableWidgetItem(judul)
+            judul_item.setToolTip(judul)  # Show full title in tooltip
+            self.pengumuman_table.setItem(row_pos, 3, judul_item)
+            
+            # Column 4: Isi Pengumuman (truncate dan format untuk display)
+            isi = str(row_data.get('isi', ''))
+            # Remove HTML tags if present and clean text
+            import re
+            isi_clean = re.sub(r'<[^>]+>', '', isi)  # Remove HTML tags
+            isi_clean = isi_clean.strip()
+            
+            # Truncate for table display but keep reasonable length
+            if len(isi_clean) > 150:
+                isi_display = isi_clean[:150] + "..."
             else:
-                tanggal_selesai_str = ''
-            
-            self.pengumuman_table.setItem(row_pos, 1, QTableWidgetItem(tanggal_mulai_str))
-            self.pengumuman_table.setItem(row_pos, 2, QTableWidgetItem(tanggal_selesai_str))
-            self.pengumuman_table.setItem(row_pos, 3, QTableWidgetItem(str(row_data.get('pembuat', 'System'))))
+                isi_display = isi_clean
+                
+            isi_item = QTableWidgetItem(isi_display)
+            isi_item.setToolTip(isi_clean)  # Show full text in tooltip
+            self.pengumuman_table.setItem(row_pos, 4, isi_item)
     
     def determine_status(self, tanggal_mulai, tanggal_selesai):
         """Tentukan status pengumuman berdasarkan tanggal"""
@@ -281,10 +460,48 @@ class PengumumanComponent(QWidget):
         
         pengumuman_data = self.pengumuman_data[current_row]
         
+        # Format tanggal untuk detail
+        tanggal_value = (pengumuman_data.get('tanggal') or 
+                        pengumuman_data.get('tanggal_mulai') or 
+                        pengumuman_data.get('tanggal_dibuat'))
+        
+        if tanggal_value:
+            try:
+                if hasattr(tanggal_value, 'strftime'):
+                    # If it's a datetime object, format it with day name (Indonesian)
+                    day_names = {
+                        'Monday': 'Senin', 'Tuesday': 'Selasa', 'Wednesday': 'Rabu',
+                        'Thursday': 'Kamis', 'Friday': 'Jumat', 'Saturday': 'Sabtu', 'Sunday': 'Minggu'
+                    }
+                    english_day = tanggal_value.strftime('%A')
+                    indonesian_day = day_names.get(english_day, english_day)
+                    periode = f"{indonesian_day}, {tanggal_value.strftime('%d/%m/%Y')}"
+                elif isinstance(tanggal_value, str):
+                    try:
+                        date_obj = datetime.datetime.strptime(str(tanggal_value), '%Y-%m-%d')
+                        day_names = {
+                            'Monday': 'Senin', 'Tuesday': 'Selasa', 'Wednesday': 'Rabu',
+                            'Thursday': 'Kamis', 'Friday': 'Jumat', 'Saturday': 'Sabtu', 'Sunday': 'Minggu'
+                        }
+                        english_day = date_obj.strftime('%A')
+                        indonesian_day = day_names.get(english_day, english_day)
+                        periode = f"{indonesian_day}, {date_obj.strftime('%d/%m/%Y')}"
+                    except:
+                        periode = str(tanggal_value)
+                else:
+                    periode = str(tanggal_value)
+            except:
+                periode = str(tanggal_value)
+        else:
+            periode = "Tidak ada tanggal"
+        
+        sasaran = pengumuman_data.get('sasaran', pengumuman_data.get('target_audience', pengumuman_data.get('kategori', 'Umum')))
+        
         html_content = f"""
         <h3>{pengumuman_data.get('judul', 'Tidak ada judul')}</h3>
-        <p><b>Periode:</b> {pengumuman_data.get('tanggal_mulai', '')} - {pengumuman_data.get('tanggal_selesai', '')}</p>
+        <p><b>Tanggal:</b> {periode}</p>
         <p><b>Dibuat oleh:</b> {pengumuman_data.get('pembuat', 'System')}</p>
+        <p><b>Sasaran/Tujuan:</b> {sasaran}</p>
         <hr>
         <div>{pengumuman_data.get('isi', 'Tidak ada isi pengumuman')}</div>
         """
@@ -302,6 +519,14 @@ class PengumumanComponent(QWidget):
                 QMessageBox.warning(self, "Error", "Judul pengumuman harus diisi")
                 return
             
+            if not data['isi']:
+                QMessageBox.warning(self, "Error", "Isi pengumuman harus diisi")
+                return
+                
+            if not data['sasaran']:
+                QMessageBox.warning(self, "Error", "Sasaran/Tujuan harus diisi")
+                return
+            
             if not self.db_manager:
                 QMessageBox.warning(self, "Error", "Database tidak tersedia")
                 return
@@ -310,12 +535,33 @@ class PengumumanComponent(QWidget):
                 # Tambah informasi admin yang membuat
                 data['dibuat_oleh_admin'] = 1  # Default admin ID
                 
+                # Try to get current user name from database manager or use default
+                try:
+                    if hasattr(self.db_manager, 'current_user_name'):
+                        data['pembuat'] = self.db_manager.current_user_name
+                    elif hasattr(self.db_manager, 'get_current_admin'):
+                        admin_info = self.db_manager.get_current_admin()
+                        if admin_info and isinstance(admin_info, dict):
+                            data['pembuat'] = admin_info.get('username', 'Administrator')
+                        else:
+                            data['pembuat'] = 'Administrator'
+                    else:
+                        data['pembuat'] = 'Administrator'
+                except:
+                    data['pembuat'] = 'Administrator'
+                
+                # Log the data being sent for debugging
+                self.log_message.emit(f"Menambahkan pengumuman: {data['judul']} oleh {data['pembuat']} untuk {data['sasaran']}")
+                
                 success, result = self.db_manager.add_pengumuman(data)
                 
                 if success:
-                    QMessageBox.information(self, "Sukses", "Pengumuman berhasil ditambahkan")
+                    QMessageBox.information(self, "Sukses", 
+                        f"Pengumuman '{data['judul']}' berhasil ditambahkan!\n"
+                        f"Sasaran: {data['sasaran']}\n"
+                        f"Tanggal: {data['tanggal']}")
                     self.load_data()
-                    self.log_message.emit(f"Pengumuman baru ditambahkan: {data['judul']}")
+                    self.log_message.emit(f"Pengumuman baru ditambahkan: {data['judul']} untuk {data['sasaran']}")
                 else:
                     QMessageBox.warning(self, "Error", f"Gagal menambahkan pengumuman: {result}")
                     self.log_message.emit(f"Error adding pengumuman: {result}")
@@ -343,6 +589,14 @@ class PengumumanComponent(QWidget):
             # Validasi
             if not data['judul']:
                 QMessageBox.warning(self, "Error", "Judul pengumuman harus diisi")
+                return
+            
+            if not data['isi']:
+                QMessageBox.warning(self, "Error", "Isi pengumuman harus diisi")
+                return
+                
+            if not data['sasaran']:
+                QMessageBox.warning(self, "Error", "Sasaran/Tujuan harus diisi")
                 return
             
             if not self.db_manager:

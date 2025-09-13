@@ -8,7 +8,7 @@ from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QTableWidget,
                             QApplication, QAbstractItemView, QDialog, QComboBox, QFormLayout,
                             QDialogButtonBox, QMenu)
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QSize
-from PyQt5.QtGui import QIcon
+from PyQt5.QtGui import QIcon, QFont
 
 class UploadDialog(QDialog):
     def __init__(self, parent=None):
@@ -114,16 +114,17 @@ class DokumenComponent(QWidget):
     def setup_ui(self):
         layout = QVBoxLayout(self)
         
-        header_frame = QFrame()
-        header_frame.setStyleSheet("background-color: #34495e; color: white; padding: 2px;")
-        header_layout = QHBoxLayout(header_frame)
-        
+        # Clean header without background (matching pengaturan style)
+        header = QWidget()
+        header_layout = QHBoxLayout(header)
+        header_layout.setContentsMargins(0, 0, 10, 0)
+
         title_label = QLabel("Manajemen Dokumen Sistem")
-        title_label.setStyleSheet("font-size: 16px; font-weight: bold; color: white;")
+        title_label.setStyleSheet("font-size: 18px; font-weight: bold;")
         header_layout.addWidget(title_label)
         header_layout.addStretch()
-        
-        layout.addWidget(header_frame)
+
+        layout.addWidget(header)
         
         toolbar_layout = QHBoxLayout()
         
@@ -196,36 +197,23 @@ class DokumenComponent(QWidget):
         toolbar_layout.addStretch()
         layout.addLayout(toolbar_layout)
         
-        # Tabel dokumen 
-        self.table_widget = QTableWidget()
-        self.table_widget.setColumnCount(7)
-        self.table_widget.setHorizontalHeaderLabels([
-            "Nama Dokumen", "Jenis Dokumen", "Ukuran", "Tipe File", "Upload By", "Tanggal Upload", "Aksi"
-        ])
+        # Table view untuk daftar dokumen with proper container
+        table_container = QFrame()
+        table_container.setStyleSheet("""
+            QFrame {
+                border: 1px solid #d0d0d0;
+                background-color: white;
+                margin: 0px;
+            }
+        """)
+        table_layout = QVBoxLayout(table_container)
+        table_layout.setContentsMargins(0, 0, 0, 0)
+        table_layout.setSpacing(0)
         
-        header = self.table_widget.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.Stretch)  # Nama Dokumen - Stretch
-        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)  # Jenis Dokumen
-        header.setSectionResizeMode(2, QHeaderView.ResizeToContents)  # Ukuran
-        header.setSectionResizeMode(3, QHeaderView.ResizeToContents)  # Tipe File
-        header.setSectionResizeMode(4, QHeaderView.ResizeToContents)  # Upload By
-        header.setSectionResizeMode(5, QHeaderView.ResizeToContents)  # Tanggal Upload
-        header.setSectionResizeMode(6, QHeaderView.Fixed)  # Aksi - Fixed width
+        self.table_widget = self.create_professional_table()
+        table_layout.addWidget(self.table_widget)
         
-        # Set specific column widths
-        self.table_widget.setColumnWidth(6, 80)  # Aksi column - 80px untuk 3 tombol kecil
-        
-        self.table_widget.setAlternatingRowColors(True)
-        self.table_widget.setSelectionBehavior(QAbstractItemView.SelectRows)
-        
-        # Set row height untuk proportional dengan ukuran tombol
-        self.table_widget.verticalHeader().setDefaultSectionSize(30)
-        
-        # Enable context menu untuk aksi
-        self.table_widget.setContextMenuPolicy(3)  # Qt.CustomContextMenu
-        self.table_widget.customContextMenuRequested.connect(self.show_context_menu)
-        
-        layout.addWidget(self.table_widget)
+        layout.addWidget(table_container)
         
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
@@ -241,6 +229,123 @@ class DokumenComponent(QWidget):
         stats_layout.addWidget(self.last_update_label)
         layout.addLayout(stats_layout)
     
+    def create_professional_table(self):
+        """Create table with professional styling."""
+        table = QTableWidget(0, 7)
+        table.setHorizontalHeaderLabels([
+            "Nama Dokumen", "Jenis Dokumen", "Ukuran", "Tipe File", "Upload By", "Tanggal Upload", "Aksi"
+        ])
+        
+        # Apply professional table styling
+        self.apply_professional_table_style(table)
+        
+        # Set specific column widths
+        column_widths = [200, 120, 80, 80, 120, 120, 100]  # Total: 820px
+        for i, width in enumerate(column_widths):
+            table.setColumnWidth(i, width)
+        
+        # Set minimum table width to sum of all columns
+        table.setMinimumWidth(sum(column_widths) + 50)  # Add padding for scrollbar
+        
+        # Enable context menu
+        table.setContextMenuPolicy(3)  # Qt.CustomContextMenu
+        table.customContextMenuRequested.connect(self.show_context_menu)
+        
+        return table
+        
+    def apply_professional_table_style(self, table):
+        """Apply Excel-like table styling with thin grid lines and minimal borders."""
+        # Header styling - Excel-like headers
+        header_font = QFont()
+        header_font.setBold(False)  # Remove bold from headers
+        header_font.setPointSize(9)
+        table.horizontalHeader().setFont(header_font)
+
+        # Excel-style header styling
+        table.horizontalHeader().setStyleSheet("""
+            QHeaderView::section {
+                background-color: #f2f2f2;
+                border: none;
+                border-bottom: 1px solid #d4d4d4;
+                border-right: 1px solid #d4d4d4;
+                padding: 6px 4px;
+                font-weight: normal;
+                color: #333333;
+                text-align: left;
+            }
+        """)
+
+        # Excel-style table body styling
+        table.setStyleSheet("""
+            QTableWidget {
+                gridline-color: #d4d4d4;
+                background-color: white;
+                border: 1px solid #d4d4d4;
+                selection-background-color: #cce7ff;
+                font-family: 'Calibri', 'Segoe UI', Arial, sans-serif;
+                font-size: 9pt;
+                outline: none;
+            }
+            QTableWidget::item {
+                border: none;
+                padding: 4px 6px;
+                min-height: 18px;
+            }
+            QTableWidget::item:selected {
+                background-color: #cce7ff;
+                color: black;
+            }
+            QTableWidget::item:focus {
+                border: 2px solid #0078d4;
+                background-color: white;
+            }
+        """)
+
+        # Excel-style table settings
+        header = table.horizontalHeader()
+        header.setSectionResizeMode(QHeaderView.Interactive)  # Allow column resizing
+        header.setStretchLastSection(False)  # Don't stretch last column
+        header.setMinimumSectionSize(50)
+        header.setDefaultSectionSize(80)
+        # Allow adjustable header height - removed setMaximumHeight constraint
+
+        # Enable scrolling
+        table.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        table.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        table.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
+        table.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
+
+        # Excel-style row settings
+        table.verticalHeader().setDefaultSectionSize(20)  # Thin rows like Excel
+        table.setSelectionBehavior(QAbstractItemView.SelectItems)  # Select individual cells
+        table.setAlternatingRowColors(False)
+        table.verticalHeader().setVisible(True)  # Show row numbers like Excel
+        table.verticalHeader().setStyleSheet("""
+            QHeaderView::section {
+                background-color: #f2f2f2;
+                border: none;
+                border-bottom: 1px solid #d4d4d4;
+                border-right: 1px solid #d4d4d4;
+                padding: 2px;
+                font-weight: normal;
+                color: #333333;
+                text-align: center;
+                width: 30px;
+            }
+        """)
+
+        # Enable grid display with thin lines
+        table.setShowGrid(True)
+        table.setGridStyle(Qt.SolidLine)
+
+        # Excel-style editing and selection
+        table.setEditTriggers(QAbstractItemView.DoubleClicked | QAbstractItemView.EditKeyPressed)
+        table.setSelectionMode(QAbstractItemView.ExtendedSelection)
+
+        # Set compact size for Excel look
+        table.setMinimumHeight(150)
+        table.setSizeAdjustPolicy(QAbstractItemView.AdjustToContents)
+
     def show_filter_menu(self):
         """Tampilkan menu filter"""
         menu = QMenu(self)
