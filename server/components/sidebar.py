@@ -75,6 +75,8 @@ class SidebarWidget(QWidget):
         self.menu_pengumuman = SidebarButton("Pengumuman", os.path.join(assets_path, "pengumuman_icon.png"))
         self.menu_riwayat = SidebarButton("Riwayat", os.path.join(assets_path, "riwayat_icon.png"))
         self.menu_dokumen = SidebarButton("Dokumen", os.path.join(assets_path, "dokumen_icon.png"))
+        self.menu_keuangan = SidebarButton("Keuangan", os.path.join(assets_path, "keuangan_icon.png"))
+        self.menu_pengguna = SidebarButton("Manajemen Pengguna", os.path.join(assets_path, "jemaat_icon.png"))
         self.menu_pengaturan = SidebarButton("Pengaturan Sistem", os.path.join(assets_path, "pengaturan_icon.png"))
         
         # Tambahkan menu ke container
@@ -85,7 +87,9 @@ class SidebarWidget(QWidget):
         menu_layout.addWidget(self.menu_inventaris)
         menu_layout.addWidget(self.menu_pengumuman)
         menu_layout.addWidget(self.menu_dokumen)
+        menu_layout.addWidget(self.menu_keuangan)
         menu_layout.addWidget(self.menu_riwayat)
+        menu_layout.addWidget(self.menu_pengguna)
         menu_layout.addWidget(self.menu_pengaturan)
         
         # Tambahkan menu container ke layout utama
@@ -338,4 +342,6 @@ class SidebarWidget(QWidget):
         self.menu_pengumuman.setChecked(False)
         self.menu_riwayat.setChecked(False)
         self.menu_dokumen.setChecked(False)
+        self.menu_keuangan.setChecked(False)
+        self.menu_pengguna.setChecked(False)
         self.menu_pengaturan.setChecked(False)

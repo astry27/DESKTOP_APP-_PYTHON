@@ -8,7 +8,7 @@ from PyQt5.QtGui import QFont
 class LoginDialog(QDialog):
     """Dialog untuk login admin"""
     
-    login_successful = pyqtSignal(dict)  # Signal ketika login berhasil dengan data admin
+    login_successful: pyqtSignal = pyqtSignal(dict)  # Signal ketika login berhasil dengan data admin  # type: ignore
     
     def __init__(self, database_manager, parent=None):
         super(LoginDialog, self).__init__(parent)
@@ -20,7 +20,7 @@ class LoginDialog(QDialog):
         self.max_attempts = 3
         
         # Set window flags untuk tidak bisa ditutup dengan X
-        self.setWindowFlags(Qt.Dialog | Qt.CustomizeWindowHint | Qt.WindowTitleHint)
+        self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.CustomizeWindowHint | Qt.WindowType.WindowTitleHint)  # type: ignore
         
         self.setup_ui()
 
@@ -31,13 +31,13 @@ class LoginDialog(QDialog):
         
         title_label = QLabel("Login Administrator")
         title_label.setFont(QFont("Arial", 16, QFont.Bold))
-        title_label.setAlignment(Qt.AlignCenter)
+        title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title_label.setStyleSheet("color: #2c3e50; margin-bottom: 10px;")
         layout.addWidget(title_label)
         
         subtitle_label = QLabel("Sistem Manajemen Gereja Katolik")
         subtitle_label.setFont(QFont("Arial", 10))
-        subtitle_label.setAlignment(Qt.AlignCenter)
+        subtitle_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         subtitle_label.setStyleSheet("color: #7f8c8d; margin-bottom: 20px;")
         layout.addWidget(subtitle_label)
         
@@ -88,7 +88,7 @@ class LoginDialog(QDialog):
         
         # Info label untuk menampilkan pesan
         self.info_label = QLabel("")
-        self.info_label.setAlignment(Qt.AlignCenter)
+        self.info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.info_label.setStyleSheet("color: #e74c3c; font-size: 12px; margin-top: 10px;")
         self.info_label.setWordWrap(True)
         layout.addWidget(self.info_label)
@@ -127,10 +127,10 @@ class LoginDialog(QDialog):
                 self.show_success("Login berhasil!")
                 
                 # Update last login di database
-                self.update_last_login(result['id_admin'])
+                self.update_last_login(result['id_admin'])  # type: ignore
                 
                 # Emit signal dan tutup dialog
-                self.login_successful.emit(result)
+                self.login_successful.emit(result)  # type: ignore
                 self.accept()
             else:
                 self.login_attempts += 1

@@ -1,10 +1,8 @@
 # Path: client/components/pengumuman_component.py
 
-from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QListWidget, QTextBrowser, 
-                             QMessageBox, QSplitter, QLabel, QHBoxLayout, QPushButton,
-                             QTabWidget, QFrame)
-from PyQt5.QtCore import Qt, pyqtSignal, QTimer
-from PyQt5.QtGui import QColor
+from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QListWidget, QTextBrowser,
+                             QMessageBox, QSplitter, QLabel, QHBoxLayout, QPushButton)
+from PyQt5.QtCore import Qt
 
 class PengumumanComponent(QWidget):
     
@@ -12,40 +10,16 @@ class PengumumanComponent(QWidget):
         super().__init__(parent)
         self.api_client = api_client
         self.pengumuman_data = []
-        self.broadcast_messages = []
         self.init_ui()
         self.load_pengumuman()
-        self.setup_timer()
 
     def init_ui(self):
         layout = QVBoxLayout(self)
-        
-        # Tab widget untuk pengumuman dan broadcast
-        self.tab_widget = QTabWidget()
-        
-        # Tab Pengumuman Resmi
-        pengumuman_tab = self.create_pengumuman_tab()
-        self.tab_widget.addTab(pengumuman_tab, "Pengumuman Resmi")
-        
-        # Tab Broadcast Messages
-        broadcast_tab = self.create_broadcast_tab()
-        self.tab_widget.addTab(broadcast_tab, "Pesan Broadcast")
-        
-        layout.addWidget(self.tab_widget)
-    
-    def create_pengumuman_tab(self):
-        """Tab untuk pengumuman resmi dari database"""
-        tab_widget = QWidget()
-        layout = QVBoxLayout(tab_widget)
-        
-        splitter = QSplitter(Qt.Horizontal)
 
-        left_panel = QWidget()
-        left_layout = QVBoxLayout(left_panel)
-        
-        list_header = QHBoxLayout()
-        list_header.addWidget(QLabel("Daftar Pengumuman Resmi"))
-        list_header.addStretch()
+        # Header untuk pengumuman
+        header_layout = QHBoxLayout()
+        header_layout.addWidget(QLabel("Daftar Pengumuman"))
+        header_layout.addStretch()
         refresh_button = QPushButton("Refresh")
         refresh_button.clicked.connect(self.load_pengumuman)
         refresh_button.setStyleSheet("""
@@ -60,14 +34,21 @@ class PengumumanComponent(QWidget):
                 background-color: #2980b9;
             }
         """)
-        list_header.addWidget(refresh_button)
-        
+        header_layout.addWidget(refresh_button)
+        layout.addLayout(header_layout)
+
+        # Splitter untuk list dan detail pengumuman
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+
+        # Panel kiri - List pengumuman
+        left_panel = QWidget()
+        left_layout = QVBoxLayout(left_panel)
+
         self.list_widget = QListWidget()
         self.list_widget.currentRowChanged.connect(self.display_pengumuman)
-        
-        left_layout.addLayout(list_header)
         left_layout.addWidget(self.list_widget)
-        
+
+        # Panel kanan - Detail pengumuman
         right_panel = QWidget()
         right_layout = QVBoxLayout(right_panel)
         right_layout.addWidget(QLabel("Detail Pengumuman"))
@@ -77,75 +58,8 @@ class PengumumanComponent(QWidget):
         splitter.addWidget(left_panel)
         splitter.addWidget(right_panel)
         splitter.setSizes([300, 500])
-        
+
         layout.addWidget(splitter)
-        return tab_widget
-    
-    def create_broadcast_tab(self):
-        """Tab untuk pesan broadcast dari admin"""
-        tab_widget = QWidget()
-        layout = QVBoxLayout(tab_widget)
-        
-        # Header
-        header_layout = QHBoxLayout()
-        header_layout.addWidget(QLabel("Pesan Broadcast dari Admin"))
-        header_layout.addStretch()
-        
-        refresh_broadcast_btn = QPushButton("Refresh")
-        refresh_broadcast_btn.clicked.connect(self.load_broadcast_messages)
-        refresh_broadcast_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #27ae60;
-                color: white;
-                padding: 6px 12px;
-                border: none;
-                border-radius: 4px;
-            }
-            QPushButton:hover {
-                background-color: #2ecc71;
-            }
-        """)
-        header_layout.addWidget(refresh_broadcast_btn)
-        
-        layout.addLayout(header_layout)
-        
-        # Splitter untuk list dan detail broadcast
-        broadcast_splitter = QSplitter(Qt.Horizontal)
-        
-        # List broadcast messages
-        broadcast_left = QWidget()
-        broadcast_left_layout = QVBoxLayout(broadcast_left)
-        
-        self.broadcast_list = QListWidget()
-        self.broadcast_list.currentRowChanged.connect(self.display_broadcast_message)
-        broadcast_left_layout.addWidget(self.broadcast_list)
-        
-        # Detail broadcast message
-        broadcast_right = QWidget()
-        broadcast_right_layout = QVBoxLayout(broadcast_right)
-        broadcast_right_layout.addWidget(QLabel("Detail Pesan"))
-        
-        self.broadcast_detail = QTextBrowser()
-        broadcast_right_layout.addWidget(self.broadcast_detail)
-        
-        broadcast_splitter.addWidget(broadcast_left)
-        broadcast_splitter.addWidget(broadcast_right)
-        broadcast_splitter.setSizes([300, 500])
-        
-        layout.addWidget(broadcast_splitter)
-        
-        # Status update
-        self.broadcast_status = QLabel("Siap menerima pesan broadcast...")
-        self.broadcast_status.setStyleSheet("color: #7f8c8d; font-style: italic; padding: 5px;")
-        layout.addWidget(self.broadcast_status)
-        
-        return tab_widget
-    
-    def setup_timer(self):
-        """Setup timer untuk auto refresh broadcast messages"""
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.auto_refresh_broadcast)
-        self.timer.start(10000)  # Refresh setiap 10 detik
 
     def load_pengumuman(self):
         """Load pengumuman resmi dari API"""
@@ -167,13 +81,11 @@ class PengumumanComponent(QWidget):
                 else:
                     for item in self.pengumuman_data:
                         title = item.get('judul', 'Tanpa Judul')
-                        # Add priority indicator
-                        priority = item.get('prioritas', 'Normal')
-                        if priority == 'Urgent':
-                            title = f"[URGENT] {title}"
-                        elif priority == 'Tinggi':
-                            title = f"[PENTING] {title}"
-                        
+                        # Add sasaran indicator for better visibility
+                        sasaran = item.get('sasaran', '')
+                        if sasaran and sasaran != 'Umum':
+                            title = f"[{sasaran}] {title}"
+
                         self.list_widget.addItem(title)
             else:
                 self.list_widget.addItem("Gagal memuat data.")
@@ -186,153 +98,98 @@ class PengumumanComponent(QWidget):
         """Tampilkan detail pengumuman yang dipilih"""
         if 0 <= index < len(self.pengumuman_data):
             item = self.pengumuman_data[index]
-            
-            # Format tanggal
-            tanggal_mulai = item.get('tanggal_mulai', 'N/A')
-            tanggal_selesai = item.get('tanggal_selesai', 'N/A')
-            
+
+            # Format tanggal dari created_at (sama dengan server)
+            import datetime
+            tanggal_value = item.get('created_at') or item.get('tanggal') or item.get('tanggal_mulai')
+
+            # Indonesian names mapping
+            day_names_id = {
+                'Monday': 'Senin', 'Tuesday': 'Selasa', 'Wednesday': 'Rabu',
+                'Thursday': 'Kamis', 'Friday': 'Jumat', 'Saturday': 'Sabtu', 'Sunday': 'Minggu'
+            }
+            month_names_id = {
+                1: 'Januari', 2: 'Februari', 3: 'Maret', 4: 'April',
+                5: 'Mei', 6: 'Juni', 7: 'Juli', 8: 'Agustus',
+                9: 'September', 10: 'Oktober', 11: 'November', 12: 'Desember'
+            }
+
+            periode = ''
+            if tanggal_value:
+                try:
+                    date_obj = None
+
+                    # Try RFC 822 format first (from API): "Thu, 09 Oct 2025 23:44:21 GMT"
+                    if isinstance(tanggal_value, str):
+                        try:
+                            date_obj = datetime.datetime.strptime(tanggal_value, '%a, %d %b %Y %H:%M:%S GMT').date()
+                        except:
+                            # Try other formats
+                            date_str = tanggal_value.split(' ')[0] if ' ' in tanggal_value else tanggal_value
+                            for fmt in ['%Y-%m-%d', '%d/%m/%Y', '%Y/%m/%d', '%d-%m-%Y']:
+                                try:
+                                    date_obj = datetime.datetime.strptime(date_str, fmt).date()
+                                    break
+                                except:
+                                    continue
+
+                    # Format to Indonesian
+                    if date_obj:
+                        english_day = date_obj.strftime('%A')
+                        indonesian_day = day_names_id.get(english_day, english_day)
+                        indonesian_month = month_names_id.get(date_obj.month, str(date_obj.month))
+                        periode = f"{indonesian_day}, {date_obj.day:02d} {indonesian_month} {date_obj.year}"
+                    else:
+                        periode = str(tanggal_value)
+                except:
+                    periode = str(tanggal_value) if tanggal_value else 'Tidak ada tanggal'
+            else:
+                periode = 'Tidak ada tanggal'
+
+            # Get data
+            sasaran = item.get('sasaran', item.get('kategori', 'Umum'))
+            penanggung_jawab = item.get('penanggung_jawab', item.get('pembuat', '-'))
+            pembuat = item.get('pembuat', 'System')
+
+            # Format isi with auto-bold labels
+            isi_raw = item.get('isi', 'Tidak ada konten.')
+            isi_formatted = isi_raw.replace('\n', '<br>')
+
+            # Auto-bold labels like "Hari/Tanggal:", "Waktu:", "Tempat:", etc.
+            import re
+            label_pattern = r'([A-Za-z/]+(?:\s+[A-Za-z/]+)*)\s*:'
+
+            def bold_label(match):
+                label = match.group(1)
+                return f'<b>{label}:</b>'
+
+            isi_formatted = re.sub(label_pattern, bold_label, isi_formatted)
+
             html = f"""
-            <div style="font-family: Arial, sans-serif;">
-                <h2 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px;">
-                    {item.get('judul', 'Tanpa Judul')}
-                </h2>
-                
-                <div style="background-color: #ecf0f1; padding: 10px; margin: 10px 0; border-radius: 5px;">
-                    <p><strong>Kategori:</strong> {item.get('kategori', 'N/A')}</p>
-                    <p><strong>Prioritas:</strong> <span style="color: #e74c3c; font-weight: bold;">{item.get('prioritas', 'N/A')}</span></p>
-                    <p><strong>Periode:</strong> {tanggal_mulai} sampai {tanggal_selesai}</p>
-                </div>
-                
-                <div style="line-height: 1.6; margin-top: 15px;">
-                    {item.get('isi', 'Tidak ada konten.')}
-                </div>
+            <style>
+                body {{
+                    font-family: Arial, sans-serif;
+                    line-height: 1.6;
+                }}
+                .detail-label {{
+                    font-weight: bold;
+                    display: inline-block;
+                    min-width: 150px;
+                }}
+                .detail-content {{
+                    white-space: pre-wrap;
+                    word-wrap: break-word;
+                }}
+            </style>
+            <h3 style="color: #2c3e50; margin-bottom: 15px;">{item.get('judul', 'Tanpa Judul')}</h3>
+            <p><span class="detail-label">Tanggal:</span> {periode}</p>
+            <p><span class="detail-label">Pembuat:</span> {pembuat}</p>
+            <p><span class="detail-label">Penanggung Jawab:</span> {penanggung_jawab}</p>
+            <p><span class="detail-label">Sasaran/Tujuan:</span> {sasaran}</p>
+            <hr style="border: 1px solid #ddd; margin: 15px 0;">
+            <p style="margin-bottom: 8px;"><span class="detail-label">Isi Pengumuman:</span></p>
+            <div class="detail-content" style="padding: 10px; background-color: #f9f9f9; border-left: 3px solid #2c3e50; margin-top: 5px;">
+                {isi_formatted}
             </div>
             """
             self.detail_browser.setHtml(html)
-    
-    def load_broadcast_messages(self):
-        """Load pesan broadcast dari admin"""
-        self.broadcast_status.setText("Memuat pesan broadcast...")
-        
-        result = self.api_client.get_broadcast_messages(limit=50)
-        if result["success"]:
-            data = result["data"]
-            if data.get("status") == "success":
-                self.broadcast_messages = data.get("data", [])
-                self.update_broadcast_list()
-                self.broadcast_status.setText(f"Ditemukan {len(self.broadcast_messages)} pesan broadcast")
-            else:
-                self.broadcast_status.setText("Gagal memuat pesan broadcast")
-                QMessageBox.warning(self, "Error", f"Gagal memuat broadcast: {data.get('message', 'Unknown error')}")
-        else:
-            self.broadcast_status.setText("Error koneksi ke server")
-            QMessageBox.warning(self, "Error", f"Error koneksi: {result['data']}")
-    
-    def update_broadcast_list(self):
-        """Update list pesan broadcast"""
-        self.broadcast_list.clear()
-        
-        if not self.broadcast_messages:
-            self.broadcast_list.addItem("Tidak ada pesan broadcast")
-            return
-        
-        for i, message in enumerate(self.broadcast_messages):
-            # Format waktu
-            waktu_kirim = message.get('waktu_kirim', '')
-            try:
-                if waktu_kirim:
-                    import datetime
-                    if isinstance(waktu_kirim, str):
-                        dt = datetime.datetime.fromisoformat(waktu_kirim.replace('Z', '+00:00'))
-                        waktu_str = dt.strftime('%d/%m %H:%M')
-                    else:
-                        waktu_str = str(waktu_kirim)
-                else:
-                    waktu_str = "Unknown"
-            except:
-                waktu_str = str(waktu_kirim)
-            
-            # Format pesan untuk list (potong jika terlalu panjang)
-            pesan = message.get('pesan', 'No message')
-            if len(pesan) > 50:
-                pesan_short = pesan[:50] + "..."
-            else:
-                pesan_short = pesan
-            
-            pengirim = message.get('pengirim_nama', 'Admin')
-            
-            list_text = f"[{waktu_str}] {pengirim}: {pesan_short}"
-            self.broadcast_list.addItem(list_text)
-    
-    def display_broadcast_message(self, index):
-        """Tampilkan detail pesan broadcast yang dipilih"""
-        if 0 <= index < len(self.broadcast_messages):
-            message = self.broadcast_messages[index]
-            
-            # Format waktu
-            waktu_kirim = message.get('waktu_kirim', '')
-            try:
-                if waktu_kirim:
-                    import datetime
-                    if isinstance(waktu_kirim, str):
-                        dt = datetime.datetime.fromisoformat(waktu_kirim.replace('Z', '+00:00'))
-                        waktu_str = dt.strftime('%d/%m/%Y %H:%M:%S')
-                    else:
-                        waktu_str = str(waktu_kirim)
-                else:
-                    waktu_str = "Unknown"
-            except:
-                waktu_str = str(waktu_kirim)
-            
-            html = f"""
-            <div style="font-family: Arial, sans-serif;">
-                <div style="background-color: #3498db; color: white; padding: 15px; border-radius: 5px; margin-bottom: 15px;">
-                    <h3 style="margin: 0; color: white;">Pesan Broadcast dari Admin</h3>
-                </div>
-                
-                <div style="background-color: #ecf0f1; padding: 10px; margin: 10px 0; border-radius: 5px;">
-                    <p><strong>Pengirim:</strong> {message.get('pengirim_nama', 'Admin')}</p>
-                    <p><strong>Waktu:</strong> {waktu_str}</p>
-                    <p><strong>Status:</strong> {message.get('status', 'N/A')}</p>
-                </div>
-                
-                <div style="background-color: #fff; padding: 15px; border-left: 4px solid #3498db; margin-top: 15px;">
-                    <h4 style="color: #2c3e50; margin-top: 0;">Isi Pesan:</h4>
-                    <p style="line-height: 1.6; font-size: 14px;">
-                        {message.get('pesan', 'No message content')}
-                    </p>
-                </div>
-            </div>
-            """
-            self.broadcast_detail.setHtml(html)
-    
-    def auto_refresh_broadcast(self):
-        """Auto refresh pesan broadcast"""
-        if self.tab_widget.currentIndex() == 1:  # Jika sedang di tab broadcast
-            old_count = len(self.broadcast_messages)
-            
-            result = self.api_client.get_broadcast_messages(limit=50)
-            if result["success"]:
-                data = result["data"]
-                if data.get("status") == "success":
-                    new_messages = data.get("data", [])
-                    
-                    if len(new_messages) > old_count:
-                        # Ada pesan baru
-                        self.broadcast_messages = new_messages
-                        self.update_broadcast_list()
-                        self.broadcast_status.setText(f"Pesan baru diterima! Total: {len(self.broadcast_messages)} pesan")
-                        self.broadcast_status.setStyleSheet("color: #27ae60; font-weight: bold; padding: 5px;")
-                        
-                        # Reset style setelah 3 detik
-                        QTimer.singleShot(3000, self.reset_status_style)
-                    elif len(new_messages) != old_count:
-                        # Update list jika ada perubahan
-                        self.broadcast_messages = new_messages
-                        self.update_broadcast_list()
-                        self.broadcast_status.setText(f"Total: {len(self.broadcast_messages)} pesan broadcast")
-    
-    def reset_status_style(self):
-        """Reset style status label"""
-        self.broadcast_status.setStyleSheet("color: #7f8c8d; font-style: italic; padding: 5px;")
-        self.broadcast_status.setText(f"Total: {len(self.broadcast_messages)} pesan broadcast")

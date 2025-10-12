@@ -9,13 +9,13 @@ from PyQt5.QtCore import pyqtSignal, QSize, Qt
 from PyQt5.QtGui import QColor, QIcon, QFont
 
 # Import dialog secara langsung untuk menghindari circular import
-from components.dialogs import PengumumanDialog
+from .dialogs import PengumumanDialog
 
 class PengumumanComponent(QWidget):
     """Komponen untuk manajemen pengumuman"""
     
     data_updated = pyqtSignal()  # Signal ketika data berubah
-    log_message = pyqtSignal(str)  # Signal untuk mengirim log message
+    log_message: pyqtSignal = pyqtSignal(str)  # type: ignore  # Signal untuk mengirim log message
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -84,19 +84,19 @@ class PengumumanComponent(QWidget):
     
     def create_professional_table(self):
         """Create table with professional styling."""
-        table = QTableWidget(0, 5)
+        table = QTableWidget(0, 6)
         table.setHorizontalHeaderLabels([
-            "Tanggal", "Pembuat", "Sasaran/Tujuan", "Judul Pengumuman", "Isi Pengumuman"
+            "Tanggal", "Pembuat", "Sasaran/Tujuan", "Judul Pengumuman", "Isi Pengumuman", "Penanggung Jawab"
         ])
-        
+
         # Apply professional table styling
         self.apply_professional_table_style(table)
-        
+
         # Set specific column widths
-        column_widths = [120, 100, 120, 200, 250]  # Total: 790px
+        column_widths = [150, 100, 120, 200, 250, 150]  # Total: 970px
         for i, width in enumerate(column_widths):
             table.setColumnWidth(i, width)
-        
+
         # Set minimum table width to sum of all columns
         table.setMinimumWidth(sum(column_widths) + 50)  # Add padding for scrollbar
         
@@ -161,7 +161,7 @@ class PengumumanComponent(QWidget):
         # Excel-style table settings
         header = table.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.Interactive)  # Allow column resizing
-        header.setStretchLastSection(False)  # Don't stretch last column
+        header.setStretchLastSection(True)  # Stretch last column to fill space
         header.setMinimumSectionSize(50)
         header.setDefaultSectionSize(80)
         # Allow adjustable header height - removed setMaximumHeight constraint
@@ -243,7 +243,7 @@ class PengumumanComponent(QWidget):
         filter_layout = QHBoxLayout(filter_group)
         
         self.active_only = QCheckBox("Hanya Pengumuman Aktif")
-        self.active_only.setChecked(True)
+        self.active_only.setChecked(False)  # Default show all announcements
         self.active_only.stateChanged.connect(self.load_data)
         filter_layout.addWidget(self.active_only)
         
@@ -264,9 +264,6 @@ class PengumumanComponent(QWidget):
         
         broadcast_button = self.create_button("Broadcast ke Client", "#8e44ad", self.broadcast_pengumuman)
         action_layout.addWidget(broadcast_button)
-        
-        refresh_button = self.create_button("Refresh", "#3498db", self.load_data, "server/assets/refresh.png")
-        action_layout.addWidget(refresh_button)
         
         return action_layout
     
@@ -343,63 +340,92 @@ class PengumumanComponent(QWidget):
             row_pos = self.pengumuman_table.rowCount()
             self.pengumuman_table.insertRow(row_pos)
             
-            # Column 0: Tanggal (format Hari, dd/MM/yyyy)
-            # Check different possible date field names for compatibility
-            tanggal_value = (row_data.get('tanggal') or 
-                           row_data.get('tanggal_mulai') or 
-                           row_data.get('tanggal_dibuat'))
-            
+            # Column 0: Tanggal (format Hari, dd NamaBulan yyyy)
+            # Use created_at timestamp automatically
+            tanggal_value = row_data.get('created_at') or row_data.get('tanggal') or row_data.get('tanggal_mulai')
+
+            # Indonesian names mapping
+            day_names_id = {
+                'Monday': 'Senin', 'Tuesday': 'Selasa', 'Wednesday': 'Rabu',
+                'Thursday': 'Kamis', 'Friday': 'Jumat', 'Saturday': 'Sabtu', 'Sunday': 'Minggu'
+            }
+            month_names_id = {
+                1: 'Januari', 2: 'Februari', 3: 'Maret', 4: 'April',
+                5: 'Mei', 6: 'Juni', 7: 'Juli', 8: 'Agustus',
+                9: 'September', 10: 'Oktober', 11: 'November', 12: 'Desember'
+            }
+
+            tanggal_display = ''
             if tanggal_value:
                 try:
+                    date_obj = None
+
+                    # Case 1: Python datetime/date object
                     if hasattr(tanggal_value, 'strftime'):
-                        # If it's a datetime object, format it with day name (Indonesian day names)
-                        day_names = {
-                            'Monday': 'Senin', 'Tuesday': 'Selasa', 'Wednesday': 'Rabu',
-                            'Thursday': 'Kamis', 'Friday': 'Jumat', 'Saturday': 'Sabtu', 'Sunday': 'Minggu'
-                        }
-                        english_day = tanggal_value.strftime('%A')
-                        indonesian_day = day_names.get(english_day, english_day)
-                        tanggal_display = f"{indonesian_day}, {tanggal_value.strftime('%d/%m/%Y')}"
-                    else:
-                        # If it's a string, parse and format it
-                        if isinstance(tanggal_value, str):
-                            try:
-                                date_obj = datetime.datetime.strptime(str(tanggal_value), '%Y-%m-%d')
-                                day_names = {
-                                    'Monday': 'Senin', 'Tuesday': 'Selasa', 'Wednesday': 'Rabu',
-                                    'Thursday': 'Kamis', 'Friday': 'Jumat', 'Saturday': 'Sabtu', 'Sunday': 'Minggu'
-                                }
-                                english_day = date_obj.strftime('%A')
-                                indonesian_day = day_names.get(english_day, english_day)
-                                tanggal_display = f"{indonesian_day}, {date_obj.strftime('%d/%m/%Y')}"
-                            except:
-                                # If parsing fails, just use the string as is
-                                tanggal_display = str(tanggal_value)
+                        if hasattr(tanggal_value, 'date'):
+                            date_obj = tanggal_value.date()
                         else:
-                            tanggal_display = str(tanggal_value)
-                except:
-                    tanggal_display = str(tanggal_value) if tanggal_value else ''
+                            date_obj = tanggal_value
+
+                    # Case 2: String format
+                    elif isinstance(tanggal_value, str):
+                        # Try RFC 822 format first (from API response): "Thu, 09 Oct 2025 23:44:21 GMT"
+                        try:
+                            date_obj = datetime.datetime.strptime(tanggal_value, '%a, %d %b %Y %H:%M:%S GMT').date()
+                        except:
+                            # Remove time component if present
+                            date_str = tanggal_value.split(' ')[0] if ' ' in tanggal_value else tanggal_value
+
+                            # Try different date formats
+                            for fmt in ['%Y-%m-%d', '%d/%m/%Y', '%Y/%m/%d', '%d-%m-%Y']:
+                                try:
+                                    date_obj = datetime.datetime.strptime(date_str, fmt).date()
+                                    break
+                                except:
+                                    continue
+
+                    # Format to Indonesian if date_obj was successfully parsed
+                    if date_obj:
+                        english_day = date_obj.strftime('%A')
+                        indonesian_day = day_names_id.get(english_day, english_day)
+                        indonesian_month = month_names_id.get(date_obj.month, str(date_obj.month))
+                        tanggal_display = f"{indonesian_day}, {date_obj.day:02d} {indonesian_month} {date_obj.year}"
+                    else:
+                        # Fallback: just display as is
+                        tanggal_display = str(tanggal_value).split(' ')[0] if ' ' in str(tanggal_value) else str(tanggal_value)
+                        self.log_message.emit(f"Warning: Could not parse date format: {tanggal_value}")
+
+                except Exception as e:
+                    # Ultimate fallback
+                    tanggal_display = str(tanggal_value).split(' ')[0] if tanggal_value and ' ' in str(tanggal_value) else str(tanggal_value) if tanggal_value else ''
+                    self.log_message.emit(f"Error parsing date: {e} - value: {tanggal_value}")
             else:
                 tanggal_display = ''
             
             tanggal_item = QTableWidgetItem(tanggal_display)
-            tanggal_item.setTextAlignment(Qt.AlignCenter)
+            tanggal_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.pengumuman_table.setItem(row_pos, 0, tanggal_item)
             
-            # Column 1: Pembuat - try various field names for creator
-            pembuat = (row_data.get('pembuat') or 
-                      row_data.get('dibuat_oleh_nama') or 
-                      row_data.get('created_by_name') or 
-                      row_data.get('admin_name') or 
-                      'System')
+            # Column 1: Pembuat - use pembuat field from user input or get from related tables
+            pembuat = row_data.get('pembuat')
+
+            # Fallback untuk data lama yang belum punya kolom pembuat
+            if not pembuat or pembuat == 'System':
+                # Try to get from related admin/user data
+                pembuat = (row_data.get('admin_username') or
+                          row_data.get('user_username') or
+                          row_data.get('dibuat_oleh_nama') or
+                          row_data.get('created_by_name') or
+                          'Administrator')
+
             pembuat_item = QTableWidgetItem(str(pembuat))
-            pembuat_item.setTextAlignment(Qt.AlignCenter)
+            pembuat_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.pengumuman_table.setItem(row_pos, 1, pembuat_item)
             
             # Column 2: Sasaran/Tujuan - now directly from input field
             sasaran = row_data.get('sasaran', row_data.get('target_audience', row_data.get('kategori', 'Umum')))
             sasaran_item = QTableWidgetItem(str(sasaran))
-            sasaran_item.setTextAlignment(Qt.AlignCenter)
+            sasaran_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.pengumuman_table.setItem(row_pos, 2, sasaran_item)
             
             # Column 3: Judul Pengumuman
@@ -424,6 +450,12 @@ class PengumumanComponent(QWidget):
             isi_item = QTableWidgetItem(isi_display)
             isi_item.setToolTip(isi_clean)  # Show full text in tooltip
             self.pengumuman_table.setItem(row_pos, 4, isi_item)
+
+            # Column 5: Penanggung Jawab
+            penanggung_jawab = str(row_data.get('penanggung_jawab', row_data.get('pembuat', '-')))
+            pj_item = QTableWidgetItem(penanggung_jawab)
+            pj_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.pengumuman_table.setItem(row_pos, 5, pj_item)
     
     def determine_status(self, tanggal_mulai, tanggal_selesai):
         """Tentukan status pengumuman berdasarkan tanggal"""
@@ -459,107 +491,172 @@ class PengumumanComponent(QWidget):
             return
         
         pengumuman_data = self.pengumuman_data[current_row]
-        
-        # Format tanggal untuk detail
-        tanggal_value = (pengumuman_data.get('tanggal') or 
-                        pengumuman_data.get('tanggal_mulai') or 
-                        pengumuman_data.get('tanggal_dibuat'))
-        
+
+        # Format tanggal untuk detail - use created_at (sama dengan tabel)
+        tanggal_value = pengumuman_data.get('created_at') or pengumuman_data.get('tanggal') or pengumuman_data.get('tanggal_mulai')
+
+        # Indonesian names mapping
+        day_names_id = {
+            'Monday': 'Senin', 'Tuesday': 'Selasa', 'Wednesday': 'Rabu',
+            'Thursday': 'Kamis', 'Friday': 'Jumat', 'Saturday': 'Sabtu', 'Sunday': 'Minggu'
+        }
+        month_names_id = {
+            1: 'Januari', 2: 'Februari', 3: 'Maret', 4: 'April',
+            5: 'Mei', 6: 'Juni', 7: 'Juli', 8: 'Agustus',
+            9: 'September', 10: 'Oktober', 11: 'November', 12: 'Desember'
+        }
+
+        periode = ''
         if tanggal_value:
             try:
+                date_obj = None
+
+                # Case 1: Python datetime/date object
                 if hasattr(tanggal_value, 'strftime'):
-                    # If it's a datetime object, format it with day name (Indonesian)
-                    day_names = {
-                        'Monday': 'Senin', 'Tuesday': 'Selasa', 'Wednesday': 'Rabu',
-                        'Thursday': 'Kamis', 'Friday': 'Jumat', 'Saturday': 'Sabtu', 'Sunday': 'Minggu'
-                    }
-                    english_day = tanggal_value.strftime('%A')
-                    indonesian_day = day_names.get(english_day, english_day)
-                    periode = f"{indonesian_day}, {tanggal_value.strftime('%d/%m/%Y')}"
+                    if hasattr(tanggal_value, 'date'):
+                        date_obj = tanggal_value.date()
+                    else:
+                        date_obj = tanggal_value
+
+                # Case 2: String format
                 elif isinstance(tanggal_value, str):
+                    # Try RFC 822 format first (from API response): "Thu, 09 Oct 2025 23:44:21 GMT"
                     try:
-                        date_obj = datetime.datetime.strptime(str(tanggal_value), '%Y-%m-%d')
-                        day_names = {
-                            'Monday': 'Senin', 'Tuesday': 'Selasa', 'Wednesday': 'Rabu',
-                            'Thursday': 'Kamis', 'Friday': 'Jumat', 'Saturday': 'Sabtu', 'Sunday': 'Minggu'
-                        }
-                        english_day = date_obj.strftime('%A')
-                        indonesian_day = day_names.get(english_day, english_day)
-                        periode = f"{indonesian_day}, {date_obj.strftime('%d/%m/%Y')}"
+                        date_obj = datetime.datetime.strptime(tanggal_value, '%a, %d %b %Y %H:%M:%S GMT').date()
                     except:
-                        periode = str(tanggal_value)
+                        # Remove time component if present
+                        date_str = tanggal_value.split(' ')[0] if ' ' in tanggal_value else tanggal_value
+
+                        # Try different date formats
+                        for fmt in ['%Y-%m-%d', '%d/%m/%Y', '%Y/%m/%d', '%d-%m-%Y']:
+                            try:
+                                date_obj = datetime.datetime.strptime(date_str, fmt).date()
+                                break
+                            except:
+                                continue
+
+                # Format to Indonesian if date_obj was successfully parsed
+                if date_obj:
+                    english_day = date_obj.strftime('%A')
+                    indonesian_day = day_names_id.get(english_day, english_day)
+                    indonesian_month = month_names_id.get(date_obj.month, str(date_obj.month))
+                    periode = f"{indonesian_day}, {date_obj.day:02d} {indonesian_month} {date_obj.year}"
                 else:
-                    periode = str(tanggal_value)
-            except:
-                periode = str(tanggal_value)
+                    periode = str(tanggal_value).split(' ')[0] if ' ' in str(tanggal_value) else str(tanggal_value)
+
+            except Exception as e:
+                periode = str(tanggal_value).split(' ')[0] if tanggal_value and ' ' in str(tanggal_value) else str(tanggal_value) if tanggal_value else ''
         else:
             periode = "Tidak ada tanggal"
         
         sasaran = pengumuman_data.get('sasaran', pengumuman_data.get('target_audience', pengumuman_data.get('kategori', 'Umum')))
-        
+        penanggung_jawab = pengumuman_data.get('penanggung_jawab', pengumuman_data.get('pembuat', '-'))
+
+        # Get isi pengumuman and preserve formatting
+        isi_raw = pengumuman_data.get('isi', 'Tidak ada isi pengumuman')
+
+        # Convert newlines to <br> for HTML display
+        isi_formatted = isi_raw.replace('\n', '<br>')
+
+        # Auto-bold common labels (case insensitive)
+        import re
+        # Pattern untuk mendeteksi label diikuti titik dua
+        # Contoh: "Hari/Tanggal:", "Waktu:", "Tempat:", "Kehadiran Saudara/i:", dll
+        label_pattern = r'([A-Za-z/]+(?:\s+[A-Za-z/]+)*)\s*:'
+
+        def bold_label(match):
+            label = match.group(1)
+            return f'<b>{label}:</b>'
+
+        isi_formatted = re.sub(label_pattern, bold_label, isi_formatted)
+
         html_content = f"""
-        <h3>{pengumuman_data.get('judul', 'Tidak ada judul')}</h3>
-        <p><b>Tanggal:</b> {periode}</p>
-        <p><b>Dibuat oleh:</b> {pengumuman_data.get('pembuat', 'System')}</p>
-        <p><b>Sasaran/Tujuan:</b> {sasaran}</p>
-        <hr>
-        <div>{pengumuman_data.get('isi', 'Tidak ada isi pengumuman')}</div>
+        <style>
+            body {{
+                font-family: Arial, sans-serif;
+                line-height: 1.6;
+            }}
+            .detail-label {{
+                font-weight: bold;
+                display: inline-block;
+                min-width: 150px;
+            }}
+            .detail-content {{
+                white-space: pre-wrap;
+                word-wrap: break-word;
+            }}
+        </style>
+        <h3 style="color: #2c3e50; margin-bottom: 15px;">{pengumuman_data.get('judul', 'Tidak ada judul')}</h3>
+        <p><span class="detail-label">Tanggal:</span> {periode}</p>
+        <p><span class="detail-label">Pembuat:</span> {pengumuman_data.get('pembuat', 'System')}</p>
+        <p><span class="detail-label">Penanggung Jawab:</span> {penanggung_jawab}</p>
+        <p><span class="detail-label">Sasaran/Tujuan:</span> {sasaran}</p>
+        <hr style="border: 1px solid #ddd; margin: 15px 0;">
+        <p style="margin-bottom: 8px;"><span class="detail-label">Isi Pengumuman:</span></p>
+        <div class="detail-content" style="padding: 10px; background-color: #f9f9f9; border-left: 3px solid #2c3e50; margin-top: 5px;">
+            {isi_formatted}
+        </div>
         """
-        
+
         self.pengumuman_detail.setHtml(html_content)
     
     def add_pengumuman(self):
         """Tambah pengumuman baru"""
         dialog = PengumumanDialog(self)
+
+        # Auto-fill pembuat field before showing dialog
+        try:
+            if hasattr(self.db_manager, 'current_user_name'):
+                dialog.pembuat_input.setText(self.db_manager.current_user_name)
+            elif hasattr(self.db_manager, 'get_current_admin'):
+                admin_info = self.db_manager.get_current_admin()
+                if admin_info and isinstance(admin_info, dict):
+                    dialog.pembuat_input.setText(admin_info.get('username', 'Administrator'))
+                else:
+                    dialog.pembuat_input.setText('Administrator')
+            else:
+                dialog.pembuat_input.setText('Administrator')
+        except:
+            dialog.pembuat_input.setText('Administrator')
+
         if dialog.exec_() == dialog.Accepted:
             data = dialog.get_data()
-            
+
             # Validasi
             if not data['judul']:
                 QMessageBox.warning(self, "Error", "Judul pengumuman harus diisi")
                 return
-            
+
             if not data['isi']:
                 QMessageBox.warning(self, "Error", "Isi pengumuman harus diisi")
                 return
-                
+
             if not data['sasaran']:
                 QMessageBox.warning(self, "Error", "Sasaran/Tujuan harus diisi")
                 return
-            
+
             if not self.db_manager:
                 QMessageBox.warning(self, "Error", "Database tidak tersedia")
                 return
-            
+
             try:
-                # Tambah informasi admin yang membuat
-                data['dibuat_oleh_admin'] = 1  # Default admin ID
-                
-                # Try to get current user name from database manager or use default
-                try:
+                # Ensure pembuat is filled
+                if not data.get('pembuat'):
                     if hasattr(self.db_manager, 'current_user_name'):
                         data['pembuat'] = self.db_manager.current_user_name
-                    elif hasattr(self.db_manager, 'get_current_admin'):
-                        admin_info = self.db_manager.get_current_admin()
-                        if admin_info and isinstance(admin_info, dict):
-                            data['pembuat'] = admin_info.get('username', 'Administrator')
-                        else:
-                            data['pembuat'] = 'Administrator'
                     else:
                         data['pembuat'] = 'Administrator'
-                except:
-                    data['pembuat'] = 'Administrator'
-                
+
                 # Log the data being sent for debugging
                 self.log_message.emit(f"Menambahkan pengumuman: {data['judul']} oleh {data['pembuat']} untuk {data['sasaran']}")
-                
+
                 success, result = self.db_manager.add_pengumuman(data)
-                
+
                 if success:
-                    QMessageBox.information(self, "Sukses", 
+                    QMessageBox.information(self, "Sukses",
                         f"Pengumuman '{data['judul']}' berhasil ditambahkan!\n"
                         f"Sasaran: {data['sasaran']}\n"
-                        f"Tanggal: {data['tanggal']}")
+                        f"Penanggung Jawab: {data['penanggung_jawab']}")
                     self.load_data()
                     self.log_message.emit(f"Pengumuman baru ditambahkan: {data['judul']} untuk {data['sasaran']}")
                 else:

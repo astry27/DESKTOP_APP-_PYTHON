@@ -22,6 +22,8 @@ try:
     from components.server_control import ServerControlComponent
     from components.riwayat import RiwayatComponent
     from components.dokumen import DokumenComponent
+    from components.pengguna import PenggunaComponent
+    from components.keuangan import KeuanganComponent
 except ImportError as e:
     print(f"Error importing components: {e}")
     app = QApplication(sys.argv)
@@ -245,7 +247,15 @@ class ServerMainWindow(QMainWindow):
         self.dokumen_component.set_database_manager(self.db)
         self.content_stack.addWidget(self.dokumen_component)
         
-        # Index 8: Pengaturan Sistem
+        # Index 8: Keuangan
+        self.keuangan_component = KeuanganComponent(self.db)
+        self.content_stack.addWidget(self.keuangan_component)
+        
+        # Index 9: Manajemen Pengguna
+        self.pengguna_component = PenggunaComponent()
+        self.content_stack.addWidget(self.pengguna_component)
+        
+        # Index 10: Pengaturan Sistem
         self.pengaturan_component = PengaturanComponent()
         self.pengaturan_component.set_database_manager(self.db)
         self.content_stack.addWidget(self.pengaturan_component)
@@ -261,7 +271,9 @@ class ServerMainWindow(QMainWindow):
         self.sidebar.menu_pengumuman.clicked.connect(lambda: self.show_page(5))
         self.sidebar.menu_riwayat.clicked.connect(lambda: self.show_page(6))
         self.sidebar.menu_dokumen.clicked.connect(lambda: self.show_page(7))
-        self.sidebar.menu_pengaturan.clicked.connect(lambda: self.show_page(8))
+        self.sidebar.menu_keuangan.clicked.connect(lambda: self.show_page(8))
+        self.sidebar.menu_pengguna.clicked.connect(lambda: self.show_page(9))
+        self.sidebar.menu_pengaturan.clicked.connect(lambda: self.show_page(10))
         
         self.server_control.log_message.connect(self.server_control.add_log_message)
         
@@ -273,6 +285,8 @@ class ServerMainWindow(QMainWindow):
             self.pengumuman_component,
             self.riwayat_component,
             self.dokumen_component,
+            self.keuangan_component,
+            self.pengguna_component,
             self.pengaturan_component
         ]
         
@@ -312,7 +326,7 @@ class ServerMainWindow(QMainWindow):
         file_menu.addAction(logout_action)
         
         exit_action = QAction("Keluar", self)
-        exit_action.triggered.connect(self.close)
+        exit_action.triggered.connect(self.close)  # type: ignore
         file_menu.addAction(exit_action)
         
         edit_menu = menubar.addMenu("&Edit")
@@ -408,8 +422,12 @@ class ServerMainWindow(QMainWindow):
             self.sidebar.menu_dokumen.setChecked(True)
             self.dokumen_component.load_data()
         elif index == 8:
+            self.sidebar.menu_keuangan.setChecked(True)
+            self.keuangan_component.load_data()
+        elif index == 9:
+            self.sidebar.menu_pengguna.setChecked(True)
+        elif index == 10:
             self.sidebar.menu_pengaturan.setChecked(True)
-            # Pengaturan tidak perlu load data khusus
         
         self.content_stack.setCurrentIndex(index)
         
@@ -540,29 +558,51 @@ class ServerMainWindow(QMainWindow):
         msg.exec_()
     
     def closeEvent(self, event):
-        # Log logout activity
-        self.log_admin_activity("Application Closed", "Administrator menutup aplikasi")
-        
-        # Stop client registration server
-        if self.client_server:
-            self.client_server.stop()
-        
-        if self.db:
-            self.db.close()
-        event.accept()
+        try:
+            # Log logout activity
+            self.log_admin_activity("Application Closed", "Administrator menutup aplikasi")
+
+            # Stop all timers in components
+            for component_name in ['dokumen_component', 'riwayat_component', 'server_control']:
+                if hasattr(self, component_name):
+                    component = getattr(self, component_name)
+                    if hasattr(component, 'update_timer') and component.update_timer:
+                        component.update_timer.stop()
+                        component.update_timer.deleteLater()
+                    if hasattr(component, 'status_timer') and component.status_timer:
+                        component.status_timer.stop()
+                        component.status_timer.deleteLater()
+
+            # Stop client registration server
+            if self.client_server:
+                self.client_server.stop()
+
+            if self.db:
+                self.db.close()
+        except Exception:
+            # Silently ignore errors during shutdown
+            pass
+        finally:
+            event.accept()
 
 
 if __name__ == "__main__":
     import warnings
     warnings.filterwarnings("ignore", category=DeprecationWarning)
-    
+
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
     app.setApplicationName("Server Admin Gereja Katolik - API Mode")
     app.setApplicationVersion("2.1.0")
     app.setOrganizationName("Gereja Katolik")
-    
+
     window = ServerMainWindow()
     window.show()
-    
-    sys.exit(app.exec_())
+
+    try:
+        sys.exit(app.exec_())
+    except KeyboardInterrupt:
+        # Handle Ctrl+C gracefully
+        print("\nShutting down gracefully...")
+        window.close()
+        sys.exit(0)

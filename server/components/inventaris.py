@@ -7,7 +7,7 @@ from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                             QHeaderView, QGroupBox, QMessageBox, 
                             QFileDialog, QAbstractItemView, QFrame, QLineEdit)
 from PyQt5.QtCore import pyqtSignal, QDate, Qt, QSize
-from PyQt5.QtGui import QIcon, QFont
+from PyQt5.QtGui import QIcon, QFont, QColor, QBrush
 
 # Import dialog inventaris yang baru
 from .dialogs import InventarisDialog
@@ -16,7 +16,7 @@ class InventarisComponent(QWidget):
     """Komponen untuk manajemen inventaris"""
     
     data_updated = pyqtSignal()
-    log_message = pyqtSignal(str)
+    log_message: pyqtSignal = pyqtSignal(str)  # type: ignore
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -55,23 +55,9 @@ class InventarisComponent(QWidget):
         stats_group = self.create_statistics()
         layout.addWidget(stats_group)
         
-        # Tabel inventaris with container
-        table_container = QFrame()
-        table_container.setStyleSheet("""
-            QFrame {
-                border: 1px solid #d0d0d0;
-                background-color: white;
-                margin: 0px;
-            }
-        """)
-        table_layout = QVBoxLayout(table_container)
-        table_layout.setContentsMargins(0, 0, 0, 0)
-        table_layout.setSpacing(0)
-        
-        self.inventaris_table = self.create_table()
-        table_layout.addWidget(self.inventaris_table)
-        
-        layout.addWidget(table_container)
+        # Tabel inventaris
+        self.inventaris_table_container = self.create_table()
+        layout.addWidget(self.inventaris_table_container)
         
         # Tombol aksi
         action_layout = self.create_action_buttons()
@@ -133,7 +119,7 @@ class InventarisComponent(QWidget):
         layout.setContentsMargins(6, 6, 6, 6)
         
         label = QLabel(label_text)
-        label.setAlignment(Qt.AlignCenter)
+        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         label.setWordWrap(True)
         label.setStyleSheet(f"""
             QLabel {{
@@ -146,7 +132,7 @@ class InventarisComponent(QWidget):
             }}
         """)
         
-        value_label.setAlignment(Qt.AlignCenter)
+        value_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         value_label.setWordWrap(True)
         value_label.setStyleSheet(f"""
             QLabel {{
@@ -166,39 +152,64 @@ class InventarisComponent(QWidget):
         return widget
 
     def create_table(self):
-        """Buat tabel inventaris dengan style profesional."""
+        """Buat tabel inventaris dengan style profesional matching program_kerja.py."""
+        # Table view dalam container frame (exactly matching program_kerja.py)
+        table_container = QFrame()
+        table_container.setStyleSheet("""
+            QFrame {
+                border: 1px solid #d0d0d0;
+                background-color: white;
+                margin: 0px;
+            }
+        """)
+        table_layout = QVBoxLayout(table_container)
+        table_layout.setContentsMargins(0, 0, 0, 0)
+        table_layout.setSpacing(0)
+
         table = QTableWidget(0, 8)
         table.setHorizontalHeaderLabels([
-            "Kode Barang", "Nama Barang", "Kategori", "Jumlah", 
+            "Kode Barang", "Nama Barang", "Kategori", "Jumlah",
             "Kondisi", "Lokasi", "Harga Satuan", "Penanggung Jawab"
         ])
-        
-        # Apply professional styling
+
+        # Apply professional styling matching program_kerja.py
         self.apply_professional_table_style(table)
-        
-        # Set specific column widths
-        column_widths = [120, 180, 130, 100, 120, 150, 130, 160]  # Total: 1090px
-        for i, width in enumerate(column_widths):
-            table.setColumnWidth(i, width)
-        
-        # Set minimum table width
-        table.setMinimumWidth(sum(column_widths) + 50)
-        
+
+        # Set initial column widths with better proportions for full layout (matching program_kerja.py approach)
+        table.setColumnWidth(0, 120)   # Kode Barang
+        table.setColumnWidth(1, 200)   # Nama Barang - wider for content
+        table.setColumnWidth(2, 130)   # Kategori
+        table.setColumnWidth(3, 100)   # Jumlah
+        table.setColumnWidth(4, 120)   # Kondisi
+        table.setColumnWidth(5, 150)   # Lokasi
+        table.setColumnWidth(6, 130)   # Harga Satuan
+        table.setColumnWidth(7, 160)   # Penanggung Jawab - wider for names
+
+        # Excel-like column resizing - all columns can be resized (matching program_kerja.py)
+        header = table.horizontalHeader()
+        header.setSectionResizeMode(QHeaderView.Interactive)  # All columns resizable
+        header.setStretchLastSection(True)  # Last column stretches to fill space
+
         # Enable context menu
-        table.setContextMenuPolicy(3)  # Qt.CustomContextMenu
+        table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         table.customContextMenuRequested.connect(self.show_context_menu)
-        
-        return table
+
+        # Connect double click to edit (matching program_kerja.py)
+        table.itemDoubleClicked.connect(self.edit_inventaris)
+
+        table_layout.addWidget(table)
+        self.inventaris_table = table  # Assign table reference
+        return table_container
         
     def apply_professional_table_style(self, table):
-        """Apply Excel-like table styling with thin grid lines and minimal borders."""
+        """Apply Excel-like table styling exactly matching program_kerja.py."""
         # Header styling - Excel-like headers
         header_font = QFont()
         header_font.setBold(False)  # Remove bold from headers
         header_font.setPointSize(9)
         table.horizontalHeader().setFont(header_font)
 
-        # Excel-style header styling
+        # Excel-style header styling (exact copy from program_kerja.py)
         table.horizontalHeader().setStyleSheet("""
             QHeaderView::section {
                 background-color: #f2f2f2;
@@ -212,7 +223,7 @@ class InventarisComponent(QWidget):
             }
         """)
 
-        # Excel-style table body styling
+        # Excel-style table body styling (exact copy from program_kerja.py)
         table.setStyleSheet("""
             QTableWidget {
                 gridline-color: #d4d4d4;
@@ -222,11 +233,13 @@ class InventarisComponent(QWidget):
                 font-family: 'Calibri', 'Segoe UI', Arial, sans-serif;
                 font-size: 9pt;
                 outline: none;
+                color: black;
             }
             QTableWidget::item {
                 border: none;
                 padding: 4px 6px;
                 min-height: 18px;
+                color: black;
             }
             QTableWidget::item:selected {
                 background-color: #cce7ff;
@@ -235,25 +248,24 @@ class InventarisComponent(QWidget):
             QTableWidget::item:focus {
                 border: 2px solid #0078d4;
                 background-color: white;
+                color: black;
             }
         """)
 
-        # Excel-style table settings
+        # Excel-style table settings (matching program_kerja.py exactly)
         header = table.horizontalHeader()
-        header.setSectionResizeMode(QHeaderView.Interactive)  # Allow column resizing
-        header.setStretchLastSection(False)  # Don't stretch last column
         header.setMinimumSectionSize(50)
         header.setDefaultSectionSize(80)
         # Allow adjustable header height - removed setMaximumHeight constraint
 
         # Enable scrolling
-        table.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        table.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        table.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        table.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         table.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
         table.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
 
-        # Excel-style row settings
-        table.verticalHeader().setDefaultSectionSize(20)  # Thin rows like Excel
+        # Excel-style row settings with better content visibility
+        table.verticalHeader().setDefaultSectionSize(24)  # Slightly taller for content
         table.setSelectionBehavior(QAbstractItemView.SelectItems)  # Select individual cells
         table.setAlternatingRowColors(False)
         table.verticalHeader().setVisible(True)  # Show row numbers like Excel
@@ -273,14 +285,15 @@ class InventarisComponent(QWidget):
 
         # Enable grid display with thin lines
         table.setShowGrid(True)
-        table.setGridStyle(Qt.SolidLine)
+        table.setGridStyle(Qt.PenStyle.SolidLine)
 
         # Excel-style editing and selection
         table.setEditTriggers(QAbstractItemView.DoubleClicked | QAbstractItemView.EditKeyPressed)
         table.setSelectionMode(QAbstractItemView.ExtendedSelection)
 
-        # Set compact size for Excel look
-        table.setMinimumHeight(150)
+        # Set proper size for Excel look with better visibility (matching program_kerja.py)
+        table.setMinimumHeight(200)
+        table.setSizePolicy(table.sizePolicy().Expanding, table.sizePolicy().Expanding)
         table.setSizeAdjustPolicy(QAbstractItemView.AdjustToContents)
 
     def show_context_menu(self, position):
@@ -314,9 +327,6 @@ class InventarisComponent(QWidget):
         
         export_button = self.create_button("Export Data", "#16a085", self.export_data, "server/assets/export.png")
         action_layout.addWidget(export_button)
-
-        refresh_button = self.create_button("Refresh", "#8e44ad", self.load_data, "server/assets/refresh.png")
-        action_layout.addWidget(refresh_button)
         
         return action_layout
 
@@ -424,17 +434,17 @@ class InventarisComponent(QWidget):
             
             # Kode Barang - Center aligned
             kode_item = QTableWidgetItem(str(row_data.get('kode_barang', '')))
-            kode_item.setTextAlignment(Qt.AlignCenter)
+            kode_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.inventaris_table.setItem(row_pos, 0, kode_item)
             
             # Nama Barang - Left aligned
             nama_item = QTableWidgetItem(str(row_data.get('nama_barang', '')))
-            nama_item.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+            nama_item.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
             self.inventaris_table.setItem(row_pos, 1, nama_item)
             
             # Kategori - Center aligned
             kategori_item = QTableWidgetItem(str(row_data.get('kategori', '')))
-            kategori_item.setTextAlignment(Qt.AlignCenter)
+            kategori_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.inventaris_table.setItem(row_pos, 2, kategori_item)
             
             # Jumlah dengan satuan - Center aligned
@@ -442,27 +452,32 @@ class InventarisComponent(QWidget):
             satuan = row_data.get('satuan', '')
             jumlah_str = f"{jumlah} {satuan}".strip()
             jumlah_item = QTableWidgetItem(jumlah_str)
-            jumlah_item.setTextAlignment(Qt.AlignCenter)
+            jumlah_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.inventaris_table.setItem(row_pos, 3, jumlah_item)
             
             # Kondisi dengan styling - Center aligned
             kondisi = str(row_data.get('kondisi', ''))
             kondisi_item = QTableWidgetItem(kondisi)
-            kondisi_item.setTextAlignment(Qt.AlignCenter)
+            kondisi_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+
             if kondisi == 'Baik':
-                kondisi_item.setBackground(Qt.green)
-                kondisi_item.setForeground(Qt.white)
+                kondisi_item.setBackground(QBrush(QColor(39, 174, 96)))  # Green
+                kondisi_item.setForeground(QBrush(QColor(255, 255, 255)))  # White
             elif kondisi in ['Rusak Ringan', 'Rusak Berat']:
-                kondisi_item.setBackground(Qt.red)
-                kondisi_item.setForeground(Qt.white)
+                kondisi_item.setBackground(QBrush(QColor(231, 76, 60)))  # Red
+                kondisi_item.setForeground(QBrush(QColor(255, 255, 255)))  # White
             elif kondisi == 'Hilang':
-                kondisi_item.setBackground(Qt.darkRed)
-                kondisi_item.setForeground(Qt.white)
+                kondisi_item.setBackground(QBrush(QColor(192, 57, 43)))  # Dark Red
+                kondisi_item.setForeground(QBrush(QColor(255, 255, 255)))  # White
+            else:
+                # For empty or other conditions, use default black text on white background
+                kondisi_item.setForeground(QBrush(QColor(0, 0, 0)))  # Black text
+
             self.inventaris_table.setItem(row_pos, 4, kondisi_item)
             
             # Lokasi - Left aligned
             lokasi_item = QTableWidgetItem(str(row_data.get('lokasi', '')))
-            lokasi_item.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+            lokasi_item.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
             self.inventaris_table.setItem(row_pos, 5, lokasi_item)
             
             # Harga Satuan - Right aligned for currency
@@ -473,12 +488,12 @@ class InventarisComponent(QWidget):
             except (ValueError, TypeError):
                 harga_str = f"Rp 0"
             harga_item = QTableWidgetItem(harga_str)
-            harga_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            harga_item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
             self.inventaris_table.setItem(row_pos, 6, harga_item)
             
             # Penanggung jawab - Left aligned
             pj_item = QTableWidgetItem(str(row_data.get('penanggung_jawab', '')))
-            pj_item.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+            pj_item.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
             self.inventaris_table.setItem(row_pos, 7, pj_item)
 
     def update_statistics(self):

@@ -27,7 +27,7 @@ class ServerConfig:
     
     API_HOST = os.getenv('API_HOST', 'enternal.my.id')
     API_PORT = int(os.getenv('API_PORT', 80))
-    API_BASE_URL = f"http://{API_HOST}/flask"
+    API_BASE_URL = f"https://{API_HOST}/flask"
     
     APP_NAME = "Server Gereja Katolik"
     APP_VERSION = "2.1.0"

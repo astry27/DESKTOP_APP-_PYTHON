@@ -44,8 +44,8 @@ class UploadDialog(QDialog):
         
         # Buttons
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        buttons.accepted.connect(self.accept)
-        buttons.rejected.connect(self.reject)
+        buttons.accepted.connect(self.accept)  # type: ignore
+        buttons.rejected.connect(self.reject)  # type: ignore
         layout.addWidget(buttons)
         
         self.selected_file = None

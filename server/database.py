@@ -324,7 +324,21 @@ class DatabaseManager:
             return True, result["data"]
         else:
             return False, result["data"]
-    
+
+    def get_kegiatan_wr_list(self) -> Tuple[bool, Any]:
+        """Get kegiatan WR list from all clients with user information"""
+        result = self.api_client.get_kegiatan_wr()
+        if result["success"]:
+            data = result["data"]
+            if isinstance(data, dict) and "data" in data:
+                return True, data["data"]
+            elif isinstance(data, list):
+                return True, data
+            else:
+                return True, []
+        else:
+            return False, result["data"]
+
     # ========== PENGUMUMAN METHODS ==========
     def get_pengumuman_list(self, active_only: bool = True, 
                            limit: int = 10, offset: int = 0) -> Tuple[bool, Any]:
@@ -734,6 +748,246 @@ class DatabaseManager:
             return True, result["data"]
         else:
             return False, result["data"]
+    
+    def upload_struktur_photo(self, struktur_id: int, photo_path: str) -> Tuple[bool, Any]:
+        """Upload foto untuk struktur yang sudah ada"""
+        try:
+            result = self.api_client.upload_struktur_photo(struktur_id, photo_path)
+            if result["success"]:
+                return True, result["data"]
+            else:
+                return False, result["data"]
+        except Exception as e:
+            self.logger.error(f"Error uploading struktur photo: {e}")
+            return False, str(e)
+    
+    def upload_struktur_photo_new(self, photo_path: str) -> Tuple[bool, Any]:
+        """Upload foto untuk struktur baru"""
+        try:
+            result = self.api_client.upload_struktur_photo_new(photo_path)
+            if result["success"]:
+                return True, result["data"]
+            else:
+                return False, result["data"]
+        except Exception as e:
+            self.logger.error(f"Error uploading new struktur photo: {e}")
+            return False, str(e)
+    
+    # ========== INVENTARIS METHODS ==========
+    def get_inventaris_list(self, search: Optional[str] = None, kategori: Optional[str] = None, 
+                           kondisi: Optional[str] = None, lokasi: Optional[str] = None) -> Tuple[bool, Any]:
+        result = self.api_client.get_inventaris()
+        if result["success"]:
+            data = result["data"].get("data", [])
+            
+            if search:
+                filtered_data = []
+                search_lower = search.lower()
+                for item in data:
+                    if (search_lower in str(item.get('kode_barang', '')).lower() or
+                        search_lower in str(item.get('nama_barang', '')).lower() or
+                        search_lower in str(item.get('merk', '')).lower() or
+                        search_lower in str(item.get('supplier', '')).lower() or
+                        search_lower in str(item.get('penanggung_jawab', '')).lower() or
+                        search_lower in str(item.get('lokasi', '')).lower()):
+                        filtered_data.append(item)
+                data = filtered_data
+            
+            if kategori:
+                data = [item for item in data if item.get('kategori') == kategori]
+            
+            if kondisi:
+                data = [item for item in data if item.get('kondisi') == kondisi]
+                
+            if lokasi:
+                data = [item for item in data if item.get('lokasi') == lokasi]
+            
+            return True, data
+        else:
+            return False, result["data"]
+    
+    def add_inventaris(self, data: Dict[str, Any]) -> Tuple[bool, Any]:
+        result = self.api_client.add_inventaris(data)
+        if result["success"]:
+            return True, result["data"].get("id", 0)
+        else:
+            return False, result["data"]
+    
+    def update_inventaris(self, id_inventaris: int, data: Dict[str, Any]) -> Tuple[bool, Any]:
+        result = self.api_client.update_inventaris(id_inventaris, data)
+        if result["success"]:
+            return True, result["data"]
+        else:
+            return False, result["data"]
+    
+    def delete_inventaris(self, id_inventaris: int) -> Tuple[bool, Any]:
+        result = self.api_client.delete_inventaris(id_inventaris)
+        if result["success"]:
+            return True, result["data"]
+        else:
+            return False, result["data"]
+    
+    def get_inventaris_statistics(self) -> Tuple[bool, Any]:
+        result = self.api_client.get_inventaris_statistics()
+        if result["success"]:
+            return True, result["data"]
+        else:
+            return False, result["data"]
+    
+    def get_inventaris_categories(self) -> Tuple[bool, Any]:
+        result = self.api_client.get_inventaris_categories()
+        if result["success"]:
+            return True, result["data"]
+        else:
+            return False, result["data"]
+    
+    def get_inventaris_locations(self) -> Tuple[bool, Any]:
+        result = self.api_client.get_inventaris_locations()
+        if result["success"]:
+            return True, result["data"]
+        else:
+            return False, result["data"]
+    
+    # ========== PROGRAM KERJA METHODS ==========
+    def get_program_kerja_list(self, search: Optional[str] = None, month: Optional[str] = None, 
+                              year: Optional[str] = None) -> Tuple[bool, Any]:
+        """Get program kerja list with optional filters"""
+        try:
+            result = self.api_client.get_program_kerja(search=search, month=month, year=year)
+            if result["success"]:
+                return True, result["data"].get("data", [])
+            else:
+                return False, result["data"]
+        except Exception as e:
+            self.logger.error(f"Error getting program kerja list: {e}")
+            return False, str(e)
+    
+    def add_program_kerja(self, data: Dict[str, Any]) -> Tuple[bool, Any]:
+        """Add new program kerja"""
+        try:
+            # Convert dialog data format to API format
+            api_data = {
+                'tanggal': data.get('date'),  # Convert 'date' to 'tanggal'
+                'judul': data.get('title'),   # Convert 'title' to 'judul'
+                'sasaran': data.get('target', ''),
+                'penanggung_jawab': data.get('responsible', ''),
+                'anggaran': data.get('budget_amount', ''),
+                'sumber_anggaran': data.get('budget_source', 'Kas Gereja'),
+                'kategori': data.get('category', ''),
+                'lokasi': data.get('location', ''),
+                'deskripsi': data.get('description', ''),
+                'waktu': data.get('time', ''),
+                'status': data.get('status', 'Direncanakan')
+            }
+            
+            result = self.api_client.add_program_kerja(api_data)
+            if result["success"]:
+                return True, result["data"].get("id", 0)
+            else:
+                return False, result["data"]
+        except Exception as e:
+            self.logger.error(f"Error adding program kerja: {e}")
+            return False, str(e)
+    
+    def update_program_kerja(self, program_id: int, data: Dict[str, Any]) -> Tuple[bool, Any]:
+        """Update program kerja"""
+        try:
+            # Convert dialog data format to API format
+            api_data = {
+                'tanggal': data.get('date'),
+                'judul': data.get('title'),
+                'sasaran': data.get('target', ''),
+                'penanggung_jawab': data.get('responsible', ''),
+                'anggaran': data.get('budget_amount', ''),
+                'sumber_anggaran': data.get('budget_source', 'Kas Gereja'),
+                'kategori': data.get('category', ''),
+                'lokasi': data.get('location', ''),
+                'deskripsi': data.get('description', ''),
+                'waktu': data.get('time', ''),
+                'status': data.get('status', 'Direncanakan')
+            }
+            
+            result = self.api_client.update_program_kerja(program_id, api_data)
+            if result["success"]:
+                return True, result["data"]
+            else:
+                return False, result["data"]
+        except Exception as e:
+            self.logger.error(f"Error updating program kerja: {e}")
+            return False, str(e)
+    
+    def delete_program_kerja(self, program_id: int) -> Tuple[bool, Any]:
+        """Delete program kerja"""
+        try:
+            result = self.api_client.delete_program_kerja(program_id)
+            if result["success"]:
+                return True, result["data"]
+            else:
+                return False, result["data"]
+        except Exception as e:
+            self.logger.error(f"Error deleting program kerja: {e}")
+            return False, str(e)
+    
+    def get_program_kerja_statistics(self) -> Tuple[bool, Any]:
+        """Get program kerja statistics"""
+        try:
+            result = self.api_client.get_program_statistics()
+            if result["success"]:
+                return True, result["data"]
+            else:
+                return False, result["data"]
+        except Exception as e:
+            self.logger.error(f"Error getting program kerja statistics: {e}")
+            return False, str(e)
+    
+    # ========== USER MANAGEMENT METHODS ==========
+    def get_users_list(self) -> Tuple[bool, Any]:
+        """Get list of all admin users"""
+        try:
+            result = self.api_client.get_users()
+            if result["success"]:
+                return True, result["data"].get("data", [])
+            else:
+                return False, result["data"]
+        except Exception as e:
+            self.logger.error(f"Error getting users list: {e}")
+            return False, str(e)
+    
+    def create_user(self, user_data: Dict[str, Any]) -> Tuple[bool, Any]:
+        """Create new admin user"""
+        try:
+            result = self.api_client.create_user(user_data)
+            if result["success"]:
+                return True, result["data"]
+            else:
+                return False, result["data"]
+        except Exception as e:
+            self.logger.error(f"Error creating user: {e}")
+            return False, str(e)
+    
+    def update_user(self, user_id: int, user_data: Dict[str, Any]) -> Tuple[bool, Any]:
+        """Update existing admin user"""
+        try:
+            result = self.api_client.update_user(user_id, user_data)
+            if result["success"]:
+                return True, result["data"]
+            else:
+                return False, result["data"]
+        except Exception as e:
+            self.logger.error(f"Error updating user: {e}")
+            return False, str(e)
+    
+    def delete_user(self, user_id: int) -> Tuple[bool, Any]:
+        """Delete admin user"""
+        try:
+            result = self.api_client.delete_user(user_id)
+            if result["success"]:
+                return True, result["data"]
+            else:
+                return False, result["data"]
+        except Exception as e:
+            self.logger.error(f"Error deleting user: {e}")
+            return False, str(e)
     
     def close(self):
         """Close database manager"""

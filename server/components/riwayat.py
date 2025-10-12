@@ -10,7 +10,7 @@ from PyQt5.QtGui import QColor, QIcon, QFont
 
 class RiwayatComponent(QWidget):
     
-    log_message = pyqtSignal(str)
+    log_message: pyqtSignal = pyqtSignal(str)  # type: ignore
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -102,29 +102,6 @@ class RiwayatComponent(QWidget):
         """)
         filter_layout.addWidget(filter_button)
         
-        # Refresh button
-        self.refresh_button = QPushButton("Refresh")
-        self.refresh_button.clicked.connect(self.load_data)
-        # Add refresh icon
-        refresh_icon = QIcon("server/assets/refresh.png")
-        if not refresh_icon.isNull():
-            self.refresh_button.setIcon(refresh_icon)
-            self.refresh_button.setIconSize(QSize(20, 20))  # Larger icon size for better visibility
-        self.refresh_button.setStyleSheet("""
-            QPushButton {
-                background-color: #27ae60;
-                color: white;
-                padding: 6px 12px;
-                border: none;
-                border-radius: 4px;
-                text-align: left;
-            }
-            QPushButton:hover {
-                background-color: #2ecc71;
-            }
-        """)
-        filter_layout.addWidget(self.refresh_button)
-        
         filter_layout.addStretch()
         return filter_layout
     
@@ -154,23 +131,26 @@ class RiwayatComponent(QWidget):
         return tab
         
     def create_professional_admin_table(self):
-        """Create admin table with professional styling."""
+        """Create admin table with professional styling matching program_kerja.py."""
         table = QTableWidget(0, 4)
         table.setHorizontalHeaderLabels([
             "Waktu", "Admin", "Aktivitas", "Detail"
         ])
-        
-        # Apply professional table styling
+
+        # Apply professional table styling matching program_kerja.py
         self.apply_professional_table_style(table)
-        
-        # Set specific column widths for admin table
-        column_widths = [120, 100, 150, 200]  # Total: 570px
-        for i, width in enumerate(column_widths):
-            table.setColumnWidth(i, width)
-        
-        # Set minimum table width to sum of all columns
-        table.setMinimumWidth(sum(column_widths) + 50)  # Add padding for scrollbar
-        
+
+        # Set initial column widths with better proportions for full layout (matching program_kerja.py approach)
+        table.setColumnWidth(0, 150)   # Waktu - wider for datetime
+        table.setColumnWidth(1, 120)   # Admin
+        table.setColumnWidth(2, 180)   # Aktivitas - wider for content
+        table.setColumnWidth(3, 250)   # Detail - wider for detailed content
+
+        # Excel-like column resizing - all columns can be resized (matching program_kerja.py)
+        header = table.horizontalHeader()
+        header.setSectionResizeMode(QHeaderView.Interactive)  # All columns resizable
+        header.setStretchLastSection(True)  # Last column stretches to fill space
+
         return table
     
     
@@ -200,34 +180,38 @@ class RiwayatComponent(QWidget):
         return tab
         
     def create_professional_client_table(self):
-        """Create client table with professional styling."""
+        """Create client table with professional styling matching program_kerja.py."""
         table = QTableWidget(0, 5)
         table.setHorizontalHeaderLabels([
             "Waktu", "Client IP", "Aktivitas", "Terakhir Aktif", "Status"
         ])
-        
-        # Apply professional table styling
+
+        # Apply professional table styling matching program_kerja.py
         self.apply_professional_table_style(table)
-        
-        # Set specific column widths for client table
-        column_widths = [120, 120, 150, 120, 100]  # Total: 610px
-        for i, width in enumerate(column_widths):
-            table.setColumnWidth(i, width)
-        
-        # Set minimum table width to sum of all columns
-        table.setMinimumWidth(sum(column_widths) + 50)  # Add padding for scrollbar
-        
+
+        # Set initial column widths with better proportions for full layout (matching program_kerja.py approach)
+        table.setColumnWidth(0, 150)   # Waktu - wider for datetime
+        table.setColumnWidth(1, 130)   # Client IP
+        table.setColumnWidth(2, 180)   # Aktivitas - wider for content
+        table.setColumnWidth(3, 150)   # Terakhir Aktif
+        table.setColumnWidth(4, 100)   # Status
+
+        # Excel-like column resizing - all columns can be resized (matching program_kerja.py)
+        header = table.horizontalHeader()
+        header.setSectionResizeMode(QHeaderView.Interactive)  # All columns resizable
+        header.setStretchLastSection(True)  # Last column stretches to fill space
+
         return table
     
     def apply_professional_table_style(self, table):
-        """Apply Excel-like table styling with thin grid lines and minimal borders."""
+        """Apply Excel-like table styling exactly matching program_kerja.py."""
         # Header styling - Excel-like headers
         header_font = QFont()
         header_font.setBold(False)  # Remove bold from headers
         header_font.setPointSize(9)
         table.horizontalHeader().setFont(header_font)
 
-        # Excel-style header styling
+        # Excel-style header styling (exact copy from program_kerja.py)
         table.horizontalHeader().setStyleSheet("""
             QHeaderView::section {
                 background-color: #f2f2f2;
@@ -241,7 +225,7 @@ class RiwayatComponent(QWidget):
             }
         """)
 
-        # Excel-style table body styling
+        # Excel-style table body styling (exact copy from program_kerja.py)
         table.setStyleSheet("""
             QTableWidget {
                 gridline-color: #d4d4d4;
@@ -267,10 +251,8 @@ class RiwayatComponent(QWidget):
             }
         """)
 
-        # Excel-style table settings
+        # Excel-style table settings (matching program_kerja.py exactly)
         header = table.horizontalHeader()
-        header.setSectionResizeMode(QHeaderView.Interactive)  # Allow column resizing
-        header.setStretchLastSection(False)  # Don't stretch last column
         header.setMinimumSectionSize(50)
         header.setDefaultSectionSize(80)
         # Allow adjustable header height - removed setMaximumHeight constraint
@@ -281,8 +263,8 @@ class RiwayatComponent(QWidget):
         table.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
         table.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
 
-        # Excel-style row settings
-        table.verticalHeader().setDefaultSectionSize(20)  # Thin rows like Excel
+        # Excel-style row settings with better content visibility
+        table.verticalHeader().setDefaultSectionSize(24)  # Slightly taller for content
         table.setSelectionBehavior(QAbstractItemView.SelectItems)  # Select individual cells
         table.setAlternatingRowColors(False)
         table.verticalHeader().setVisible(True)  # Show row numbers like Excel
@@ -308,8 +290,9 @@ class RiwayatComponent(QWidget):
         table.setEditTriggers(QAbstractItemView.DoubleClicked | QAbstractItemView.EditKeyPressed)
         table.setSelectionMode(QAbstractItemView.ExtendedSelection)
 
-        # Set compact size for Excel look
-        table.setMinimumHeight(150)
+        # Set proper size for Excel look with better visibility (matching program_kerja.py)
+        table.setMinimumHeight(200)
+        table.setSizePolicy(table.sizePolicy().Expanding, table.sizePolicy().Expanding)
         table.setSizeAdjustPolicy(QAbstractItemView.AdjustToContents)
 
     def create_statistics(self):
@@ -333,7 +316,14 @@ class RiwayatComponent(QWidget):
         self.update_timer = QTimer()
         self.update_timer.timeout.connect(self.auto_refresh)
         self.update_timer.start(30000)  # Refresh setiap 30 detik
-    
+
+    def closeEvent(self, event):
+        """Handle close event to stop timer"""
+        if hasattr(self, 'update_timer') and self.update_timer:
+            self.update_timer.stop()
+            self.update_timer.deleteLater()
+        event.accept()
+
     def load_data(self):
         """Load semua data riwayat dari API"""
         if not self.database_manager:
@@ -650,7 +640,11 @@ class RiwayatComponent(QWidget):
     
     def auto_refresh(self):
         """Auto refresh data"""
-        self.load_data()
+        try:
+            self.load_data()
+        except Exception:
+            # Silently ignore errors during auto-refresh to prevent warnings
+            pass
     
     def get_data(self):
         """Get semua data untuk komponen lain"""

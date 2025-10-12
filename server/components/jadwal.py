@@ -8,13 +8,13 @@ from PyQt5.QtCore import QObject, pyqtSignal, QDate, QSize, Qt
 from PyQt5.QtGui import QIcon
 
 # Import dialog secara langsung untuk menghindari circular import  
-from components.dialogs import KegiatanDialog
+from .dialogs import KegiatanDialog
 
 class JadwalComponent(QWidget):
     """Komponen untuk manajemen jadwal kegiatan"""
     
     data_updated = pyqtSignal()  # Signal ketika data berubah
-    log_message = pyqtSignal(str)  # Signal untuk mengirim log message
+    log_message: pyqtSignal = pyqtSignal(str)  # type: ignore  # Signal untuk mengirim log message
     
     def __init__(self, parent=None):
         super().__init__(parent)

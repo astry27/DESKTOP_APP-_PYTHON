@@ -8,13 +8,13 @@ from PyQt5.QtCore import QObject, pyqtSignal, Qt, QSize
 from PyQt5.QtGui import QFont, QPalette, QColor, QIcon
 
 # Import dialog secara langsung untuk menghindari circular import
-from components.dialogs import JemaatDialog
+from .dialogs import JemaatDialog
 
 class JemaatComponent(QWidget):
     """Komponen untuk manajemen data jemaat"""
     
     data_updated = pyqtSignal()  # Signal ketika data berubah
-    log_message = pyqtSignal(str)  # Signal untuk mengirim log message
+    log_message: pyqtSignal = pyqtSignal(str)  # type: ignore  # Signal untuk mengirim log message
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -92,7 +92,7 @@ class JemaatComponent(QWidget):
         search_button = self.create_button("Cari", "#3498db", self.search_jemaat)
         header_layout.addWidget(search_button)
         
-        add_button = self.create_button("Tambah Jemaat", "#27ae60", self.add_jemaat, "server/assets/tambah.png")
+        add_button = self.create_button("Tambah Umat", "#27ae60", self.add_jemaat, "server/assets/tambah.png")
         header_layout.addWidget(add_button)
         
         return header
@@ -111,8 +111,8 @@ class JemaatComponent(QWidget):
         export_button = self.create_button("Export Data", "#16a085", self.export_jemaat, "server/assets/export.png")
         action_layout.addWidget(export_button)
         
-        refresh_button = self.create_button("Refresh", "#8e44ad", self.load_data, "server/assets/refresh.png")
-        action_layout.addWidget(refresh_button)
+        broadcast_button = self.create_button("Broadcast ke Client", "#8e44ad", self.broadcast_jemaat, "server/assets/tambah.png")
+        action_layout.addWidget(broadcast_button)
         
         return action_layout
     
@@ -181,15 +181,23 @@ class JemaatComponent(QWidget):
             QMessageBox.critical(self, "Error", f"Error loading jemaat data: {str(e)}")
     
     def create_spreadsheet_grid(self, layout):
-        """Create table with proper header format like struktur.py"""
-        # Create table with 34 columns, start with 0 rows (header will be proper header)
-        self.jemaat_table = QTableWidget(0, 34)
+        """Create table with proper header format using table rows"""
+        # Create table with 35 columns, start with 2 header rows + 0 data rows
+        self.jemaat_table = QTableWidget(2, 35)
 
-        # Set up column headers like struktur.py
-        self.setup_table_headers()
+        # Hide horizontal header since we will use table cells as headers
+        self.jemaat_table.horizontalHeader().setVisible(False)
+        self.jemaat_table.verticalHeader().setVisible(True)  # Show row numbers like Excel
 
-        # Configure table styling exactly like struktur.py
+        # Set up two-level headers using table cells with colspan - IMPROVED STYLING
+        self.setup_two_level_headers_with_improved_styling()
+
+        # Configure table styling
         self.apply_professional_table_style(self.jemaat_table)
+
+        # CRITICAL: Re-apply header styling SETELAH stylesheet diterapkan
+        # Karena stylesheet akan override background colors
+        self.reapply_header_styling()
 
         # Enable context menu
         self.jemaat_table.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -210,6 +218,130 @@ class JemaatComponent(QWidget):
 
         table_layout.addWidget(self.jemaat_table)
         layout.addWidget(table_container)
+
+    def setup_two_level_headers_with_improved_styling(self):
+        """Setup table dengan 2-level headers dan styling seperti vertical header"""
+
+        # ROW 0: Main category headers
+        main_categories = [
+            (0, "no", 1),
+            (1, "DATA PRIBADI", 15),
+            (16, "SAKRAMEN BABTIS", 4),
+            (20, "SAKRAMEN EKARISTI", 3),
+            (23, "SAKRAMEN KRISMA", 3),
+            (26, "SAKRAMEN PERKAWINAN", 6),
+            (32, "STATUS", 3)
+        ]
+
+        # ROW 1: Sub-headers
+        column_headers = [
+            "",  # Column 0 - empty under "no"
+            "Wilayah Rohani", "Nama Keluarga", "Nama Lengkap", "Tempat Lahir",
+            "Tanggal Lahir", "Umur", "Kategori", "J. Kelamin",
+            "Hubungan Keluarga", "Pend. Terakhir", "Status Menikah", "Status Pekerjaan",
+            "Detail Pekerjaan", "Alamat", "Email/No.Hp",
+            "Status", "Tempat Babtis", "Tanggal Babtis", "Nama Babtis",
+            "Status", "Tempat Komuni", "Tanggal Komuni",
+            "Status", "Tempat Krisma", "Tanggal Krisma",
+            "Status", "Keuskupan", "Paroki", "Kota", "Tanggal Perkawinan", "Status Perkawinan",
+            "Status Keanggotaan", "WR Tujuan", "Paroki Tujuan"
+        ]
+
+        # Style yang sama dengan vertical header (row number di kiri)
+        header_style_bg = QColor("#747171")
+        header_style_fg = QColor("#333333")
+
+        # Create ROW 0: Main headers - SAMA dengan inventaris header style
+        for col_start, category_name, span in main_categories:
+            item = QTableWidgetItem(category_name)
+            item.setTextAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+
+            # Styling SAMA dengan inventaris header: #f2f2f2
+            item.setBackground(QColor("#f2f2f2"))
+            item.setForeground(QColor("#333333"))
+
+            font = QFont()
+            font.setBold(False)  # Normal weight seperti inventaris
+            font.setPointSize(9)
+            item.setFont(font)
+
+            item.setFlags(Qt.ItemIsEnabled)
+            self.jemaat_table.setItem(0, col_start, item)
+
+            if span > 1:
+                self.jemaat_table.setSpan(0, col_start, 1, span)
+
+        # Create ROW 1: Sub-headers - LEBIH TERANG dari main header
+        for col, column_header in enumerate(column_headers):
+            item = QTableWidgetItem(column_header)
+            item.setTextAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+
+            # Sub-header styling: lebih terang (#fafafa)
+            item.setBackground(QColor("#fafafa"))
+            item.setForeground(QColor("#555555"))
+
+            font = QFont()
+            font.setBold(False)
+            font.setPointSize(9)
+            item.setFont(font)
+
+            item.setFlags(Qt.ItemIsEnabled)
+            self.jemaat_table.setItem(1, col, item)
+
+        # Set row heights - lebih tinggi untuk visibility
+        self.jemaat_table.setRowHeight(0, 30)  # Main header - lebih tinggi
+        self.jemaat_table.setRowHeight(1, 28)  # Sub-header
+
+        # KEMBALIKAN nomor 1, 2, 3, 4 dst di vertical header
+        # TIDAK override vertical header items, biarkan default (1, 2, 3, dst)
+
+        # Set column widths
+        self.setup_column_widths()
+
+        # PENTING: Simpan reference untuk re-apply styling nanti
+        self._header_cells_styling_data = []
+
+        # Force semua header cells non-editable dengan styling khusus
+        for row in range(2):
+            for col in range(35):
+                item = self.jemaat_table.item(row, col)
+                if item:
+                    # Non-editable
+                    item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)
+
+                    # Styling berbeda untuk main header vs sub-header
+                    if row == 0:
+                        # ROW 0: Main header - SAMA dengan inventaris header
+                        bg_color = QColor("#f2f2f2")
+                        fg_color = QColor("#333333")
+                    else:
+                        # ROW 1: Sub-header - LEBIH TERANG dari main header
+                        bg_color = QColor("#fafafa")
+                        fg_color = QColor("#555555")
+
+                    item.setBackground(bg_color)
+                    item.setForeground(fg_color)
+
+                    font = QFont()
+                    font.setBold(False)
+                    font.setPointSize(9)
+                    item.setFont(font)
+
+                    # Simpan data untuk re-apply
+                    self._header_cells_styling_data.append((row, col, bg_color, fg_color))
+
+    def reapply_header_styling(self):
+        """Re-apply header styling setelah stylesheet diterapkan"""
+        if hasattr(self, '_header_cells_styling_data'):
+            for row, col, bg_color, fg_color in self._header_cells_styling_data:
+                item = self.jemaat_table.item(row, col)
+                if item:
+                    item.setBackground(bg_color)
+                    item.setForeground(fg_color)
+                    font = QFont()
+                    font.setBold(False)
+                    font.setPointSize(9)
+                    item.setFont(font)
 
     def setup_table_headers(self):
         """Set up table headers like struktur.py with proper column names"""
@@ -261,7 +393,7 @@ class JemaatComponent(QWidget):
             }
         """)
 
-        # Excel-style table body styling (exact copy from struktur.py)
+        # Excel-style table body styling dengan HEADER ROW STYLING
         table.setStyleSheet("""
             QTableWidget {
                 gridline-color: #d4d4d4;
@@ -286,6 +418,10 @@ class JemaatComponent(QWidget):
                 background-color: white;
             }
         """)
+
+        # IMPORTANT: Force update header cells styling AFTER stylesheet
+        # Stylesheet akan override background, jadi kita perlu re-apply
+        table.viewport().update()
 
         # Excel-style table settings (exact copy from struktur.py)
         header = table.horizontalHeader()
@@ -331,27 +467,30 @@ class JemaatComponent(QWidget):
         table.setMinimumHeight(150)
         table.setSizeAdjustPolicy(QAbstractItemView.AdjustToContents)
 
-    def setup_three_level_headers_with_colspan(self):
-        """Setup table with proper three-level headers using table cells with spans"""
+    # OLD METHOD - NO LONGER USED (replaced by setup_two_level_headers_with_improved_styling)
+    # def setup_three_level_headers_with_colspan(self):
+        """Setup table with proper two-level headers matching inventaris style"""
 
         # Hide horizontal header since we'll use table cells as headers, but keep vertical header like struktur.py
         self.jemaat_table.horizontalHeader().setVisible(False)
         self.jemaat_table.verticalHeader().setVisible(True)  # Show row numbers like Excel/struktur.py
 
-        # ROW 1: Sub-category headers (all use struktur.py styling)
-        sub_categories = [
-            ("No", 1),  # Column 0: spans 1 column with header style
-            ("DATA PRIBADI", 15),  # Columns 1-15: spans 15 columns
-            ("SAKRAMEN BABTIS", 4),  # Columns 16-19: spans 4 columns
-            ("SAKRAMEN EKARISTI", 3),  # Columns 20-22: spans 3 columns
-            ("SAKRAMEN KRISMA", 3),  # Columns 23-25: spans 3 columns
-            ("SAKRAMEN PERKAWINAN", 6),  # Columns 26-31: spans 6 columns
-            ("STATUS", 3)  # Columns 32-34: spans 3 columns
+        # ROW 0: Main category headers - "no" as single cell, then category headers with colspan
+        # Structure matching image 2: "no" (col 0) | "DATA PRIBADI" (cols 1-15) | "SAKRAMEN BABTIS" | etc.
+        main_categories = [
+            (0, "no", 1),  # Column 0: single cell with lowercase "no"
+            (1, "DATA PRIBADI", 15),  # Columns 1-15: spans 15 columns
+            (16, "SAKRAMEN BABTIS", 4),  # Columns 16-19: spans 4 columns
+            (20, "SAKRAMEN EKARISTI", 3),  # Columns 20-22: spans 3 columns
+            (23, "SAKRAMEN KRISMA", 3),  # Columns 23-25: spans 3 columns
+            (26, "SAKRAMEN PERKAWINAN", 6),  # Columns 26-31: spans 6 columns
+            (32, "STATUS", 3)  # Columns 32-34: spans 3 columns
         ]
 
-        # ROW 2: Individual column headers
+        # ROW 1: Individual column headers (sub-headers)
+        # Column 0 is EMPTY (blank cell below "no"), then sub-headers start from column 1
         column_headers = [
-            "No",  # Column 0
+            "",  # Column 0 - EMPTY/BLANK cell below "no"
             # DATA PRIBADI (15 columns: 1-15)
             "Wilayah Rohani", "Nama Keluarga", "Nama Lengkap", "Tempat Lahir",
             "Tanggal Lahir", "Umur", "Kategori", "J. Kelamin",
@@ -365,73 +504,62 @@ class JemaatComponent(QWidget):
             "Status", "Tempat Krisma", "Tanggal Krisma",
             # SAKRAMEN PERKAWINAN (6 columns: 26-31)
             "Status", "Keuskupan", "Paroki", "Kota", "Tanggal Perkawinan", "Status Perkawinan",
-            # STATUS (3 columns: 32-34) as per user specification
+            # STATUS (3 columns: 32-34)
             "Status Keanggotaan", "WR Tujuan", "Paroki Tujuan"
         ]
 
-        # Create ROW 1: Sub-category headers with colspan
-        current_col = 0
-        for category_name, span in sub_categories:
+        # Create ROW 0: Main category headers with colspan
+        for col_start, category_name, span in main_categories:
             item = QTableWidgetItem(category_name)
             item.setTextAlignment(Qt.AlignCenter | Qt.AlignVCenter)
 
-            # Apply Excel-style header background like struktur.py for all headers
-            item.setBackground(QColor("#f2f2f2"))  # Same header color as struktur.py
-            item.setForeground(QColor("#333333"))  # Same text color as struktur.py
+            # Apply Excel-style header background
+            item.setBackground(QColor("#f2f2f2"))
+            item.setForeground(QColor("#333333"))
 
-            # Enhanced font styling for better visibility
+            # Font styling
             font = QFont()
-            font.setBold(False)  # Remove bold like struktur.py
-            font.setPointSize(9)  # Same font size as struktur.py
+            font.setBold(False)
+            font.setPointSize(9)
             item.setFont(font)
 
-            # Make header cells non-editable but always visible
+            # Make header cells non-editable
             item.setFlags(Qt.ItemIsEnabled)
 
-            self.jemaat_table.setItem(0, current_col, item)
+            self.jemaat_table.setItem(0, col_start, item)
 
-            # Apply colspan for sub-categories
+            # Apply colspan for categories that span multiple columns
             if span > 1:
-                self.jemaat_table.setSpan(0, current_col, 1, span)
+                self.jemaat_table.setSpan(0, col_start, 1, span)
 
-            # Apply rowspan for "No" column only (merge row 0 and row 1 for column 0)
-            if current_col == 0 and category_name == "No":
-                self.jemaat_table.setSpan(0, 0, 2, 1)  # rowspan of 2 for column 0
-
-            current_col += span
-
-        # Create ROW 2: Individual column headers
+        # Create ROW 1: Individual column headers (sub-headers)
         for col, column_header in enumerate(column_headers):
-            # Skip column 0 since it's merged with rowspan
-            if col == 0:
-                continue
-
             item = QTableWidgetItem(column_header)
             item.setTextAlignment(Qt.AlignCenter | Qt.AlignVCenter)
-            item.setBackground(QColor("#f2f2f2"))  # Same header color as struktur.py
-            item.setForeground(QColor("#333333"))  # Same text color as struktur.py
+            item.setBackground(QColor("#f2f2f2"))
+            item.setForeground(QColor("#333333"))
 
-            # Enhanced font styling for better visibility (matching struktur.py)
+            # Font styling
             font = QFont()
-            font.setBold(False)  # No bold like struktur.py
-            font.setPointSize(9)  # Same size as struktur.py
+            font.setBold(False)
+            font.setPointSize(9)
             item.setFont(font)
 
-            # Ensure text is always visible
+            # Make header cells non-editable
             item.setFlags(Qt.ItemIsEnabled)
 
             self.jemaat_table.setItem(1, col, item)
 
-        # Set row heights for headers
-        self.jemaat_table.setRowHeight(0, 30)  # Sub-category row
-        self.jemaat_table.setRowHeight(1, 25)  # Individual column row
+        # Set row heights for headers (matching inventaris style)
+        self.jemaat_table.setRowHeight(0, 30)  # Main category row
+        self.jemaat_table.setRowHeight(1, 25)  # Sub-header column row
 
         # Set column widths
         self.setup_column_widths()
 
         # Make header rows non-editable and force refresh display
         for row in range(2):
-            for col in range(34):
+            for col in range(35):
                 item = self.jemaat_table.item(row, col)
                 if item:
                     item.setFlags(item.flags() & ~Qt.ItemIsEditable)
@@ -448,18 +576,25 @@ class JemaatComponent(QWidget):
 
     def ensure_spanned_text_visible(self):
         """Ensure text in spanned cells is visible by explicitly setting text and styling again"""
-        # Re-apply text and styling for rowspan cell (No column)
+        # Re-apply text and styling for "no" header cell in row 0 only
         no_item = self.jemaat_table.item(0, 0)
         if no_item:
-            no_item.setText("No")
+            no_item.setText("no")
             no_item.setTextAlignment(Qt.AlignCenter | Qt.AlignVCenter)
-            # Apply struktur.py styling
+            # Apply Excel-style header styling
             no_item.setBackground(QColor("#f2f2f2"))
             no_item.setForeground(QColor("#333333"))
             font = QFont()
             font.setBold(False)
             font.setPointSize(9)
             no_item.setFont(font)
+
+        # Ensure row 1 col 0 is EMPTY (no text)
+        empty_item = self.jemaat_table.item(1, 0)
+        if empty_item:
+            empty_item.setText("")  # Keep it blank
+            empty_item.setBackground(QColor("#f2f2f2"))
+            empty_item.setForeground(QColor("#333333"))
 
         # Re-apply text and styling for colspan cells in first row
         sub_categories = [
@@ -485,10 +620,10 @@ class JemaatComponent(QWidget):
                 item.setFont(font)
 
     def apply_final_header_styling(self):
-        """Apply final header styling to ensure struktur.py consistency"""
+        """Apply final header styling to ensure inventaris/struktur.py consistency"""
         # Apply styling to all header cells in rows 0 and 1
         for row in range(2):  # Header rows
-            for col in range(34):  # All columns
+            for col in range(35):  # All columns (0-34)
                 item = self.jemaat_table.item(row, col)
                 if item and item.text():  # Only apply to non-empty cells
                     # Apply struktur.py header styling
@@ -605,14 +740,13 @@ class JemaatComponent(QWidget):
     
     
     def populate_table(self):
-        """Populate table with numbered rows and complete data starting from row 3"""
-        # Set row count to 2 header rows + data rows
-        total_rows = 2 + len(self.jemaat_data)
-        self.jemaat_table.setRowCount(total_rows)
+        """Populate table with data rows (header ada di row 0 dan 1)"""
+        # Set row count: 2 header rows + data rows
+        self.jemaat_table.setRowCount(2 + len(self.jemaat_data))
 
-        # Populate data starting from row 2 (index 2, which is the 3rd row)
+        # Populate data starting from row 2 (after headers)
         for index, row_data in enumerate(self.jemaat_data):
-            row_pos = 2 + index  # Start from row 3 (index 2)
+            row_pos = 2 + index  # Start from row 2
 
             # Column 0: Row number (starting from 1)
             no_item = QTableWidgetItem(str(index + 1))
@@ -916,6 +1050,49 @@ class JemaatComponent(QWidget):
             QMessageBox.critical(self, "Error", f"Error export data: {str(e)}")
             self.log_message.emit(f"Exception exporting jemaat: {str(e)}")
     
+    def broadcast_jemaat(self):
+        """Broadcast data jemaat ke client"""
+        if not self.jemaat_data:
+            QMessageBox.warning(self, "Warning", "Tidak ada data untuk dibroadcast")
+            return
+        
+        reply = QMessageBox.question(self, 'Konfirmasi Broadcast',
+                                   f"Yakin ingin broadcast {len(self.jemaat_data)} data jemaat ke semua client?",
+                                   QMessageBox.Yes | QMessageBox.No,
+                                   QMessageBox.No)
+        
+        if reply == QMessageBox.Yes:
+            try:
+                import requests
+                from config import ServerConfig
+                
+                data = {
+                    'admin_id': 1,
+                    'selected_ids': [jemaat.get('id_jemaat') for jemaat in self.jemaat_data if jemaat.get('id_jemaat')]
+                }
+                
+                response = requests.post(f"{ServerConfig.API_BASE_URL}/broadcast/jemaat", 
+                                       json=data, 
+                                       headers={'Content-Type': 'application/json'},
+                                       timeout=10)
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    if result.get('status') == 'success':
+                        total_data = result.get('total', 0)
+                        QMessageBox.information(self, "Sukses", f"Data jemaat berhasil dibroadcast ke client!\nTotal data: {total_data}")
+                        self.log_message.emit(f"Broadcast jemaat sukses: {total_data} data")
+                    else:
+                        QMessageBox.warning(self, "Error", f"Gagal broadcast: {result.get('message', 'Unknown error')}")
+                        self.log_message.emit(f"Broadcast jemaat gagal: {result.get('message')}")
+                else:
+                    QMessageBox.warning(self, "Error", f"Server error: {response.status_code}")
+                    self.log_message.emit(f"Broadcast jemaat error: HTTP {response.status_code}")
+                    
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Error broadcast jemaat: {str(e)}")
+                self.log_message.emit(f"Exception broadcasting jemaat: {str(e)}")
+    
     def view_jemaat_details(self):
         """View detailed information of selected jemaat"""
         current_row = self.get_selected_row()
@@ -993,7 +1170,7 @@ class JemaatComponent(QWidget):
         
         # Close button
         button_box = QDialogButtonBox(QDialogButtonBox.Close)
-        button_box.clicked.connect(dialog.close)
+        button_box.clicked.connect(dialog.close)  # type: ignore
         layout.addWidget(button_box)
         
         dialog.exec_()

@@ -16,7 +16,7 @@ class StrukturComponent(QWidget):
     """Komponen untuk manajemen struktur kepengurusan gereja"""
     
     data_updated = pyqtSignal()
-    log_message = pyqtSignal(str)
+    log_message: pyqtSignal = pyqtSignal(str)  # type: ignore
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -305,9 +305,6 @@ class StrukturComponent(QWidget):
         
         export_button = self.create_button("Export Data", "#16a085", self.export_data, "server/assets/export.png")
         action_layout.addWidget(export_button)
-
-        refresh_button = self.create_button("Refresh", "#8e44ad", self.load_data, "server/assets/refresh.png")
-        action_layout.addWidget(refresh_button)
         
         return action_layout
 
@@ -384,7 +381,7 @@ class StrukturComponent(QWidget):
             if success:
                 # Handle different response formats
                 if isinstance(struktur, dict) and 'data' in struktur:
-                    self.struktur_data = struktur['data']
+                    self.struktur_data = struktur['data'] if struktur['data'] is not None else []
                 elif isinstance(struktur, list):
                     self.struktur_data = struktur
                 else:
@@ -412,6 +409,10 @@ class StrukturComponent(QWidget):
 
     def update_total_pengurus(self):
         """Update label total pengurus."""
+        if not self.struktur_data:
+            self.total_pengurus_label.setText("Total: 0 pengurus (0 aktif)")
+            return
+            
         total = len(self.struktur_data)
         aktif = len([data for data in self.struktur_data if data.get('status_aktif', '') == 'Aktif'])
         self.total_pengurus_label.setText(f"Total: {total} pengurus ({aktif} aktif)")
@@ -420,6 +421,10 @@ class StrukturComponent(QWidget):
         """Populate table view dengan data sesuai dengan field input dialog."""
         self.struktur_table.setRowCount(0)
         
+        # Handle None or invalid data
+        if not self.struktur_data:
+            return
+            
         for row_data in self.struktur_data:
             row_pos = self.struktur_table.rowCount()
             self.struktur_table.insertRow(row_pos)
@@ -427,19 +432,71 @@ class StrukturComponent(QWidget):
             # Column 0: Foto
             foto_path = row_data.get('foto_path', '')
             foto_item = QTableWidgetItem()
-            if foto_path and os.path.exists(foto_path):
+            
+            if foto_path:
                 try:
-                    pixmap = QPixmap(foto_path)
-                    if not pixmap.isNull():
-                        scaled_pixmap = pixmap.scaled(50, 50, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-                        foto_item.setData(Qt.DecorationRole, scaled_pixmap)
-                        foto_item.setText("")
+                    # Check if it's a server URL or local path
+                    if foto_path.startswith(('http://', 'https://')):
+                        # Server URL - download and display image
+                        try:
+                            import requests
+                            response = requests.get(foto_path, timeout=5)
+                            if response.status_code == 200:
+                                pixmap = QPixmap()
+                                if pixmap.loadFromData(response.content):
+                                    scaled_pixmap = pixmap.scaled(50, 50, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                                    foto_item.setData(Qt.DecorationRole, scaled_pixmap)
+                                    foto_item.setText("")
+                                    foto_item.setToolTip(f"Server image: {foto_path}")
+                                else:
+                                    foto_item.setText("🖼️")
+                                    foto_item.setToolTip(f"Unable to load server image: {foto_path}")
+                            else:
+                                foto_item.setText("🖼️")
+                                foto_item.setToolTip(f"Server image not accessible: {foto_path}")
+                        except Exception as download_error:
+                            foto_item.setText("🖼️")
+                            foto_item.setToolTip(f"Error downloading server image: {str(download_error)}")
+                    elif foto_path.startswith(('/uploads/', 'uploads/')):
+                        # Local server path - try to access directly
+                        local_path = foto_path
+                        if foto_path.startswith('/uploads/'):
+                            local_path = foto_path[1:]  # Remove leading slash
+                        
+                        if os.path.exists(local_path):
+                            pixmap = QPixmap(local_path)
+                            if not pixmap.isNull():
+                                scaled_pixmap = pixmap.scaled(50, 50, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                                foto_item.setData(Qt.DecorationRole, scaled_pixmap)
+                                foto_item.setText("")
+                                foto_item.setToolTip(f"Local server image: {local_path}")
+                            else:
+                                foto_item.setText("🖼️")
+                                foto_item.setToolTip(f"Unable to load local server image: {local_path}")
+                        else:
+                            foto_item.setText("🖼️")
+                            foto_item.setToolTip(f"Local server image not found: {local_path}")
+                    elif os.path.exists(foto_path):
+                        # Local file - load directly
+                        pixmap = QPixmap(foto_path)
+                        if not pixmap.isNull():
+                            scaled_pixmap = pixmap.scaled(50, 50, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                            foto_item.setData(Qt.DecorationRole, scaled_pixmap)
+                            foto_item.setText("")
+                            foto_item.setToolTip(f"Local image: {foto_path}")
+                        else:
+                            foto_item.setText("📷")
+                            foto_item.setToolTip("Unable to load local image")
                     else:
                         foto_item.setText("📷")
-                except Exception:
-                    foto_item.setText("📷")
+                        foto_item.setToolTip("Image file not found")
+                except Exception as e:
+                    foto_item.setText("❌")
+                    foto_item.setToolTip(f"Error loading image: {str(e)}")
             else:
                 foto_item.setText("👤")
+                foto_item.setToolTip("No photo")
+            
             foto_item.setTextAlignment(Qt.AlignCenter)
             self.struktur_table.setItem(row_pos, 0, foto_item)
             
@@ -521,14 +578,14 @@ class StrukturComponent(QWidget):
         search_lower = search_keyword.lower()
         
         for data in self.struktur_data:
-            # Cari di berbagai field
-            nama_lengkap = data.get('nama_lengkap', '').lower()
-            jabatan = data.get('jabatan_utama', '').lower()
-            wilayah = data.get('wilayah_rohani', '').lower()
-            bidang = data.get('bidang_pelayanan', '').lower()
-            gelar_depan = data.get('gelar_depan', '').lower()
-            gelar_belakang = data.get('gelar_belakang', '').lower()
-            status_klerus = data.get('status_klerus', '').lower()
+            # Cari di berbagai field - handle None values
+            nama_lengkap = (data.get('nama_lengkap') or '').lower()
+            jabatan = (data.get('jabatan_utama') or '').lower()
+            wilayah = (data.get('wilayah_rohani') or '').lower()
+            bidang = (data.get('bidang_pelayanan') or '').lower()
+            gelar_depan = (data.get('gelar_depan') or '').lower()
+            gelar_belakang = (data.get('gelar_belakang') or '').lower()
+            status_klerus = (data.get('status_klerus') or '').lower()
             
             if (search_lower in nama_lengkap or 
                 search_lower in jabatan or 
@@ -550,10 +607,14 @@ class StrukturComponent(QWidget):
     
     def clear_search(self):
         """Clear search dan tampilkan semua data"""
-        if hasattr(self, 'original_struktur_data'):
+        if hasattr(self, 'original_struktur_data') and self.original_struktur_data is not None:
             self.struktur_data = self.original_struktur_data
             self.original_struktur_data = None
             self.populate_views()
+        elif not hasattr(self, 'struktur_data') or self.struktur_data is None:
+            # Reload data if struktur_data is None
+            self.struktur_data = []
+            self.load_data()
         self.search_input.clear()
 
     def add_struktur(self):
@@ -810,7 +871,7 @@ class StrukturComponent(QWidget):
                     background-color: #7f8c8d;
                 }
             """)
-            close_button.clicked.connect(dialog.close)
+            close_button.clicked.connect(dialog.close)  # type: ignore
             layout.addWidget(close_button)
             
             dialog.exec_()

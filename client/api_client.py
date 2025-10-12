@@ -9,9 +9,9 @@ from datetime import datetime
 
 load_dotenv()
 
-# Prioritaskan localhost untuk development, fallback ke remote
-BASE_URL = os.getenv('API_BASE_URL', 'http://localhost:8000')  # Ganti ke port server Anda
-REMOTE_URL = 'https://enternal.my.id/flask'  # Backup URL
+# Prioritaskan remote server untuk production, fallback ke localhost untuk development
+BASE_URL = os.getenv('API_BASE_URL', 'https://enternal.my.id/flask')  # Server production
+REMOTE_URL = 'https://enternal.my.id/flask'  # Production URL
 
 class ApiClient:
     
@@ -30,13 +30,13 @@ class ApiClient:
     
     def _detect_best_server(self):
         """Auto-detect apakah menggunakan localhost atau remote server"""
-        # List server untuk dicoba
+        # List server untuk dicoba - prioritaskan production server
         servers_to_try = [
+            'https://enternal.my.id/flask',  # Production server (prioritas utama)
+            'http://localhost:5000',  # Flask default local
             'http://localhost:8000',  # Server HTTP lokal
-            'http://localhost:5000',  # Flask default
             'http://localhost:3000',  # Express default
-            'http://127.0.0.1:8000',  # IPv4 localhost
-            self.remote_url  # Remote server sebagai fallback
+            'http://127.0.0.1:5000',  # IPv4 localhost Flask
         ]
         
         print("Mencari server yang tersedia...")
@@ -270,7 +270,9 @@ class ApiClient:
             result = response.json()
             
             if result.get('status') == 'success':
-                self.user_data = result.get('user')
+                user_data = result.get('user')
+                if user_data:
+                    self.user_data = user_data
             
             return {"success": True, "data": result}
         except requests.exceptions.RequestException as e:
@@ -278,20 +280,221 @@ class ApiClient:
     
     def get_jemaat(self):
         try:
-            response = requests.get(f"{self.base_url}/jemaat", timeout=self.timeout)
+            if not self.user_data:
+                return {"success": False, "data": "User not logged in"}
+
+            user_id = self.user_data.get('id_pengguna')
+            if not user_id:
+                return {"success": False, "data": "User ID not found"}
+
+            params = {'user_id': user_id}
+            response = requests.get(f"{self.base_url}/jemaat/my", params=params, timeout=self.timeout)
             response.raise_for_status()
             return {"success": True, "data": response.json()}
         except requests.exceptions.RequestException as e:
             return {"success": False, "data": f"Gagal mengambil data jemaat: {e}"}
     
-    def get_kegiatan(self):
+    def add_jemaat(self, jemaat_data):
         try:
-            response = requests.get(f"{self.base_url}/kegiatan", timeout=self.timeout)
+            data = jemaat_data.copy()
+            if self.user_data:
+                data['user_id'] = self.user_data.get('id_pengguna')
+            
+            response = requests.post(f"{self.base_url}/jemaat", 
+                                   json=data, 
+                                   timeout=self.timeout,
+                                   headers={'Content-Type': 'application/json'})
+            response.raise_for_status()
+            return {"success": True, "data": response.json()}
+        except requests.exceptions.RequestException as e:
+            return {"success": False, "data": f"Gagal menambah data jemaat: {e}"}
+    
+    def update_jemaat(self, jemaat_id, jemaat_data):
+        try:
+            response = requests.put(f"{self.base_url}/jemaat/{jemaat_id}", 
+                                  json=jemaat_data, 
+                                  timeout=self.timeout,
+                                  headers={'Content-Type': 'application/json'})
+            response.raise_for_status()
+            return {"success": True, "data": response.json()}
+        except requests.exceptions.RequestException as e:
+            return {"success": False, "data": f"Gagal update data jemaat: {e}"}
+    
+    def delete_jemaat(self, jemaat_id):
+        try:
+            response = requests.delete(f"{self.base_url}/jemaat/{jemaat_id}", timeout=self.timeout)
+            response.raise_for_status()
+            return {"success": True, "data": response.json()}
+        except requests.exceptions.RequestException as e:
+            return {"success": False, "data": f"Gagal hapus data jemaat: {e}"}
+    
+    def get_my_kegiatan(self):
+        """Get kegiatan for current user only (user-specific endpoint)"""
+        try:
+            if not self.user_data:
+                return {"success": False, "data": "User not logged in"}
+
+            user_id = self.user_data.get('id_pengguna')
+            params = {'user_id': user_id}
+
+            response = requests.get(f"{self.base_url}/kegiatan/my", params=params, timeout=self.timeout)
             response.raise_for_status()
             return {"success": True, "data": response.json()}
         except requests.exceptions.RequestException as e:
             return {"success": False, "data": f"Gagal mengambil data kegiatan: {e}"}
-    
+
+    def get_kegiatan(self):
+        """Get kegiatan for current user (legacy - uses filter)"""
+        try:
+            if not self.user_data:
+                return {"success": False, "data": "User not logged in"}
+
+            user_id = self.user_data.get('id_pengguna')
+            params = {'user_id': user_id}
+
+            response = requests.get(f"{self.base_url}/kegiatan", params=params, timeout=self.timeout)
+            response.raise_for_status()
+            return {"success": True, "data": response.json()}
+        except requests.exceptions.RequestException as e:
+            return {"success": False, "data": f"Gagal mengambil data kegiatan: {e}"}
+
+    def add_kegiatan(self, data):
+        """Add new kegiatan for current user"""
+        try:
+            if not self.user_data:
+                return {"success": False, "data": "User not logged in"}
+
+            # Add user_id to data
+            data['user_id'] = self.user_data.get('id_pengguna')
+            data['dibuat_oleh'] = self.user_data.get('username')
+
+            # Debug logging
+            print(f"[DEBUG] Sending kegiatan data: {data}")
+            print(f"[DEBUG] URL: {self.base_url}/kegiatan")
+
+            response = requests.post(f"{self.base_url}/kegiatan",
+                                   json=data,
+                                   timeout=self.timeout,
+                                   headers={'Content-Type': 'application/json'})
+
+            # Debug response
+            print(f"[DEBUG] Response status: {response.status_code}")
+            print(f"[DEBUG] Response text: {response.text}")
+
+            response.raise_for_status()
+            result = response.json()
+            return {"success": True, "data": result}
+        except requests.exceptions.HTTPError as e:
+            # Handle HTTP errors (4xx, 5xx)
+            error_msg = f"HTTP Error {e.response.status_code}"
+            try:
+                error_detail = e.response.json()
+                error_msg += f": {error_detail.get('message', e.response.text)}"
+            except:
+                error_msg += f": {e.response.text}"
+            print(f"[ERROR] {error_msg}")
+            return {"success": False, "data": error_msg}
+        except requests.exceptions.RequestException as e:
+            error_msg = f"Gagal menambahkan kegiatan: {e}"
+            print(f"[ERROR] {error_msg}")
+            return {"success": False, "data": error_msg}
+        except Exception as e:
+            error_msg = f"Error tidak terduga: {e}"
+            print(f"[ERROR] {error_msg}")
+            return {"success": False, "data": error_msg}
+
+    def update_kegiatan(self, kegiatan_id, data):
+        """Update kegiatan"""
+        try:
+            if not self.user_data:
+                return {"success": False, "data": "User not logged in"}
+
+            response = requests.put(f"{self.base_url}/kegiatan/{kegiatan_id}", json=data, timeout=self.timeout)
+            response.raise_for_status()
+            return {"success": True, "data": response.json()}
+        except requests.exceptions.RequestException as e:
+            return {"success": False, "data": f"Gagal update kegiatan: {e}"}
+
+    def delete_kegiatan(self, kegiatan_id):
+        """Delete kegiatan"""
+        try:
+            if not self.user_data:
+                return {"success": False, "data": "User not logged in"}
+
+            response = requests.delete(f"{self.base_url}/kegiatan/{kegiatan_id}", timeout=self.timeout)
+            response.raise_for_status()
+            return {"success": True, "data": response.json()}
+        except requests.exceptions.RequestException as e:
+            return {"success": False, "data": f"Gagal hapus kegiatan: {e}"}
+
+    # Kegiatan WR Methods
+    def get_my_kegiatan_wr(self):
+        """Get kegiatan WR for current user only"""
+        try:
+            if not self.user_data:
+                return {"success": False, "data": "User not logged in"}
+
+            user_id = self.user_data.get('id_pengguna')
+            params = {'user_id': user_id}
+
+            response = requests.get(f"{self.base_url}/kegiatan-wr/my", params=params, timeout=self.timeout)
+            response.raise_for_status()
+            return {"success": True, "data": response.json()}
+        except requests.exceptions.RequestException as e:
+            return {"success": False, "data": f"Gagal mengambil data kegiatan WR: {e}"}
+
+    def add_kegiatan_wr(self, data):
+        """Add new kegiatan WR for current user"""
+        try:
+            if not self.user_data:
+                return {"success": False, "data": "User not logged in"}
+
+            # Add user_id to data
+            data['user_id'] = self.user_data.get('id_pengguna')
+
+            response = requests.post(f"{self.base_url}/kegiatan-wr",
+                                   json=data,
+                                   timeout=self.timeout,
+                                   headers={'Content-Type': 'application/json'})
+
+            response.raise_for_status()
+            result = response.json()
+            return {"success": True, "data": result}
+        except requests.exceptions.HTTPError as e:
+            error_msg = f"HTTP Error {e.response.status_code}"
+            try:
+                error_detail = e.response.json()
+                error_msg += f": {error_detail.get('message', e.response.text)}"
+            except:
+                error_msg += f": {e.response.text}"
+            return {"success": False, "data": error_msg}
+        except requests.exceptions.RequestException as e:
+            return {"success": False, "data": f"Gagal menambahkan kegiatan WR: {e}"}
+
+    def update_kegiatan_wr(self, kegiatan_id, data):
+        """Update kegiatan WR"""
+        try:
+            if not self.user_data:
+                return {"success": False, "data": "User not logged in"}
+
+            response = requests.put(f"{self.base_url}/kegiatan-wr/{kegiatan_id}", json=data, timeout=self.timeout)
+            response.raise_for_status()
+            return {"success": True, "data": response.json()}
+        except requests.exceptions.RequestException as e:
+            return {"success": False, "data": f"Gagal update kegiatan WR: {e}"}
+
+    def delete_kegiatan_wr(self, kegiatan_id):
+        """Delete kegiatan WR"""
+        try:
+            if not self.user_data:
+                return {"success": False, "data": "User not logged in"}
+
+            response = requests.delete(f"{self.base_url}/kegiatan-wr/{kegiatan_id}", timeout=self.timeout)
+            response.raise_for_status()
+            return {"success": True, "data": response.json()}
+        except requests.exceptions.RequestException as e:
+            return {"success": False, "data": f"Gagal hapus kegiatan WR: {e}"}
+
     def get_pengumuman(self):
         try:
             response = requests.get(f"{self.base_url}/pengumuman?active_only=true", timeout=self.timeout)
@@ -299,14 +502,87 @@ class ApiClient:
             return {"success": True, "data": response.json()}
         except requests.exceptions.RequestException as e:
             return {"success": False, "data": f"Gagal mengambil data pengumuman: {e}"}
-    
+
+    def add_pengumuman(self, data):
+        try:
+            response = requests.post(f"{self.base_url}/pengumuman", json=data, timeout=self.timeout)
+            response.raise_for_status()
+            return {"success": True, "data": response.json()}
+        except requests.exceptions.RequestException as e:
+            return {"success": False, "data": f"Gagal menambahkan pengumuman: {e}"}
+
+    def update_pengumuman(self, pengumuman_id, data):
+        try:
+            response = requests.put(f"{self.base_url}/pengumuman/{pengumuman_id}", json=data, timeout=self.timeout)
+            response.raise_for_status()
+            return {"success": True, "data": response.json()}
+        except requests.exceptions.RequestException as e:
+            return {"success": False, "data": f"Gagal update pengumuman: {e}"}
+
+    def delete_pengumuman(self, pengumuman_id):
+        try:
+            response = requests.delete(f"{self.base_url}/pengumuman/{pengumuman_id}", timeout=self.timeout)
+            response.raise_for_status()
+            return {"success": True, "data": response.json()}
+        except requests.exceptions.RequestException as e:
+            return {"success": False, "data": f"Gagal hapus pengumuman: {e}"}
+
     def get_keuangan(self):
         try:
-            response = requests.get(f"{self.base_url}/keuangan", timeout=self.timeout)
+            if not self.user_data:
+                return {"success": False, "data": "User not logged in"}
+
+            user_id = self.user_data.get('id_pengguna')
+            if not user_id:
+                return {"success": False, "data": "User ID not found"}
+
+            params = {'user_id': user_id}
+            response = requests.get(f"{self.base_url}/keuangan/my", params=params, timeout=self.timeout)
             response.raise_for_status()
             return {"success": True, "data": response.json()}
         except requests.exceptions.RequestException as e:
             return {"success": False, "data": f"Gagal mengambil data keuangan: {e}"}
+    
+    def add_keuangan(self, keuangan_data):
+        try:
+            data = {
+                'tanggal': keuangan_data.get('tanggal'),
+                'kategori': keuangan_data.get('jenis'),
+                'sub_kategori': keuangan_data.get('kategori'),
+                'deskripsi': keuangan_data.get('keterangan'),
+                'jumlah': keuangan_data.get('jumlah'),
+                'keterangan': keuangan_data.get('keterangan')
+            }
+            if self.user_data:
+                data['user_id'] = self.user_data.get('id_pengguna')
+
+            response = requests.post(f"{self.base_url}/keuangan",
+                                   json=data,
+                                   timeout=self.timeout,
+                                   headers={'Content-Type': 'application/json'})
+            response.raise_for_status()
+            return {"success": True, "data": response.json()}
+        except requests.exceptions.RequestException as e:
+            return {"success": False, "data": f"Gagal menambah data keuangan: {e}"}
+    
+    def update_keuangan(self, keuangan_id, keuangan_data):
+        try:
+            response = requests.put(f"{self.base_url}/keuangan/{keuangan_id}", 
+                                  json=keuangan_data, 
+                                  timeout=self.timeout,
+                                  headers={'Content-Type': 'application/json'})
+            response.raise_for_status()
+            return {"success": True, "data": response.json()}
+        except requests.exceptions.RequestException as e:
+            return {"success": False, "data": f"Gagal update data keuangan: {e}"}
+    
+    def delete_keuangan(self, keuangan_id):
+        try:
+            response = requests.delete(f"{self.base_url}/keuangan/{keuangan_id}", timeout=self.timeout)
+            response.raise_for_status()
+            return {"success": True, "data": response.json()}
+        except requests.exceptions.RequestException as e:
+            return {"success": False, "data": f"Gagal hapus data keuangan: {e}"}
     
     def upload_file(self, file_path, kategori="Lainnya", keterangan=""):
         try:

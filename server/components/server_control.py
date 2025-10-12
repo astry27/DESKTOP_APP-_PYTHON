@@ -4,13 +4,13 @@ import datetime
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGroupBox,
                             QFormLayout, QPushButton, QLabel, QTableWidget,
                             QTableWidgetItem, QHeaderView, QTextEdit, QMessageBox,
-                            QInputDialog, QFileDialog, QAbstractItemView, QFrame)
+                            QInputDialog, QFileDialog, QAbstractItemView, QFrame, QSizePolicy)
 from PyQt5.QtCore import pyqtSignal, QTimer, QSize, Qt
 from PyQt5.QtGui import QColor, QIcon
 
 class ServerControlComponent(QWidget):
     
-    log_message = pyqtSignal(str)
+    log_message: pyqtSignal = pyqtSignal(str)  # type: ignore
     visibility_changed = pyqtSignal(bool)  # Signal for layout visibility change
     
     def __init__(self, parent=None):
@@ -24,7 +24,14 @@ class ServerControlComponent(QWidget):
         self.status_timer = QTimer()
         self.status_timer.timeout.connect(self.auto_refresh_status)
         self.status_timer.start(10000)  # Cek setiap 10 detik
-    
+
+    def closeEvent(self, event):
+        """Handle close event to stop timer"""
+        if hasattr(self, 'status_timer') and self.status_timer:
+            self.status_timer.stop()
+            self.status_timer.deleteLater()
+        event.accept()
+
     def set_database_manager(self, database_manager):
         self.database_manager = database_manager
         self.auto_refresh_status()
@@ -141,24 +148,16 @@ class ServerControlComponent(QWidget):
         # Client Table with professional styling
         client_group = QGroupBox("Client Terhubung")
         client_layout = QVBoxLayout(client_group)
-        
-        # Table view untuk daftar client with proper container
-        table_container = QFrame()
-        table_container.setStyleSheet("""
-            QFrame {
-                border: 1px solid #d0d0d0;
-                background-color: white;
-                margin: 0px;
-            }
-        """)
-        table_layout = QVBoxLayout(table_container)
-        table_layout.setContentsMargins(0, 0, 0, 0)
-        table_layout.setSpacing(0)
-        
+        client_layout.setContentsMargins(8, 8, 8, 8)  # Proper margins
+        client_layout.setSpacing(4)
+
+        # Create table directly without extra container for better space utilization
         self.client_table = self.create_professional_table()
-        table_layout.addWidget(self.client_table)
-        
-        client_layout.addWidget(table_container)
+
+        # Ensure table fills available space
+        self.client_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
+        client_layout.addWidget(self.client_table)
         
         # Log Section
         log_group = QGroupBox("Log Aktivitas")
@@ -238,18 +237,25 @@ class ServerControlComponent(QWidget):
         """Create table with professional styling."""
         table = QTableWidget(0, 5)
         table.setHorizontalHeaderLabels(["IP Address", "Hostname", "Waktu Koneksi", "Terakhir Aktif", "Status"])
-        
+
         # Apply professional table styling
         self.apply_professional_table_style(table)
-        
-        # Set specific column widths
-        column_widths = [120, 150, 130, 120, 100]  # Total: 620px
-        for i, width in enumerate(column_widths):
-            table.setColumnWidth(i, width)
-        
-        # Set minimum table width to sum of all columns
-        table.setMinimumWidth(sum(column_widths) + 50)  # Add padding for scrollbar
-        
+
+        # Set initial column widths with better proportions for full layout
+        table.setColumnWidth(0, 120)   # IP Address
+        table.setColumnWidth(1, 180)   # Hostname - wider for content
+        table.setColumnWidth(2, 150)   # Waktu Koneksi
+        table.setColumnWidth(3, 150)   # Terakhir Aktif
+        table.setColumnWidth(4, 100)   # Status
+
+        # Excel-like column resizing - all columns can be resized
+        header = table.horizontalHeader()
+        header.setSectionResizeMode(QHeaderView.Interactive)  # All columns resizable
+        header.setStretchLastSection(True)  # Last column stretches to fill space
+
+        # Connect double click to show client details (future enhancement)
+        # table.itemDoubleClicked.connect(self.show_client_details)
+
         return table
         
     def apply_professional_table_style(self, table):
@@ -301,10 +307,8 @@ class ServerControlComponent(QWidget):
             }
         """)
 
-        # Excel-style table settings
+        # Excel-style table settings (matching program_kerja.py exactly)
         header = table.horizontalHeader()
-        header.setSectionResizeMode(QHeaderView.Interactive)  # Allow column resizing
-        header.setStretchLastSection(False)  # Don't stretch last column
         header.setMinimumSectionSize(50)
         header.setDefaultSectionSize(80)
         # Allow adjustable header height - removed setMaximumHeight constraint
@@ -315,8 +319,8 @@ class ServerControlComponent(QWidget):
         table.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
         table.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
 
-        # Excel-style row settings
-        table.verticalHeader().setDefaultSectionSize(20)  # Thin rows like Excel
+        # Excel-style row settings with better content visibility
+        table.verticalHeader().setDefaultSectionSize(22)  # Slightly taller for client data
         table.setSelectionBehavior(QAbstractItemView.SelectItems)  # Select individual cells
         table.setAlternatingRowColors(False)
         table.verticalHeader().setVisible(True)  # Show row numbers like Excel
@@ -342,14 +346,18 @@ class ServerControlComponent(QWidget):
         table.setEditTriggers(QAbstractItemView.DoubleClicked | QAbstractItemView.EditKeyPressed)
         table.setSelectionMode(QAbstractItemView.ExtendedSelection)
 
-        # Set compact size for Excel look
-        table.setMinimumHeight(150)
+        # Set to fill available space
+        table.setMinimumHeight(200)
         table.setSizeAdjustPolicy(QAbstractItemView.AdjustToContents)
 
     def auto_refresh_status(self):
         """Auto refresh status API dan client yang terhubung"""
-        self.check_api_status()
-        self.load_connected_clients()
+        try:
+            self.check_api_status()
+            self.load_connected_clients()
+        except Exception:
+            # Silently ignore errors during auto-refresh to prevent warnings
+            pass
     
     def check_api_status(self):
         """Cek status API shared hosting"""

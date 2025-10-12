@@ -23,11 +23,11 @@ class ApiClient:
         # Setup session with retry strategy
         self.session = requests.Session()
         
-        # Retry strategy
+        # Retry strategy - reduced to avoid "too many retries" error
         retry_strategy = Retry(
-            total=3,  # Total retry attempts
-            backoff_factor=1,  # Wait time between retries
-            status_forcelist=[429, 500, 502, 503, 504],  # HTTP status codes to retry
+            total=1,  # Reduced retry attempts
+            backoff_factor=0.5,  # Shorter wait time
+            status_forcelist=[502, 503, 504],  # Remove 500 from retry list
             allowed_methods=["HEAD", "GET", "POST", "PUT", "DELETE", "OPTIONS", "TRACE"]
         )
         
@@ -37,7 +37,7 @@ class ApiClient:
     
     def _make_request(self, method, url, **kwargs):
         """Make HTTP request with improved error handling"""
-        for attempt in range(3):
+        for attempt in range(2):  # Reduced from 3 to 2
             try:
                 if method.upper() == 'GET':
                     response = self.session.get(url, timeout=self.timeout, **kwargs)
@@ -118,6 +118,27 @@ class ApiClient:
     def test_database(self):
         return self._make_request('GET', f"{self.base_url}/test-db")
     
+    # ========== USER MANAGEMENT METHODS ==========
+    def get_users(self):
+        """Get list of all admin users"""
+        return self._make_request('GET', f"{self.base_url}/admin/list-users")
+    
+    def create_user(self, user_data):
+        """Create new admin user"""
+        return self._make_request('POST', f"{self.base_url}/admin/create-user", 
+                               json=user_data, 
+                               headers={'Content-Type': 'application/json'})
+    
+    def update_user(self, user_id, user_data):
+        """Update existing admin user"""
+        return self._make_request('PUT', f"{self.base_url}/admin/update-user/{user_id}", 
+                               json=user_data, 
+                               headers={'Content-Type': 'application/json'})
+    
+    def delete_user(self, user_id):
+        """Delete admin user"""
+        return self._make_request('DELETE', f"{self.base_url}/admin/users/{user_id}")
+    
     # ========== JEMAAT METHODS ==========
     def get_jemaat(self):
         return self._make_request('GET', f"{self.base_url}/jemaat")
@@ -151,7 +172,11 @@ class ApiClient:
     
     def delete_kegiatan(self, kegiatan_id):
         return self._make_request('DELETE', f"{self.base_url}/kegiatan/{kegiatan_id}")
-    
+
+    def get_kegiatan_wr(self):
+        """Get all kegiatan WR from clients with user information"""
+        return self._make_request('GET', f"{self.base_url}/kegiatan-wr")
+
     # ========== PENGUMUMAN METHODS ==========
     def get_pengumuman(self):
         return self._make_request('GET', f"{self.base_url}/pengumuman")
@@ -171,7 +196,8 @@ class ApiClient:
     
     # ========== KEUANGAN METHODS ==========
     def get_keuangan(self):
-        return self._make_request('GET', f"{self.base_url}/keuangan")
+        # Server admin request - tambahkan parameter is_admin=true untuk mendapatkan semua data dengan user info
+        return self._make_request('GET', f"{self.base_url}/keuangan?is_admin=true&limit=1000")
     
     def add_keuangan(self, data):
         return self._make_request('POST', f"{self.base_url}/keuangan", 
@@ -310,3 +336,97 @@ class ApiClient:
     
     def delete_struktur(self, struktur_id):
         return self._make_request('DELETE', f"{self.base_url}/struktur/{struktur_id}")
+    
+    def upload_struktur_photo(self, struktur_id, photo_path):
+        """Upload foto untuk struktur yang sudah ada"""
+        try:
+            with open(photo_path, 'rb') as photo_file:
+                files = {'photo': photo_file}
+                response = self.session.post(
+                    f"{self.base_url}/struktur/{struktur_id}/upload-photo",
+                    files=files,
+                    timeout=self.timeout
+                )
+                response.raise_for_status()
+                return {"success": True, "data": response.json()}
+        except Exception as e:
+            return {"success": False, "data": f"Error upload foto: {str(e)}"}
+    
+    def upload_struktur_photo_new(self, photo_path):
+        """Upload foto untuk struktur baru"""
+        try:
+            with open(photo_path, 'rb') as photo_file:
+                files = {'photo': photo_file}
+                response = self.session.post(
+                    f"{self.base_url}/struktur/upload-photo",
+                    files=files,
+                    timeout=self.timeout
+                )
+                response.raise_for_status()
+                return {"success": True, "data": response.json()}
+        except Exception as e:
+            return {"success": False, "data": f"Error upload foto: {str(e)}"}
+    
+    # ========== INVENTARIS METHODS ==========
+    def get_inventaris(self):
+        return self._make_request('GET', f"{self.base_url}/inventaris")
+    
+    def add_inventaris(self, data):
+        return self._make_request('POST', f"{self.base_url}/inventaris", 
+                               json=data, 
+                               headers={'Content-Type': 'application/json'})
+    
+    def update_inventaris(self, inventaris_id, data):
+        return self._make_request('PUT', f"{self.base_url}/inventaris/{inventaris_id}", 
+                              json=data, 
+                              headers={'Content-Type': 'application/json'})
+    
+    def delete_inventaris(self, inventaris_id):
+        return self._make_request('DELETE', f"{self.base_url}/inventaris/{inventaris_id}")
+    
+    # ========== PROGRAM KERJA METHODS ==========
+    def get_program_kerja(self, search=None, month=None, year=None):
+        """Get program kerja list with optional filters"""
+        params = {}
+        if search:
+            params['search'] = search
+        if month:
+            params['month'] = month
+        if year:
+            params['year'] = year
+        
+        query_string = '&'.join([f'{k}={v}' for k, v in params.items()])
+        url = f"{self.base_url}/program-kerja"
+        if query_string:
+            url += f"?{query_string}"
+        
+        return self._make_request('GET', url)
+    
+    def add_program_kerja(self, data):
+        """Add new program kerja"""
+        return self._make_request('POST', f"{self.base_url}/program-kerja", 
+                               json=data, 
+                               headers={'Content-Type': 'application/json'})
+    
+    def update_program_kerja(self, program_id, data):
+        """Update program kerja"""
+        return self._make_request('PUT', f"{self.base_url}/program-kerja/{program_id}", 
+                              json=data, 
+                              headers={'Content-Type': 'application/json'})
+    
+    def delete_program_kerja(self, program_id):
+        """Delete program kerja"""
+        return self._make_request('DELETE', f"{self.base_url}/program-kerja/{program_id}")
+    
+    def get_program_statistics(self):
+        """Get program kerja statistics"""
+        return self._make_request('GET', f"{self.base_url}/program-kerja/statistics")
+    
+    def get_inventaris_statistics(self):
+        return self._make_request('GET', f"{self.base_url}/inventaris/statistics")
+    
+    def get_inventaris_categories(self):
+        return self._make_request('GET', f"{self.base_url}/inventaris/kategori")
+    
+    def get_inventaris_locations(self):
+        return self._make_request('GET', f"{self.base_url}/inventaris/lokasi")

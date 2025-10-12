@@ -10,6 +10,7 @@ import time
 import traceback
 import requests
 import json
+from typing import Optional
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                             QHBoxLayout, QLabel, QPushButton, QTextEdit,
                             QStatusBar, QMessageBox, QLineEdit, QFormLayout,
@@ -210,13 +211,17 @@ class ClientWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("Client Gereja Katolik")
         self.setMinimumSize(800, 600)
-        self.client_thread = None
-        
+
+        # Initialize client thread with type annotation
+        self.client_thread: Optional[ClientThread] = None
+
+        # Initialize status bar early with type annotation
+        self.statusBar: QStatusBar = QStatusBar()
+
         # Setup UI
         self.setup_ui()
-        
-        # Status bar
-        self.statusBar = QStatusBar()
+
+        # Set status bar
         self.setStatusBar(self.statusBar)
         self.statusBar.showMessage("Belum terhubung ke server")
     
@@ -453,8 +458,13 @@ class ClientWindow(QMainWindow):
                 app = QApplication.instance()
                 app.processEvents()
                 self.file_progress.setValue(i)
-            
+
             # Sebenarnya upload file
+            if self.client_thread is None:
+                self.log_message("Error: Client thread tidak tersedia")
+                self.file_progress.setVisible(False)
+                return
+
             success, message = self.client_thread.upload_file(filepath)
             
             # Update UI

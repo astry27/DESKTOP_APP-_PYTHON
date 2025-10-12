@@ -6,7 +6,8 @@ from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushBut
                            QListWidgetItem, QGroupBox, QScrollArea, QMessageBox, 
                            QDialog, QFormLayout, QLineEdit, QTextEdit as QTextEditDialog, 
                            QDateEdit, QDialogButtonBox, QComboBox, QSpinBox, QTabWidget,
-                           QTableWidget, QTableWidgetItem, QHeaderView, QAbstractItemView)
+                           QTableWidget, QTableWidgetItem, QHeaderView, QAbstractItemView,
+                           QFileDialog, QMenu)
 from PyQt5.QtCore import Qt, QDate, pyqtSignal, QTimer, QSize
 from PyQt5.QtGui import QFont, QPalette, QColor, QTextCharFormat, QBrush, QIcon
 import datetime
@@ -76,8 +77,8 @@ class WorkProgramDialog(QDialog):
         button_box = QDialogButtonBox(
             QDialogButtonBox.Ok | QDialogButtonBox.Cancel
         )
-        button_box.accepted.connect(self.accept)
-        button_box.rejected.connect(self.reject)
+        button_box.accepted.connect(self.accept)  # type: ignore
+        button_box.rejected.connect(self.reject)  # type: ignore
         layout.addWidget(button_box)
     
     def load_data(self):
@@ -122,9 +123,9 @@ class WorkProgramDialog(QDialog):
 
 class KalenderKerjaWidget(QWidget):
     """Widget untuk tab Kalender Kerja"""
-    
+
     data_updated = pyqtSignal()
-    log_message = pyqtSignal(str)
+    log_message: pyqtSignal = pyqtSignal(str)  # type: ignore
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -175,6 +176,26 @@ class KalenderKerjaWidget(QWidget):
         layout.addLayout(action_layout, 0)  # No stretch for action buttons
 
         return widget
+    
+    def create_action_buttons(self):
+        """Create action buttons layout"""
+        action_layout = QHBoxLayout()
+        action_layout.setContentsMargins(0, 5, 0, 5)
+        
+        # Edit button
+        edit_button = self.create_button("Edit Program", "#3498db", self.edit_program)
+        action_layout.addWidget(edit_button)
+        
+        # Delete button  
+        delete_button = self.create_button("Hapus Program", "#c0392b", self.delete_program)
+        action_layout.addWidget(delete_button)
+        
+        # Export button
+        export_button = self.create_button("Export CSV", "#f39c12", self.export_program)
+        action_layout.addWidget(export_button)
+        
+        action_layout.addStretch()
+        return action_layout
     
     def create_header(self):
         """Buat header dengan kontrol (matching jadwal.py style)"""
@@ -306,11 +327,13 @@ class KalenderKerjaWidget(QWidget):
                 font-family: 'Calibri', 'Segoe UI', Arial, sans-serif;
                 font-size: 9pt;
                 outline: none;
+                color: black;
             }
             QTableWidget::item {
                 border: none;
                 padding: 4px 6px;
                 min-height: 18px;
+                color: black;
             }
             QTableWidget::item:selected {
                 background-color: #cce7ff;
@@ -319,6 +342,7 @@ class KalenderKerjaWidget(QWidget):
             QTableWidget::item:focus {
                 border: 2px solid #0078d4;
                 background-color: white;
+                color: black;
             }
         """)
 
@@ -380,9 +404,6 @@ class KalenderKerjaWidget(QWidget):
         export_button = self.create_button("Export Program", "#16a085", self.export_program, "server/assets/export.png")
         action_layout.addWidget(export_button)
         
-        refresh_button = self.create_button("Refresh", "#8e44ad", self.load_data, "server/assets/refresh.png")
-        action_layout.addWidget(refresh_button)
-        
         return action_layout
     
     def create_button(self, text, color, slot, icon_path=None):
@@ -433,7 +454,6 @@ class KalenderKerjaWidget(QWidget):
         if self.program_table.rowCount() == 0:
             return
             
-        from PyQt5.QtWidgets import QMenu
         menu = QMenu()
         
         edit_action = menu.addAction("Edit")
@@ -559,58 +579,6 @@ class KalenderKerjaWidget(QWidget):
             self.filter_programs()
     
     
-    def add_work_program(self):
-        """Add new work program"""
-        dialog = WorkProgramDialog(self)
-        if dialog.exec_() == dialog.Accepted:
-            data = dialog.get_data()
-            
-            # Validation
-            if not data['title']:
-                QMessageBox.warning(self, "Error", "Judul program harus diisi")
-                return
-            
-            # Add to local data (in real app, save to database)
-            new_program = data.copy()
-            new_program['id'] = max([p.get('id', 0) for p in self.work_programs] + [0]) + 1
-            
-            self.work_programs.append(new_program)
-            
-            # Update UI
-            self.filter_programs()  # Use filtered approach
-            
-            self.log_message.emit(f"Program kerja baru ditambahkan: {data['title']}")
-            self.data_updated.emit()
-    
-    def edit_program(self):
-        """Edit selected program"""
-        current_row = self.program_table.currentRow()
-        if current_row < 0:
-            QMessageBox.warning(self, "Warning", "Pilih program yang akan diedit")
-            return
-        
-        date_item = self.program_table.item(current_row, 0)
-        if not date_item or not date_item.data(Qt.UserRole):
-            QMessageBox.warning(self, "Warning", "Data program tidak valid")
-            return
-        
-        program = date_item.data(Qt.UserRole)
-        dialog = WorkProgramDialog(self, program)
-        
-        if dialog.exec_() == dialog.Accepted:
-            data = dialog.get_data()
-            
-            # Update program data
-            for i, p in enumerate(self.work_programs):
-                if p.get('id') == program.get('id'):
-                    self.work_programs[i].update(data)
-                    break
-            
-            # Update UI
-            self.filter_programs()  # Use filtered approach
-            
-            self.log_message.emit(f"Program kerja diupdate: {data['title']}")
-            self.data_updated.emit()
     
     def delete_program(self):
         """Delete selected program"""
@@ -633,14 +601,108 @@ class KalenderKerjaWidget(QWidget):
                                    QMessageBox.No)
         
         if reply == QMessageBox.Yes:
-            # Remove from data
-            self.work_programs = [p for p in self.work_programs if p.get('id') != program.get('id')]
-            
-            # Update UI
-            self.filter_programs()  # Use filtered approach
-            
-            self.log_message.emit(f"Program kerja dihapus: {title}")
-            self.data_updated.emit()
+            try:
+                # Delete from database if available
+                if self.db_manager and program.get('id'):
+                    success, result = self.db_manager.delete_program_kerja(program['id'])
+                    if success:
+                        # Reload data from database
+                        self.load_data()
+                        self.log_message.emit(f"Program kerja berhasil dihapus: {title}")
+                        self.data_updated.emit()
+                    else:
+                        QMessageBox.critical(self, "Error", f"Gagal hapus program dari database: {result}")
+                else:
+                    # Fallback to local storage
+                    self.work_programs = [p for p in self.work_programs if p.get('id') != program.get('id')]
+                    self.filter_programs()
+                    self.log_message.emit(f"Program kerja dihapus (lokal): {title}")
+                    self.data_updated.emit()
+                    
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Gagal hapus program: {str(e)}")
+    
+    def add_work_program(self):
+        """Add new work program"""
+        try:
+            dialog = WorkProgramDialog(self)
+            if dialog.exec_() == dialog.Accepted:
+                data = dialog.get_data()
+                
+                # Validate required fields
+                if not data['title'].strip():
+                    QMessageBox.warning(self, "Warning", "Judul program tidak boleh kosong")
+                    return
+                
+                # Save to database if available
+                if self.db_manager:
+                    success, result = self.db_manager.add_program_kerja(data)
+                    if success:
+                        # Reload data from database
+                        self.load_data()
+                        self.log_message.emit(f"Program kerja berhasil ditambahkan: {data['title']}")
+                        self.data_updated.emit()
+                    else:
+                        QMessageBox.critical(self, "Error", f"Gagal menambah program ke database: {result}")
+                else:
+                    # Fallback to local storage
+                    import time
+                    data['id'] = int(time.time() * 1000)  # Use timestamp as ID
+                    self.work_programs.append(data)
+                    self.filter_programs()
+                    self.log_message.emit(f"Program kerja ditambahkan (lokal): {data['title']}")
+                    self.data_updated.emit()
+                    
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Gagal menambah program: {str(e)}")
+    
+    def edit_program(self):
+        """Edit selected program"""
+        current_row = self.program_table.currentRow()
+        if current_row < 0:
+            QMessageBox.warning(self, "Warning", "Pilih program yang akan diedit")
+            return
+        
+        date_item = self.program_table.item(current_row, 0)
+        if not date_item or not date_item.data(Qt.UserRole):
+            QMessageBox.warning(self, "Warning", "Data program tidak valid")
+            return
+        
+        program = date_item.data(Qt.UserRole)
+        
+        try:
+            dialog = WorkProgramDialog(self, program)
+            if dialog.exec_() == dialog.Accepted:
+                data = dialog.get_data()
+                
+                # Validate required fields
+                if not data['title'].strip():
+                    QMessageBox.warning(self, "Warning", "Judul program tidak boleh kosong")
+                    return
+                
+                # Update to database if available
+                if self.db_manager and program.get('id'):
+                    success, result = self.db_manager.update_program_kerja(program['id'], data)
+                    if success:
+                        # Reload data from database
+                        self.load_data()
+                        self.log_message.emit(f"Program kerja berhasil diupdate: {data['title']}")
+                        self.data_updated.emit()
+                    else:
+                        QMessageBox.critical(self, "Error", f"Gagal update program ke database: {result}")
+                else:
+                    # Fallback to local storage
+                    for i, p in enumerate(self.work_programs):
+                        if p.get('id') == program.get('id'):
+                            self.work_programs[i].update(data)
+                            break
+                    
+                    self.filter_programs()
+                    self.log_message.emit(f"Program kerja diupdate (lokal): {data['title']}")
+                    self.data_updated.emit()
+                    
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Gagal edit program: {str(e)}")
     
     def export_program(self):
         """Export program kerja ke CSV (matching jadwal.py functionality)"""
@@ -648,8 +710,6 @@ class KalenderKerjaWidget(QWidget):
             QMessageBox.warning(self, "Warning", "Tidak ada data program untuk diekspor.")
             return
 
-        from PyQt5.QtWidgets import QFileDialog
-        import csv
         
         filename, _ = QFileDialog.getSaveFileName(
             self, "Export Program Kerja", "program_kerja.csv", "CSV Files (*.csv)"
@@ -657,6 +717,7 @@ class KalenderKerjaWidget(QWidget):
         if not filename:
             return
 
+        import csv
         try:
             with open(filename, 'w', newline='', encoding='utf-8') as csvfile:
                 fieldnames = [
@@ -695,17 +756,37 @@ class KalenderKerjaWidget(QWidget):
             return
         
         try:
-            # TODO: Implement actual database loading when API is available
-            # For example: self.work_programs = self.db_manager.get_work_programs()
+            self.log_message.emit("Memuat data program kerja dari database...")
+            success, programs = self.db_manager.get_program_kerja_list()
             
-            self.log_message.emit("Memuat data kalender program kerja dari database...")
-            
-            # For now, use sample data until database methods are implemented
-            self.load_sample_data()
-            self.log_message.emit("Data kalender program kerja berhasil dimuat")
+            if success:
+                # Convert database format to UI format
+                self.work_programs = []
+                for program in programs:
+                    ui_data = {
+                        'id': program.get('id_program_kerja'),
+                        'date': program.get('tanggal'),
+                        'title': program.get('judul', ''),
+                        'target': program.get('sasaran', ''),
+                        'responsible': program.get('penanggung_jawab', ''),
+                        'budget_amount': program.get('anggaran', ''),
+                        'budget_source': program.get('sumber_anggaran', 'Kas Gereja'),
+                        'category': program.get('kategori', ''),
+                        'location': program.get('lokasi', ''),
+                        'description': program.get('deskripsi', ''),
+                        'time': program.get('waktu', ''),
+                        'status': program.get('status', 'Direncanakan')
+                    }
+                    self.work_programs.append(ui_data)
+                
+                self.filter_programs()  # Update UI
+                self.log_message.emit(f"Data program kerja berhasil dimuat: {len(self.work_programs)} program")
+            else:
+                self.log_message.emit(f"Gagal memuat data program kerja: {programs}")
+                self.load_sample_data()
             
         except Exception as e:
-            self.log_message.emit(f"Error loading calendar data: {str(e)}")
+            self.log_message.emit(f"Error loading program kerja data: {str(e)}")
             # Fallback to sample data
             self.load_sample_data()
     
@@ -713,23 +794,633 @@ class KalenderKerjaWidget(QWidget):
         """Get calendar data for other components"""
         return self.work_programs
 
-class ProgramKerjaComponent(QWidget):
-    """Komponen utama Program Kerja dengan 2 tab: Kalender Kerja dan Jadwal Kegiatan"""
-    
+class KegiatanWRWidget(QWidget):
+    """Widget untuk tab Kegiatan WR - menampilkan kegiatan dari client"""
+
     data_updated = pyqtSignal()
-    log_message = pyqtSignal(str)
-    
+    log_message: pyqtSignal = pyqtSignal(str)  # type: ignore
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.db_manager = None
+        self.kegiatan_data = []
+        self.setup_ui()
+
+    def set_database_manager(self, db_manager):
+        """Set database manager"""
+        self.db_manager = db_manager
+        if db_manager:
+            self.load_data()
+
+    def setup_ui(self):
+        """Setup UI untuk kegiatan WR"""
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(10, 0, 10, 0)
+        layout.setSpacing(5)
+
+        # Header with refresh button
+        header = self.create_header()
+        layout.addWidget(header)
+
+        # Filter section
+        filter_group = self.create_filters()
+        layout.addWidget(filter_group)
+
+        # Table
+        table_widget = self.create_table()
+        layout.addWidget(table_widget, 1)
+
+        # Action buttons
+        action_layout = self.create_action_buttons()
+        layout.addLayout(action_layout, 0)
+
+    def create_header(self):
+        """Create header with refresh button"""
+        header = QWidget()
+        header_layout = QHBoxLayout(header)
+        header_layout.setContentsMargins(0, 5, 10, 5)
+
+        header_layout.addStretch()
+
+        refresh_button = self.create_button("Refresh Data", "#3498db", self.load_data, "server/assets/refresh.png")
+        header_layout.addWidget(refresh_button)
+
+        return header
+
+    def create_filters(self):
+        """Create filter section"""
+        filter_group = QGroupBox()
+        filter_layout = QHBoxLayout(filter_group)
+
+        # User filter
+        user_label = QLabel("Filter User:")
+        filter_layout.addWidget(user_label)
+
+        self.user_filter = QComboBox()
+        self.user_filter.addItem("Semua User")
+        self.user_filter.currentTextChanged.connect(self.filter_kegiatan)
+        filter_layout.addWidget(self.user_filter)
+
+        # Category filter
+        category_label = QLabel("Kategori:")
+        filter_layout.addWidget(category_label)
+
+        self.category_filter = QComboBox()
+        self.category_filter.addItems([
+            "Semua", "Ibadah", "Doa", "Katekese", "Sosial",
+            "Rohani", "Administratif", "Lainnya"
+        ])
+        self.category_filter.currentTextChanged.connect(self.filter_kegiatan)
+        filter_layout.addWidget(self.category_filter)
+
+        # Apply filter button
+        apply_filter = self.create_button("Terapkan Filter", "#3498db", self.filter_kegiatan)
+        filter_layout.addWidget(apply_filter)
+
+        show_all_button = self.create_button("Tampilkan Semua", "#9b59b6", self.show_all_kegiatan)
+        filter_layout.addWidget(show_all_button)
+
+        filter_layout.addStretch()
+
+        return filter_group
+
+    def create_table(self):
+        """Create table for kegiatan WR with 'Dibuat Oleh' column"""
+        table_container = QFrame()
+        table_container.setStyleSheet("""
+            QFrame {
+                border: 1px solid #d0d0d0;
+                background-color: white;
+                margin: 0px;
+            }
+        """)
+        table_layout = QVBoxLayout(table_container)
+        table_layout.setContentsMargins(0, 0, 0, 0)
+        table_layout.setSpacing(0)
+
+        self.kegiatan_table = QTableWidget(0, 8)
+        self.kegiatan_table.setHorizontalHeaderLabels([
+            "Nama Kegiatan", "Tanggal Mulai", "Tanggal Selesai", "Waktu",
+            "Lokasi", "Kategori", "Status DB", "User"
+        ])
+
+        # Apply professional table styling
+        self.apply_professional_table_style(self.kegiatan_table)
+
+        # Set column widths - sesuai database
+        self.kegiatan_table.setColumnWidth(0, 180)  # Nama Kegiatan
+        self.kegiatan_table.setColumnWidth(1, 100)  # Tanggal Mulai
+        self.kegiatan_table.setColumnWidth(2, 100)  # Tanggal Selesai
+        self.kegiatan_table.setColumnWidth(3, 70)   # Waktu
+        self.kegiatan_table.setColumnWidth(4, 120)  # Lokasi
+        self.kegiatan_table.setColumnWidth(5, 100)  # Kategori
+        self.kegiatan_table.setColumnWidth(6, 100)  # Status DB
+        self.kegiatan_table.setColumnWidth(7, 120)  # User
+
+        header = self.kegiatan_table.horizontalHeader()
+        header.setSectionResizeMode(QHeaderView.Interactive)
+        header.setStretchLastSection(True)
+
+        # Enable context menu
+        self.kegiatan_table.setContextMenuPolicy(3)
+        self.kegiatan_table.customContextMenuRequested.connect(self.show_context_menu)
+
+        table_layout.addWidget(self.kegiatan_table)
+
+        return table_container
+
+    def apply_professional_table_style(self, table):
+        """Apply Excel-like table styling"""
+        header_font = QFont()
+        header_font.setBold(False)
+        header_font.setPointSize(9)
+        table.horizontalHeader().setFont(header_font)
+
+        table.horizontalHeader().setStyleSheet("""
+            QHeaderView::section {
+                background-color: #f2f2f2;
+                border: none;
+                border-bottom: 1px solid #d4d4d4;
+                border-right: 1px solid #d4d4d4;
+                padding: 6px 4px;
+                font-weight: normal;
+                color: #333333;
+                text-align: left;
+            }
+        """)
+
+        table.setStyleSheet("""
+            QTableWidget {
+                gridline-color: #d4d4d4;
+                background-color: white;
+                border: 1px solid #d4d4d4;
+                selection-background-color: #cce7ff;
+                font-family: 'Calibri', 'Segoe UI', Arial, sans-serif;
+                font-size: 9pt;
+                outline: none;
+                color: black;
+            }
+            QTableWidget::item {
+                border: none;
+                padding: 4px 6px;
+                min-height: 18px;
+                color: black;
+            }
+            QTableWidget::item:selected {
+                background-color: #cce7ff;
+                color: black;
+            }
+            QTableWidget::item:focus {
+                border: 2px solid #0078d4;
+                background-color: white;
+                color: black;
+            }
+        """)
+
+        header = table.horizontalHeader()
+        header.setMinimumSectionSize(50)
+        header.setDefaultSectionSize(80)
+
+        table.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        table.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        table.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
+        table.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
+
+        table.verticalHeader().setDefaultSectionSize(24)
+        table.setSelectionBehavior(QAbstractItemView.SelectItems)
+        table.setAlternatingRowColors(False)
+        table.verticalHeader().setVisible(True)
+        table.verticalHeader().setStyleSheet("""
+            QHeaderView::section {
+                background-color: #f2f2f2;
+                border: none;
+                border-bottom: 1px solid #d4d4d4;
+                border-right: 1px solid #d4d4d4;
+                padding: 2px;
+                font-weight: normal;
+                color: #333333;
+                text-align: center;
+                width: 30px;
+            }
+        """)
+
+        table.setShowGrid(True)
+        table.setGridStyle(Qt.SolidLine)
+        table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        table.setSelectionMode(QAbstractItemView.ExtendedSelection)
+
+        table.setMinimumHeight(200)
+        table.setSizePolicy(table.sizePolicy().Expanding, table.sizePolicy().Expanding)
+
+    def create_action_buttons(self):
+        """Create action buttons layout"""
+        action_layout = QHBoxLayout()
+        action_layout.addStretch()
+
+        view_button = self.create_button("Lihat Detail", "#3498db", self.view_kegiatan, "server/assets/view.png")
+        action_layout.addWidget(view_button)
+
+        export_button = self.create_button("Export CSV", "#16a085", self.export_kegiatan, "server/assets/export.png")
+        action_layout.addWidget(export_button)
+
+        return action_layout
+
+    def create_button(self, text, color, slot, icon_path=None):
+        """Create button with consistent style and optional icon"""
+        button = QPushButton(text)
+
+        if icon_path:
+            try:
+                icon = QIcon(icon_path)
+                if not icon.isNull():
+                    button.setIcon(icon)
+                    button.setIconSize(QSize(20, 20))
+            except Exception:
+                pass
+
+        button.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {color};
+                color: white;
+                padding: 5px 10px;
+                border: none;
+                border-radius: 3px;
+                text-align: left;
+            }}
+            QPushButton:hover {{
+                background-color: {self.darken_color(color)};
+            }}
+        """)
+        button.clicked.connect(slot)
+        return button
+
+    def darken_color(self, color):
+        """Darken color for hover effect"""
+        color_map = {
+            "#3498db": "#2980b9",
+            "#27ae60": "#2ecc71",
+            "#f39c12": "#f1c40f",
+            "#c0392b": "#e74c3c",
+            "#16a085": "#1abc9c",
+            "#8e44ad": "#9b59b6",
+            "#9b59b6": "#8e44ad"
+        }
+        return color_map.get(color, color)
+
+    def show_context_menu(self, position):
+        """Show context menu for view"""
+        if self.kegiatan_table.rowCount() == 0:
+            return
+
+        menu = QMenu()
+        view_action = menu.addAction("Lihat Detail")
+        export_action = menu.addAction("Export")
+
+        action = menu.exec_(self.kegiatan_table.mapToGlobal(position))
+
+        if action == view_action:
+            self.view_kegiatan()
+        elif action == export_action:
+            self.export_kegiatan()
+
+    def load_data(self):
+        """Load kegiatan data from database"""
+        if not self.db_manager:
+            self.log_message.emit("Database tidak tersedia")
+            return
+
+        try:
+            self.log_message.emit("Memuat data kegiatan WR dari database...")
+            success, kegiatan_list = self.db_manager.get_kegiatan_wr_list()
+
+            if success:
+                self.kegiatan_data = kegiatan_list
+                self.update_user_filter()
+                self.filter_kegiatan()
+                self.log_message.emit(f"Data kegiatan WR berhasil dimuat: {len(self.kegiatan_data)} kegiatan")
+            else:
+                self.log_message.emit(f"Gagal memuat data kegiatan WR: {kegiatan_list}")
+                self.kegiatan_data = []
+                self.populate_table([])
+
+        except Exception as e:
+            self.log_message.emit(f"Error loading kegiatan WR data: {str(e)}")
+            self.kegiatan_data = []
+            self.populate_table([])
+
+    def update_user_filter(self):
+        """Update user filter dropdown with unique users"""
+        current_text = self.user_filter.currentText()
+        self.user_filter.clear()
+        self.user_filter.addItem("Semua User")
+
+        # Get unique users
+        users = set()
+        for kegiatan in self.kegiatan_data:
+            user = kegiatan.get('dibuat_oleh', '')
+            if user:
+                users.add(user)
+
+        # Add users to filter
+        for user in sorted(users):
+            self.user_filter.addItem(user)
+
+        # Restore previous selection if it exists
+        index = self.user_filter.findText(current_text)
+        if index >= 0:
+            self.user_filter.setCurrentIndex(index)
+
+    def filter_kegiatan(self):
+        """Filter kegiatan based on user and category"""
+        user_filter = self.user_filter.currentText()
+        category_filter = self.category_filter.currentText()
+
+        filtered_kegiatan = []
+
+        for kegiatan in self.kegiatan_data:
+            # User filter
+            if user_filter != "Semua User":
+                if kegiatan.get('dibuat_oleh', '') != user_filter:
+                    continue
+
+            # Category filter
+            if category_filter != "Semua":
+                if kegiatan.get('kategori', '') != category_filter:
+                    continue
+
+            filtered_kegiatan.append(kegiatan)
+
+        self.populate_table(filtered_kegiatan)
+
+    def show_all_kegiatan(self):
+        """Show all kegiatan without filters"""
+        self.user_filter.setCurrentText("Semua User")
+        self.category_filter.setCurrentText("Semua")
+        self.filter_kegiatan()
+
+    def populate_table(self, kegiatan_list):
+        """Populate table with kegiatan data - sesuai struktur database"""
+        self.kegiatan_table.setRowCount(0)
+
+        for row_idx, kegiatan in enumerate(kegiatan_list):
+            self.kegiatan_table.insertRow(row_idx)
+
+            # Nama Kegiatan
+            nama = kegiatan.get('nama_kegiatan', 'N/A')
+            nama_item = QTableWidgetItem(nama)
+
+            # Tanggal Pelaksanaan (kegiatan_wr uses tanggal_pelaksanaan)
+            tanggal_mulai = kegiatan.get('tanggal_pelaksanaan') or kegiatan.get('tanggal_mulai') or kegiatan.get('tanggal', 'N/A')
+            try:
+                if tanggal_mulai and tanggal_mulai != 'N/A':
+                    # Handle both date string and date object
+                    if isinstance(tanggal_mulai, str):
+                        date_obj = datetime.datetime.strptime(str(tanggal_mulai), '%Y-%m-%d')
+                    else:
+                        date_obj = tanggal_mulai
+                    formatted_date_mulai = date_obj.strftime('%d %b %Y')
+                else:
+                    formatted_date_mulai = 'N/A'
+            except Exception as e:
+                formatted_date_mulai = str(tanggal_mulai)
+            tanggal_mulai_item = QTableWidgetItem(formatted_date_mulai)
+
+            # Tanggal Selesai
+            tanggal_selesai = kegiatan.get('tanggal_selesai', 'N/A')
+            try:
+                if tanggal_selesai and tanggal_selesai != 'N/A' and tanggal_selesai != '':
+                    # Handle both date string and date object
+                    if isinstance(tanggal_selesai, str):
+                        date_obj = datetime.datetime.strptime(str(tanggal_selesai), '%Y-%m-%d')
+                    else:
+                        date_obj = tanggal_selesai
+                    formatted_date_selesai = date_obj.strftime('%d %b %Y')
+                else:
+                    formatted_date_selesai = 'N/A'
+            except Exception as e:
+                formatted_date_selesai = str(tanggal_selesai) if tanggal_selesai else 'N/A'
+            tanggal_selesai_item = QTableWidgetItem(formatted_date_selesai)
+
+            # Waktu Mulai
+            waktu = kegiatan.get('waktu_mulai') or kegiatan.get('waktu', 'N/A')
+            if waktu and waktu != 'N/A':
+                try:
+                    # Remove seconds if present
+                    if isinstance(waktu, str) and len(waktu) > 5:
+                        waktu = waktu[:5]
+                except:
+                    pass
+            waktu_item = QTableWidgetItem(str(waktu))
+
+            # Lokasi/Tempat Kegiatan (kegiatan_wr uses tempat_kegiatan)
+            lokasi = kegiatan.get('tempat_kegiatan') or kegiatan.get('lokasi') or kegiatan.get('tempat', 'N/A')
+            lokasi_item = QTableWidgetItem(str(lokasi))
+
+            # Kategori
+            kategori_item = QTableWidgetItem(kegiatan.get('kategori', 'N/A'))
+
+            # Status dari database (kegiatan_wr uses status_kegiatan)
+            status_db = kegiatan.get('status_kegiatan') or kegiatan.get('status', 'Direncanakan')
+            status_db_item = QTableWidgetItem(str(status_db))
+
+            # Color code status berdasarkan status database
+            if status_db == "Direncanakan":
+                status_db_item.setBackground(QBrush(QColor("#3498db")))
+                status_db_item.setForeground(QBrush(QColor("white")))
+            elif status_db == "Berlangsung":
+                status_db_item.setBackground(QBrush(QColor("#f39c12")))
+                status_db_item.setForeground(QBrush(QColor("white")))
+            elif status_db == "Selesai":
+                status_db_item.setBackground(QBrush(QColor("#2ecc71")))
+                status_db_item.setForeground(QBrush(QColor("white")))
+            elif status_db == "Dibatalkan":
+                status_db_item.setBackground(QBrush(QColor("#e74c3c")))
+                status_db_item.setForeground(QBrush(QColor("white")))
+            else:
+                # For empty or other status, use default black text on white background
+                status_db_item.setForeground(QBrush(QColor(0, 0, 0)))  # Black text
+
+            # User (username atau nama_lengkap)
+            user_info = kegiatan.get('nama_lengkap') or kegiatan.get('username') or kegiatan.get('dibuat_oleh', 'N/A')
+            user_item = QTableWidgetItem(str(user_info))
+
+            # Store kegiatan data in first column
+            nama_item.setData(Qt.UserRole, kegiatan)
+
+            # Set items in table
+            self.kegiatan_table.setItem(row_idx, 0, nama_item)
+            self.kegiatan_table.setItem(row_idx, 1, tanggal_mulai_item)
+            self.kegiatan_table.setItem(row_idx, 2, tanggal_selesai_item)
+            self.kegiatan_table.setItem(row_idx, 3, waktu_item)
+            self.kegiatan_table.setItem(row_idx, 4, lokasi_item)
+            self.kegiatan_table.setItem(row_idx, 5, kategori_item)
+            self.kegiatan_table.setItem(row_idx, 6, status_db_item)
+            self.kegiatan_table.setItem(row_idx, 7, user_item)
+
+        # Select first row if available
+        if kegiatan_list and self.kegiatan_table.rowCount() > 0:
+            self.kegiatan_table.selectRow(0)
+
+    def get_kegiatan_status(self, kegiatan):
+        """Determine status of kegiatan based on date or status_kegiatan field"""
+        # First, check if there's a status_kegiatan field from database
+        status_db = kegiatan.get('status_kegiatan') or kegiatan.get('status', '')
+        if status_db:
+            return status_db
+
+        # Otherwise, calculate based on date
+        try:
+            today = datetime.date.today()
+            # Use kegiatan_wr field name with fallback
+            tanggal_str = kegiatan.get('tanggal_pelaksanaan') or kegiatan.get('tanggal', '')
+
+            if not tanggal_str:
+                return "Unknown"
+
+            # Handle both string and date object
+            if isinstance(tanggal_str, str):
+                kegiatan_date = datetime.datetime.strptime(tanggal_str, '%Y-%m-%d').date()
+            else:
+                kegiatan_date = tanggal_str
+
+            if kegiatan_date > today:
+                return "Akan Datang"
+            elif kegiatan_date == today:
+                return "Sedang Berlangsung"
+            else:
+                return "Selesai"
+        except:
+            return "Unknown"
+
+    def view_kegiatan(self):
+        """View selected kegiatan details"""
+        current_row = self.kegiatan_table.currentRow()
+        if current_row < 0:
+            QMessageBox.warning(self, "Warning", "Pilih kegiatan yang akan dilihat")
+            return
+
+        nama_item = self.kegiatan_table.item(current_row, 0)
+        if not nama_item or not nama_item.data(Qt.UserRole):
+            QMessageBox.warning(self, "Warning", "Data kegiatan tidak valid")
+            return
+
+        kegiatan = nama_item.data(Qt.UserRole)
+
+        # Create detail dialog
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Detail Kegiatan WR")
+        dialog.setMinimumSize(500, 400)
+
+        layout = QVBoxLayout(dialog)
+
+        detail_text = QTextEdit()
+        detail_text.setReadOnly(True)
+
+        # Use kegiatan_wr field names with fallbacks
+        tanggal = kegiatan.get('tanggal_pelaksanaan') or kegiatan.get('tanggal', 'N/A')
+        waktu_mulai = kegiatan.get('waktu_mulai', '')
+        waktu_selesai = kegiatan.get('waktu_selesai', '')
+        waktu = f"{waktu_mulai} - {waktu_selesai}" if waktu_mulai and waktu_selesai else kegiatan.get('waktu', 'N/A')
+        tempat = kegiatan.get('tempat_kegiatan') or kegiatan.get('tempat', 'N/A')
+        dibuat_oleh = kegiatan.get('nama_lengkap') or kegiatan.get('username') or kegiatan.get('dibuat_oleh', 'N/A')
+
+        detail_html = f"""
+        <h2 style="color: #9b59b6;">{kegiatan.get('nama_kegiatan', 'N/A')}</h2>
+        <hr>
+        <p><strong>Tanggal:</strong> {tanggal}</p>
+        <p><strong>Waktu:</strong> {waktu}</p>
+        <p><strong>Tempat:</strong> {tempat}</p>
+        <p><strong>Kategori:</strong> {kegiatan.get('kategori', 'N/A')}</p>
+        <p><strong>Status:</strong> {self.get_kegiatan_status(kegiatan)}</p>
+        <p><strong>Dibuat Oleh:</strong> {dibuat_oleh}</p>
+        <hr>
+        <p><strong>Deskripsi:</strong></p>
+        <p>{kegiatan.get('deskripsi', 'Tidak ada deskripsi')}</p>
+        """
+
+        detail_text.setHtml(detail_html)
+        layout.addWidget(detail_text)
+
+        close_button = QPushButton("Tutup")
+        close_button.clicked.connect(dialog.accept)  # type: ignore
+        layout.addWidget(close_button)
+
+        dialog.exec_()
+
+    def export_kegiatan(self):
+        """Export kegiatan WR to CSV"""
+        if self.kegiatan_table.rowCount() == 0:
+            QMessageBox.warning(self, "Warning", "Tidak ada data kegiatan untuk diekspor.")
+            return
+
+        filename, _ = QFileDialog.getSaveFileName(
+            self, "Export Kegiatan WR", "kegiatan_wr.csv", "CSV Files (*.csv)"
+        )
+        if not filename:
+            return
+
+        import csv
+        try:
+            with open(filename, 'w', newline='', encoding='utf-8') as csvfile:
+                fieldnames = [
+                    "Nama Kegiatan", "Tanggal", "Waktu", "Tempat",
+                    "Kategori", "Status", "Dibuat Oleh", "Deskripsi"
+                ]
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                writer.writeheader()
+
+                for row in range(self.kegiatan_table.rowCount()):
+                    nama_item = self.kegiatan_table.item(row, 0)
+                    if nama_item and nama_item.data(Qt.UserRole):
+                        kegiatan = nama_item.data(Qt.UserRole)
+                        # Use kegiatan_wr field names with fallbacks
+                        tanggal = kegiatan.get('tanggal_pelaksanaan') or kegiatan.get('tanggal', '')
+                        waktu_mulai = kegiatan.get('waktu_mulai', '')
+                        waktu_selesai = kegiatan.get('waktu_selesai', '')
+                        waktu = f"{waktu_mulai} - {waktu_selesai}" if waktu_mulai and waktu_selesai else kegiatan.get('waktu', '')
+                        tempat = kegiatan.get('tempat_kegiatan') or kegiatan.get('tempat', '')
+                        dibuat_oleh = kegiatan.get('nama_lengkap') or kegiatan.get('username') or kegiatan.get('dibuat_oleh', '')
+
+                        writer.writerow({
+                            "Nama Kegiatan": kegiatan.get('nama_kegiatan', ''),
+                            "Tanggal": tanggal,
+                            "Waktu": waktu,
+                            "Tempat": tempat,
+                            "Kategori": kegiatan.get('kategori', ''),
+                            "Status": self.get_kegiatan_status(kegiatan),
+                            "Dibuat Oleh": dibuat_oleh,
+                            "Deskripsi": kegiatan.get('deskripsi', '')
+                        })
+
+            QMessageBox.information(self, "Sukses", f"Data kegiatan WR berhasil diekspor ke {filename}")
+            self.log_message.emit(f"Data kegiatan WR diekspor ke: {filename}")
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Gagal mengekspor data: {str(e)}")
+            self.log_message.emit(f"Gagal mengekspor data: {str(e)}")
+
+    def get_data(self):
+        """Get kegiatan data for other components"""
+        return self.kegiatan_data
+
+
+class ProgramKerjaComponent(QWidget):
+    """Komponen utama Program Kerja dengan 3 tab: Kalender Kerja, Kegiatan WR, dan Jadwal Kegiatan"""
+
+    data_updated = pyqtSignal()
+    log_message: pyqtSignal = pyqtSignal(str)  # type: ignore
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.db_manager = None
         self.setup_ui()
-    
+
     def set_database_manager(self, db_manager):
         """Set database manager"""
         self.db_manager = db_manager
-        
-        # Set database manager for both tabs
+
+        # Set database manager for all tabs
         self.kalender_widget.set_database_manager(db_manager)
+        self.kegiatan_wr_widget.set_database_manager(db_manager)
         self.jadwal_widget.set_database_manager(db_manager)
     
     def create_header(self):
@@ -754,9 +1445,13 @@ class ProgramKerjaComponent(QWidget):
         self.kalender_widget = KalenderKerjaWidget()
         tab_widget.addTab(self.kalender_widget, "Daftar Program Kerja")
 
-        # Tab 2: Jadwal Kegiatan (existing component)
+        # Tab 2: Kegiatan Paroki (admin only, existing component - renamed from Jadwal Kegiatan)
         self.jadwal_widget = JadwalComponent()
-        tab_widget.addTab(self.jadwal_widget, "Jadwal Kegiatan")
+        tab_widget.addTab(self.jadwal_widget, "Kegiatan Paroki")
+
+        # Tab 3: Kegiatan WR (data dari client)
+        self.kegiatan_wr_widget = KegiatanWRWidget()
+        tab_widget.addTab(self.kegiatan_wr_widget, "Kegiatan WR")
 
         return tab_widget
 
@@ -819,16 +1514,21 @@ class ProgramKerjaComponent(QWidget):
         # Connect kalender widget signals
         self.kalender_widget.data_updated.connect(self.data_updated.emit)
         self.kalender_widget.log_message.connect(self.log_message.emit)
-        
+
+        # Connect kegiatan WR widget signals
+        self.kegiatan_wr_widget.data_updated.connect(self.data_updated.emit)
+        self.kegiatan_wr_widget.log_message.connect(self.log_message.emit)
+
         # Connect jadwal widget signals
         if hasattr(self.jadwal_widget, 'data_updated'):
             self.jadwal_widget.data_updated.connect(self.data_updated.emit)
         if hasattr(self.jadwal_widget, 'log_message'):
             self.jadwal_widget.log_message.connect(self.log_message.emit)
-    
+
     def get_data(self):
-        """Get combined data from both tabs"""
+        """Get combined data from all tabs"""
         return {
             'calendar_data': self.kalender_widget.get_data(),
+            'kegiatan_wr_data': self.kegiatan_wr_widget.get_data(),
             'schedule_data': self.jadwal_widget.get_data() if hasattr(self.jadwal_widget, 'get_data') else []
         }

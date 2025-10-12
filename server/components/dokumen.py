@@ -60,7 +60,7 @@ class UploadDialog(QDialog):
             QDialogButtonBox.Ok | QDialogButtonBox.Cancel
         )
         button_box.accepted.connect(self.accept_dialog)
-        button_box.rejected.connect(self.reject)
+        button_box.rejected.connect(self.reject)  # type: ignore
         
         layout.addWidget(button_box)
     
@@ -95,7 +95,7 @@ class UploadDialog(QDialog):
 
 class DokumenComponent(QWidget):
     
-    log_message = pyqtSignal(str)
+    log_message: pyqtSignal = pyqtSignal(str)  # type: ignore
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -133,28 +133,6 @@ class DokumenComponent(QWidget):
         self.search_input.textChanged.connect(self.filter_data)
         toolbar_layout.addWidget(QLabel("Cari:"))
         toolbar_layout.addWidget(self.search_input)
-        
-        self.refresh_button = QPushButton("Refresh")
-        self.refresh_button.clicked.connect(self.load_data)
-        # Add refresh icon
-        refresh_icon = QIcon("server/assets/refresh.png")
-        if not refresh_icon.isNull():
-            self.refresh_button.setIcon(refresh_icon)
-            self.refresh_button.setIconSize(QSize(20, 20))  # Larger icon size for better visibility
-        self.refresh_button.setStyleSheet("""
-            QPushButton {
-                background-color: #3498db;
-                color: white;
-                padding: 6px 12px;
-                border: none;
-                border-radius: 4px;
-                text-align: left;
-            }
-            QPushButton:hover {
-                background-color: #2980b9;
-            }
-        """)
-        toolbar_layout.addWidget(self.refresh_button)
         
         self.upload_button = QPushButton("Upload Dokumen")
         self.upload_button.clicked.connect(self.upload_document)
@@ -230,38 +208,44 @@ class DokumenComponent(QWidget):
         layout.addLayout(stats_layout)
     
     def create_professional_table(self):
-        """Create table with professional styling."""
+        """Create table with professional styling matching program_kerja.py."""
         table = QTableWidget(0, 7)
         table.setHorizontalHeaderLabels([
             "Nama Dokumen", "Jenis Dokumen", "Ukuran", "Tipe File", "Upload By", "Tanggal Upload", "Aksi"
         ])
-        
-        # Apply professional table styling
+
+        # Apply professional table styling matching program_kerja.py
         self.apply_professional_table_style(table)
-        
-        # Set specific column widths
-        column_widths = [200, 120, 80, 80, 120, 120, 100]  # Total: 820px
-        for i, width in enumerate(column_widths):
-            table.setColumnWidth(i, width)
-        
-        # Set minimum table width to sum of all columns
-        table.setMinimumWidth(sum(column_widths) + 50)  # Add padding for scrollbar
-        
+
+        # Set initial column widths with better proportions for full layout (matching program_kerja.py approach)
+        table.setColumnWidth(0, 200)   # Nama Dokumen - wider for content
+        table.setColumnWidth(1, 130)   # Jenis Dokumen
+        table.setColumnWidth(2, 80)    # Ukuran
+        table.setColumnWidth(3, 100)   # Tipe File
+        table.setColumnWidth(4, 120)   # Upload By
+        table.setColumnWidth(5, 130)   # Tanggal Upload
+        table.setColumnWidth(6, 100)   # Aksi
+
+        # Excel-like column resizing - all columns can be resized (matching program_kerja.py)
+        header = table.horizontalHeader()
+        header.setSectionResizeMode(QHeaderView.Interactive)  # All columns resizable
+        header.setStretchLastSection(True)  # Last column stretches to fill space
+
         # Enable context menu
         table.setContextMenuPolicy(3)  # Qt.CustomContextMenu
         table.customContextMenuRequested.connect(self.show_context_menu)
-        
+
         return table
         
     def apply_professional_table_style(self, table):
-        """Apply Excel-like table styling with thin grid lines and minimal borders."""
+        """Apply Excel-like table styling exactly matching program_kerja.py."""
         # Header styling - Excel-like headers
         header_font = QFont()
         header_font.setBold(False)  # Remove bold from headers
         header_font.setPointSize(9)
         table.horizontalHeader().setFont(header_font)
 
-        # Excel-style header styling
+        # Excel-style header styling (exact copy from program_kerja.py)
         table.horizontalHeader().setStyleSheet("""
             QHeaderView::section {
                 background-color: #f2f2f2;
@@ -275,7 +259,7 @@ class DokumenComponent(QWidget):
             }
         """)
 
-        # Excel-style table body styling
+        # Excel-style table body styling (exact copy from program_kerja.py)
         table.setStyleSheet("""
             QTableWidget {
                 gridline-color: #d4d4d4;
@@ -301,10 +285,8 @@ class DokumenComponent(QWidget):
             }
         """)
 
-        # Excel-style table settings
+        # Excel-style table settings (matching program_kerja.py exactly)
         header = table.horizontalHeader()
-        header.setSectionResizeMode(QHeaderView.Interactive)  # Allow column resizing
-        header.setStretchLastSection(False)  # Don't stretch last column
         header.setMinimumSectionSize(50)
         header.setDefaultSectionSize(80)
         # Allow adjustable header height - removed setMaximumHeight constraint
@@ -315,8 +297,8 @@ class DokumenComponent(QWidget):
         table.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
         table.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
 
-        # Excel-style row settings
-        table.verticalHeader().setDefaultSectionSize(20)  # Thin rows like Excel
+        # Excel-style row settings with better content visibility
+        table.verticalHeader().setDefaultSectionSize(42)  # Taller for button widgets
         table.setSelectionBehavior(QAbstractItemView.SelectItems)  # Select individual cells
         table.setAlternatingRowColors(False)
         table.verticalHeader().setVisible(True)  # Show row numbers like Excel
@@ -342,8 +324,9 @@ class DokumenComponent(QWidget):
         table.setEditTriggers(QAbstractItemView.DoubleClicked | QAbstractItemView.EditKeyPressed)
         table.setSelectionMode(QAbstractItemView.ExtendedSelection)
 
-        # Set compact size for Excel look
-        table.setMinimumHeight(150)
+        # Set proper size for Excel look with better visibility (matching program_kerja.py)
+        table.setMinimumHeight(200)
+        table.setSizePolicy(table.sizePolicy().Expanding, table.sizePolicy().Expanding)
         table.setSizeAdjustPolicy(QAbstractItemView.AdjustToContents)
 
     def show_filter_menu(self):
@@ -445,6 +428,13 @@ class DokumenComponent(QWidget):
         self.update_timer = QTimer()
         self.update_timer.timeout.connect(self.auto_refresh)
         self.update_timer.start(60000)
+
+    def closeEvent(self, event):
+        """Handle close event to stop timer"""
+        if hasattr(self, 'update_timer') and self.update_timer:
+            self.update_timer.stop()
+            self.update_timer.deleteLater()
+        event.accept()
     
     def load_data(self):
         if not self.database_manager:
@@ -613,87 +603,97 @@ class DokumenComponent(QWidget):
                 date_str = "-"
             self.table_widget.setItem(i, 5, QTableWidgetItem(date_str))
             
-            # Aksi buttons with icons
+            # Aksi buttons with icons - professional clean styling with centered positioning
             action_widget = QWidget()
             action_layout = QHBoxLayout(action_widget)
-            action_layout.setContentsMargins(1, 1, 1, 1)
-            action_layout.setSpacing(2)
-            
-            # View button with lihat.png icon
+            action_layout.setContentsMargins(4, 7, 4, 7)  # Equal top and bottom margins for perfect centering
+            action_layout.setSpacing(5)  # Better spacing between buttons
+            action_layout.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)  # Center align buttons horizontally and vertically
+
+            # View button with lihat.png icon - clean professional styling
             view_button = QPushButton()
             view_icon = QIcon("server/assets/lihat.png")
-            view_button.setIcon(view_icon)
-            view_button.setIconSize(QSize(18, 18))  # Larger icon size for better visibility
+            if not view_icon.isNull():
+                view_button.setIcon(view_icon)
+                view_button.setIconSize(QSize(16, 16))
+            else:
+                view_button.setText("👁")  # Fallback emoji if icon not found
             view_button.setStyleSheet("""
-                QPushButton { 
-                    background-color: #f1c40f; 
-                    color: white; 
-                    padding: 2px; 
-                    border: none; 
-                    border-radius: 2px;
-                    min-width: 24px;
-                    max-width: 24px;
-                    min-height: 24px;
-                    max-height: 24px;
+                QPushButton {
+                    background-color: #3498db;
+                    color: white;
+                    padding: 4px 10px;
+                    border: none;
+                    border-radius: 3px;
+                    min-width: 30px;
+                    min-height: 26px;
+                    max-height: 26px;
+                    font-weight: bold;
                 }
-                QPushButton:hover { 
-                    background-color: #f39c12; 
+                QPushButton:hover {
+                    background-color: #2980b9;
                 }
                 QPushButton:pressed {
-                    background-color: #d68910;
+                    background-color: #21618c;
                 }
             """)
             view_button.setToolTip("Lihat Info Dokumen")
             view_button.clicked.connect(lambda _, row=i: self.view_document(row))
             action_layout.addWidget(view_button)
-            
-            # Download button with unduh.png icon
+
+            # Download button with unduh.png icon - clean professional styling
             download_button = QPushButton()
             download_icon = QIcon("server/assets/unduh.png")
-            download_button.setIcon(download_icon)
-            download_button.setIconSize(QSize(18, 18))  # Larger icon size for better visibility
+            if not download_icon.isNull():
+                download_button.setIcon(download_icon)
+                download_button.setIconSize(QSize(16, 16))
+            else:
+                download_button.setText("⬇")  # Fallback emoji if icon not found
             download_button.setStyleSheet("""
-                QPushButton { 
-                    background-color: #27ae60; 
-                    color: white; 
-                    padding: 2px; 
-                    border: none; 
-                    border-radius: 2px;
-                    min-width: 24px;
-                    max-width: 24px;
-                    min-height: 24px;
-                    max-height: 24px;
+                QPushButton {
+                    background-color: #27ae60;
+                    color: white;
+                    padding: 4px 10px;
+                    border: none;
+                    border-radius: 3px;
+                    min-width: 30px;
+                    min-height: 26px;
+                    max-height: 26px;
+                    font-weight: bold;
                 }
-                QPushButton:hover { 
-                    background-color: #2ecc71; 
+                QPushButton:hover {
+                    background-color: #229954;
                 }
                 QPushButton:pressed {
-                    background-color: #229954;
+                    background-color: #1e8449;
                 }
             """)
             download_button.setToolTip("Download Dokumen")
             download_button.clicked.connect(lambda _, row=i: self.download_document(row))
             action_layout.addWidget(download_button)
-            
-            # Delete button with hapus.png icon
+
+            # Delete button with hapus.png icon - clean professional styling
             delete_button = QPushButton()
             delete_icon = QIcon("server/assets/hapus.png")
-            delete_button.setIcon(delete_icon)
-            delete_button.setIconSize(QSize(18, 18))  # Larger icon size for better visibility
+            if not delete_icon.isNull():
+                delete_button.setIcon(delete_icon)
+                delete_button.setIconSize(QSize(16, 16))
+            else:
+                delete_button.setText("🗑")  # Fallback emoji if icon not found
             delete_button.setStyleSheet("""
-                QPushButton { 
-                    background-color: #e74c3c; 
-                    color: white; 
-                    padding: 2px; 
-                    border: none; 
-                    border-radius: 2px;
-                    min-width: 24px;
-                    max-width: 24px;
-                    min-height: 24px;
-                    max-height: 24px;
+                QPushButton {
+                    background-color: #e74c3c;
+                    color: white;
+                    padding: 4px 10px;
+                    border: none;
+                    border-radius: 3px;
+                    min-width: 30px;
+                    min-height: 26px;
+                    max-height: 26px;
+                    font-weight: bold;
                 }
-                QPushButton:hover { 
-                    background-color: #c0392b; 
+                QPushButton:hover {
+                    background-color: #c0392b;
                 }
                 QPushButton:pressed {
                     background-color: #a93226;
@@ -702,7 +702,7 @@ class DokumenComponent(QWidget):
             delete_button.setToolTip("Hapus Dokumen")
             delete_button.clicked.connect(lambda _, row=i: self.delete_document(row))
             action_layout.addWidget(delete_button)
-            
+
             self.table_widget.setCellWidget(i, 6, action_widget)
     
     def filter_data(self):
@@ -974,7 +974,11 @@ class DokumenComponent(QWidget):
             self.progress_bar.setVisible(False)
     
     def auto_refresh(self):
-        self.load_data()
+        try:
+            self.load_data()
+        except Exception:
+            # Silently ignore errors during auto-refresh to prevent warnings
+            pass
     
     def get_data(self):
         return self.all_documents

@@ -46,8 +46,8 @@ class JemaatDialog(QDialog):
         
         # Buttons
         button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        button_box.accepted.connect(self.accept)
-        button_box.rejected.connect(self.reject)
+        button_box.accepted.connect(self.accept)  # type: ignore
+        button_box.rejected.connect(self.reject)  # type: ignore
         main_layout.addWidget(button_box)
         
         # Jika edit, isi data
@@ -783,8 +783,8 @@ class KegiatanDialog(QDialog):
         
         # Buttons
         button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        button_box.accepted.connect(self.accept)
-        button_box.rejected.connect(self.reject)
+        button_box.accepted.connect(self.accept)  # type: ignore
+        button_box.rejected.connect(self.reject)  # type: ignore
         layout.addWidget(button_box)
         
         # Jika edit, isi data
@@ -838,57 +838,80 @@ class PengumumanDialog(QDialog):
         self.pengumuman_data = pengumuman_data
         self.setWindowTitle("Tambah Pengumuman" if not pengumuman_data else "Edit Pengumuman")
         self.setModal(True)
-        self.setFixedSize(500, 450)
-        
+        self.setFixedSize(500, 520)  # Increased height for new field
+
         # Setup UI
         layout = QVBoxLayout(self)
-        
+
         # Form
         form_group = QGroupBox("Data Pengumuman")
         form_layout = QFormLayout(form_group)
-        
-        # 1. Tanggal - otomatis mengikuti data realtime dengan format Hari + Tanggal
-        self.tanggal_input = QDateEdit()
-        self.tanggal_input.setCalendarPopup(True)
-        self.tanggal_input.setDate(QDate.currentDate())
-        # Set custom display format: Day, dd/MM/yyyy (e.g., Senin, 12/09/2025)
-        self.tanggal_input.setDisplayFormat("dddd, dd/MM/yyyy")
-        self.tanggal_input.setReadOnly(False)  # Allow editing if needed
-        
-        # 2. Pembuat Pengumuman
+
+        # 1. Tanggal - auto filled from created_at (read-only display)
+        self.tanggal_input = QLineEdit()
+        from PyQt5.QtCore import QDate
+        current_date = QDate.currentDate()
+        # Format: Hari, dd NamaBulan yyyy
+        day_names = {
+            1: 'Senin', 2: 'Selasa', 3: 'Rabu', 4: 'Kamis',
+            5: 'Jumat', 6: 'Sabtu', 7: 'Minggu'
+        }
+        month_names = {
+            1: 'Januari', 2: 'Februari', 3: 'Maret', 4: 'April',
+            5: 'Mei', 6: 'Juni', 7: 'Juli', 8: 'Agustus',
+            9: 'September', 10: 'Oktober', 11: 'November', 12: 'Desember'
+        }
+        day_name = day_names.get(current_date.dayOfWeek(), '')
+        day_num = current_date.day()
+        month_name = month_names.get(current_date.month(), '')
+        year_num = current_date.year()
+        date_display = f"{day_name}, {day_num:02d} {month_name} {year_num}"
+        self.tanggal_input.setText(date_display)
+        self.tanggal_input.setReadOnly(True)
+        self.tanggal_input.setStyleSheet("background-color: #f0f0f0; font-weight: bold; color: #2c3e50;")
+
+        # 2. Pembuat Pengumuman (auto-filled, read-only)
         self.pembuat_input = QLineEdit()
-        self.pembuat_input.setPlaceholderText("Nama pembuat pengumuman")
-        
+        self.pembuat_input.setPlaceholderText("Otomatis terisi dari user login")
+        self.pembuat_input.setReadOnly(True)
+        self.pembuat_input.setStyleSheet("background-color: #f0f0f0;")
+
         # 3. Sasaran/Tujuan
         self.sasaran_input = QComboBox()
         self.sasaran_input.addItems([
-            "Umum", "Jemaat Dewasa", "Anak-anak", "Remaja", "OMK", 
+            "Umum", "Jemaat Dewasa", "Anak-anak", "Remaja", "OMK",
             "KBK", "KIK", "Lansia", "Pengurus", "Komisi", "Seksi"
         ])
         self.sasaran_input.setEditable(True)  # Allow custom input
-        
+
         # 4. Judul Pengumuman
         self.judul_input = QLineEdit()
         self.judul_input.setPlaceholderText("Masukkan judul pengumuman")
-        
+
         # 5. Isi Pengumuman
         self.isi_input = QTextEdit()
         self.isi_input.setMaximumHeight(120)
         self.isi_input.setPlaceholderText("Masukkan isi pengumuman lengkap")
-        
+
+        # 6. Penanggung Jawab
+        self.penanggung_jawab_input = QLineEdit()
+        self.penanggung_jawab_input.setPlaceholderText("Nama penanggung jawab (opsional)")
+
         # Add form rows in the correct order matching table layout
-        form_layout.addRow("Tanggal Pengumuman:", self.tanggal_input)
-        form_layout.addRow("Pembuat Pengumuman:", self.pembuat_input)
+        # Table columns: Tanggal, Pembuat, Sasaran/Tujuan, Judul Pengumuman, Isi Pengumuman, Penanggung Jawab
+        form_layout.addRow("Tanggal:", self.tanggal_input)
+        form_layout.addRow("Pembuat:", self.pembuat_input)
         form_layout.addRow("Sasaran/Tujuan:", self.sasaran_input)
         form_layout.addRow("Judul Pengumuman:", self.judul_input)
         form_layout.addRow("Isi Pengumuman:", self.isi_input)
+        form_layout.addRow("Penanggung Jawab:", self.penanggung_jawab_input)
         
         layout.addWidget(form_group)
         
         # Buttons
         button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        button_box.accepted.connect(self.accept)
-        button_box.rejected.connect(self.reject)
+        button_box.accepted.connect(self.accept)  # type: ignore
+        button_box.rejected.connect(self.reject)  # type: ignore
         layout.addWidget(button_box)
         
         # Jika edit, isi data
@@ -898,21 +921,24 @@ class PengumumanDialog(QDialog):
     def load_data(self):
         """Load data untuk edit"""
         if self.pengumuman_data:
+            # Load judul
             self.judul_input.setText(str(self.pengumuman_data.get('judul', '')))
+
+            # Load isi
             self.isi_input.setText(str(self.pengumuman_data.get('isi', '')))
-            
-            # Load pembuat - check different possible field names
-            pembuat = (self.pengumuman_data.get('pembuat') or 
-                      self.pengumuman_data.get('dibuat_oleh_nama') or 
-                      self.pengumuman_data.get('created_by_name') or 
+
+            # Load pembuat (read-only)
+            pembuat = (self.pengumuman_data.get('pembuat') or
+                      self.pengumuman_data.get('dibuat_oleh_nama') or
+                      self.pengumuman_data.get('created_by_name') or
                       self.pengumuman_data.get('admin_name') or 'Administrator')
             self.pembuat_input.setText(str(pembuat))
-            
-            # Load sasaran - check different possible field names
-            sasaran = (self.pengumuman_data.get('sasaran') or 
-                      self.pengumuman_data.get('target_audience') or 
+
+            # Load sasaran
+            sasaran = (self.pengumuman_data.get('sasaran') or
+                      self.pengumuman_data.get('target_audience') or
                       self.pengumuman_data.get('kategori') or 'Umum')
-            
+
             # Try to find exact match in combo box items
             index = self.sasaran_input.findText(str(sasaran))
             if index >= 0:
@@ -920,174 +946,191 @@ class PengumumanDialog(QDialog):
             else:
                 # If not found in predefined items, set as custom text
                 self.sasaran_input.setCurrentText(str(sasaran))
-            
-            # Handle tanggal - check for different date field names for compatibility
-            tanggal_value = (self.pengumuman_data.get('tanggal') or 
-                           self.pengumuman_data.get('tanggal_mulai') or 
-                           self.pengumuman_data.get('tanggal_dibuat'))
-            
+
+            # Load penanggung_jawab
+            penanggung_jawab = self.pengumuman_data.get('penanggung_jawab', pembuat)
+            self.penanggung_jawab_input.setText(str(penanggung_jawab))
+
+            # Handle tanggal display - use created_at for display
+            tanggal_value = (self.pengumuman_data.get('created_at') or
+                           self.pengumuman_data.get('tanggal') or
+                           self.pengumuman_data.get('tanggal_mulai'))
+
             if tanggal_value:
                 try:
-                    if isinstance(tanggal_value, str):
-                        date = QDate.fromString(tanggal_value, "yyyy-MM-dd")
+                    from PyQt5.QtCore import QDate
+                    import datetime
+
+                    # Parse the date
+                    if hasattr(tanggal_value, 'date'):
+                        date_obj = tanggal_value.date()
+                    elif isinstance(tanggal_value, str):
+                        date_part = tanggal_value.split(' ')[0] if ' ' in tanggal_value else tanggal_value
+                        date_obj = datetime.datetime.strptime(date_part, '%Y-%m-%d').date()
                     else:
-                        date = QDate(tanggal_value)
-                    self.tanggal_input.setDate(date)
+                        date_obj = tanggal_value
+
+                    # Format Indonesian date
+                    day_names = {
+                        1: 'Senin', 2: 'Selasa', 3: 'Rabu', 4: 'Kamis',
+                        5: 'Jumat', 6: 'Sabtu', 7: 'Minggu'
+                    }
+                    month_names = {
+                        1: 'Januari', 2: 'Februari', 3: 'Maret', 4: 'April',
+                        5: 'Mei', 6: 'Juni', 7: 'Juli', 8: 'Agustus',
+                        9: 'September', 10: 'Oktober', 11: 'November', 12: 'Desember'
+                    }
+
+                    day_num = date_obj.isoweekday()  # 1=Monday, 7=Sunday
+                    day_name = day_names.get(day_num, '')
+                    month_name = month_names.get(date_obj.month, '')
+                    date_display = f"{day_name}, {date_obj.day:02d} {month_name} {date_obj.year}"
+                    self.tanggal_input.setText(date_display)
                 except:
-                    # If date parsing fails, use current date
-                    self.tanggal_input.setDate(QDate.currentDate())
+                    pass  # Keep current date display if parsing fails
     
     def get_data(self):
-        """Ambil data dari form"""
+        """Ambil data dari form - sesuai dengan struktur tabel baru"""
+        # Get penanggung_jawab, default to pembuat if empty
+        penanggung_jawab = self.penanggung_jawab_input.text().strip()
+        pembuat = self.pembuat_input.text().strip()
+        if not penanggung_jawab:
+            penanggung_jawab = pembuat if pembuat else 'Administrator'
+
         return {
+            # Required fields matching new table structure
             'judul': self.judul_input.text().strip(),
             'isi': self.isi_input.toPlainText().strip(),
             'sasaran': self.sasaran_input.currentText().strip(),
-            'pembuat': self.pembuat_input.text().strip(),
-            'tanggal': self.tanggal_input.date().toString("yyyy-MM-dd"),
-            'tanggal_mulai': self.tanggal_input.date().toString("yyyy-MM-dd"),  # For compatibility with existing database
-            'dibuat_oleh': 1  # Default user ID, bisa disesuaikan dengan sistem login
+            'pembuat': pembuat,
+            'penanggung_jawab': penanggung_jawab,
+            'is_active': True  # Default active
         }
 
 class InventarisDialog(QDialog):
-    """Dialog untuk menambah/edit data inventaris."""
+    """Dialog untuk menambah/edit data inventaris - simplified to match 8 table columns exactly."""
     def __init__(self, parent=None, inventaris_data=None):
         super().__init__(parent)
         self.inventaris_data = inventaris_data
         self.setWindowTitle("Tambah Inventaris" if not inventaris_data else "Edit Inventaris")
         self.setModal(True)
-        self.setFixedSize(500, 550)
+        self.setFixedSize(520, 420)  # Increased size for better label visibility
 
-        # Setup UI
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        
-        scroll_widget = QWidget()
-        layout = QVBoxLayout(scroll_widget)
-        
-        # 1. INFORMASI DASAR
-        self.setup_informasi_dasar(layout)
-        
-        # 2. DETAIL BARANG
-        self.setup_detail_barang(layout)
-        
-        # 3. STATUS & LOKASI
-        self.setup_status_lokasi(layout)
-        
-        scroll.setWidget(scroll_widget)
-        
-        main_layout = QVBoxLayout(self)
-        main_layout.addWidget(scroll)
+        # Setup UI - single form matching 8 table columns exactly
+        layout = QVBoxLayout(self)
+
+        # Create form layout matching 8 table columns
+        self.setup_inventaris_form(layout)
 
         # Buttons
         button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        button_box.accepted.connect(self.accept)
-        button_box.rejected.connect(self.reject)
-        main_layout.addWidget(button_box)
-        
+        button_box.accepted.connect(self.accept)  # type: ignore
+        button_box.rejected.connect(self.reject)  # type: ignore
+        layout.addWidget(button_box)
+
         # Jika edit, isi data
         if inventaris_data:
             self.load_data()
 
-    def setup_informasi_dasar(self, layout):
-        """Setup section Informasi Dasar"""
-        info_group = QGroupBox("1. INFORMASI DASAR")
-        info_layout = QFormLayout(info_group)
-        
-        self.nama_barang_input = QLineEdit()
-        self.nama_barang_input.setMinimumWidth(350)
-        
+    def setup_inventaris_form(self, layout):
+        """Setup single form matching exactly 8 table columns with proper label spacing"""
+        form_group = QGroupBox("Data Inventaris")
+        form_layout = QFormLayout(form_group)
+
+        # Set proper form layout spacing
+        form_layout.setLabelAlignment(Qt.AlignLeft)
+        form_layout.setFormAlignment(Qt.AlignLeft | Qt.AlignTop)
+        form_layout.setVerticalSpacing(8)  # Add vertical spacing between rows
+        form_layout.setHorizontalSpacing(10)  # Add horizontal spacing between label and field
+
+        # 1. Kode Barang
+        kode_label = QLabel("Kode Barang:")
+        kode_label.setMinimumWidth(120)  # Ensure label has enough width
         self.kode_barang_input = QLineEdit()
         self.kode_barang_input.setMinimumWidth(350)
         self.kode_barang_input.setPlaceholderText("Contoh: INV-001")
-        
+        form_layout.addRow(kode_label, self.kode_barang_input)
+
+        # 2. Nama Barang
+        nama_label = QLabel("Nama Barang:")
+        nama_label.setMinimumWidth(120)
+        self.nama_barang_input = QLineEdit()
+        self.nama_barang_input.setMinimumWidth(350)
+        self.nama_barang_input.setPlaceholderText("Masukkan nama barang")
+        form_layout.addRow(nama_label, self.nama_barang_input)
+
+        # 3. Kategori
+        kategori_label = QLabel("Kategori:")
+        kategori_label.setMinimumWidth(120)
         self.kategori_input = QComboBox()
         self.kategori_input.addItems(["Pilih Kategori", "Peralatan Liturgi", "Furniture", "Elektronik", "Alat Tulis", "Perlengkapan Kantor", "Lainnya"])
         self.kategori_input.setCurrentIndex(0)
         self.kategori_input.setMinimumWidth(350)
         self.setup_placeholder_style(self.kategori_input)
-        
-        self.merk_input = QLineEdit()
-        self.merk_input.setMinimumWidth(350)
-        
-        info_layout.addRow("Nama Barang:", self.nama_barang_input)
-        info_layout.addRow("Kode Barang:", self.kode_barang_input)
-        info_layout.addRow("Kategori:", self.kategori_input)
-        info_layout.addRow("Merk/Brand:", self.merk_input)
-        
-        layout.addWidget(info_group)
-    
-    def setup_detail_barang(self, layout):
-        """Setup section Detail Barang"""
-        detail_group = QGroupBox("2. DETAIL BARANG")
-        detail_layout = QFormLayout(detail_group)
-        
+        form_layout.addRow(kategori_label, self.kategori_input)
+
+        # 4. Jumlah (with satuan combined)
+        jumlah_label = QLabel("Jumlah:")
+        jumlah_label.setMinimumWidth(120)
+        jumlah_container = QWidget()
+        jumlah_layout = QHBoxLayout(jumlah_container)
+        jumlah_layout.setContentsMargins(0, 0, 0, 0)
+
         self.jumlah_input = QDoubleSpinBox()
         self.jumlah_input.setRange(1, 1000)
         self.jumlah_input.setValue(1)
-        self.jumlah_input.setMinimumWidth(350)
-        
+        self.jumlah_input.setDecimals(0)
+
         self.satuan_input = QComboBox()
-        self.satuan_input.addItems(["Pilih Satuan", "Unit", "Buah", "Set", "Pasang", "Lembar", "Roll", "Meter", "Kg", "Liter"])
+        self.satuan_input.addItems(["Unit", "Buah", "Set", "Pasang", "Lembar", "Roll", "Meter", "Kg", "Liter"])
         self.satuan_input.setCurrentIndex(0)
-        self.satuan_input.setMinimumWidth(350)
-        self.setup_placeholder_style(self.satuan_input)
-        
+        self.satuan_input.setMaximumWidth(80)
+
+        jumlah_layout.addWidget(self.jumlah_input)
+        jumlah_layout.addWidget(self.satuan_input)
+        form_layout.addRow(jumlah_label, jumlah_container)
+
+        # 5. Kondisi
+        kondisi_label = QLabel("Kondisi:")
+        kondisi_label.setMinimumWidth(120)
+        self.kondisi_input = QComboBox()
+        self.kondisi_input.addItems(["Baik", "Rusak Ringan", "Rusak Berat", "Hilang"])
+        self.kondisi_input.setCurrentIndex(0)
+        self.kondisi_input.setMinimumWidth(350)
+        form_layout.addRow(kondisi_label, self.kondisi_input)
+
+        # 6. Lokasi
+        lokasi_label = QLabel("Lokasi:")
+        lokasi_label.setMinimumWidth(120)
+        self.lokasi_input = QLineEdit()
+        self.lokasi_input.setMinimumWidth(350)
+        self.lokasi_input.setPlaceholderText("Contoh: Ruang Pastor, Aula, Sekretariat")
+        form_layout.addRow(lokasi_label, self.lokasi_input)
+
+        # 7. Harga Satuan
+        harga_label = QLabel("Harga Satuan (Rp):")
+        harga_label.setMinimumWidth(120)
         self.harga_satuan_input = QDoubleSpinBox()
         self.harga_satuan_input.setRange(0, 1_000_000_000)
         self.harga_satuan_input.setGroupSeparatorShown(True)
         self.harga_satuan_input.setValue(0)
         self.harga_satuan_input.setMinimumWidth(350)
-        
+
         # Set locale Indonesia
         locale = QLocale(QLocale.Indonesian, QLocale.Indonesia)
         self.harga_satuan_input.setLocale(locale)
-        
-        self.tanggal_beli_input = QDateEdit()
-        self.tanggal_beli_input.setCalendarPopup(True)
-        self.tanggal_beli_input.setDate(QDate.currentDate())
-        self.tanggal_beli_input.setMinimumWidth(350)
-        
-        self.supplier_input = QLineEdit()
-        self.supplier_input.setMinimumWidth(350)
-        
-        detail_layout.addRow("Jumlah:", self.jumlah_input)
-        detail_layout.addRow("Satuan:", self.satuan_input)
-        detail_layout.addRow("Harga Satuan (Rp):", self.harga_satuan_input)
-        detail_layout.addRow("Tanggal Beli:", self.tanggal_beli_input)
-        detail_layout.addRow("Supplier:", self.supplier_input)
-        
-        layout.addWidget(detail_group)
-    
-    def setup_status_lokasi(self, layout):
-        """Setup section Status & Lokasi"""
-        status_group = QGroupBox("3. STATUS & LOKASI")
-        status_layout = QFormLayout(status_group)
-        
-        self.kondisi_input = QComboBox()
-        self.kondisi_input.addItems(["Pilih Kondisi", "Baik", "Rusak Ringan", "Rusak Berat", "Hilang"])
-        self.kondisi_input.setCurrentIndex(0)
-        self.kondisi_input.setMinimumWidth(350)
-        self.setup_placeholder_style(self.kondisi_input)
-        
-        self.lokasi_input = QLineEdit()
-        self.lokasi_input.setMinimumWidth(350)
-        self.lokasi_input.setPlaceholderText("Contoh: Ruang Pastor, Aula, Sekretariat")
-        
+        form_layout.addRow(harga_label, self.harga_satuan_input)
+
+        # 8. Penanggung Jawab
+        pj_label = QLabel("Penanggung Jawab:")
+        pj_label.setMinimumWidth(120)
         self.penanggung_jawab_input = QLineEdit()
         self.penanggung_jawab_input.setMinimumWidth(350)
-        
-        self.keterangan_input = QTextEdit()
-        self.keterangan_input.setMaximumHeight(80)
-        self.keterangan_input.setMinimumWidth(350)
-        
-        status_layout.addRow("Kondisi:", self.kondisi_input)
-        status_layout.addRow("Lokasi:", self.lokasi_input)
-        status_layout.addRow("Penanggung Jawab:", self.penanggung_jawab_input)
-        status_layout.addRow("Keterangan:", self.keterangan_input)
-        
-        layout.addWidget(status_group)
-    
+        self.penanggung_jawab_input.setPlaceholderText("Masukkan nama penanggung jawab")
+        form_layout.addRow(pj_label, self.penanggung_jawab_input)
+
+        layout.addWidget(form_group)
+
     def setup_placeholder_style(self, combo_box):
         """Setup placeholder style for combo box"""
         combo_box.setStyleSheet("""
@@ -1117,9 +1160,9 @@ class InventarisDialog(QDialog):
                 color: white;
             }
         """)
-        
+
         def on_selection_changed():
-            if combo_box.currentIndex() == 0:
+            if combo_box.currentIndex() == 0 and combo_box == self.kategori_input:
                 combo_box.setStyleSheet("""
                     QComboBox {
                         color: #888888;
@@ -1175,76 +1218,58 @@ class InventarisDialog(QDialog):
                         color: white;
                     }
                 """)
-        
+
         combo_box.currentIndexChanged.connect(on_selection_changed)
-    
+
     def set_combo_value(self, combo, value):
         """Set combo box value"""
         if not value or str(value).strip() == '':
-            combo.setCurrentIndex(0)
+            if combo == self.kategori_input:
+                combo.setCurrentIndex(0)  # Has placeholder
+            else:
+                combo.setCurrentIndex(0)  # No placeholder for satuan and kondisi
             return
-            
+
         index = combo.findText(str(value))
         if index >= 0:
             combo.setCurrentIndex(index)
         else:
             combo.setCurrentIndex(0)
-    
+
     def load_data(self):
         """Load data untuk edit"""
         if not self.inventaris_data:
             return
-        
-        # Informasi Dasar
-        self.nama_barang_input.setText(str(self.inventaris_data.get('nama_barang', '')))
+
+        # Load data sesuai dengan 8 kolom tabel
         self.kode_barang_input.setText(str(self.inventaris_data.get('kode_barang', '')))
+        self.nama_barang_input.setText(str(self.inventaris_data.get('nama_barang', '')))
         self.set_combo_value(self.kategori_input, self.inventaris_data.get('kategori', ''))
-        self.merk_input.setText(str(self.inventaris_data.get('merk', '')))
-        
-        # Detail Barang
         self.jumlah_input.setValue(float(self.inventaris_data.get('jumlah', 1)))
-        self.set_combo_value(self.satuan_input, self.inventaris_data.get('satuan', ''))
-        self.harga_satuan_input.setValue(float(self.inventaris_data.get('harga_satuan', 0)))
-        self.supplier_input.setText(str(self.inventaris_data.get('supplier', '')))
-        
-        # Tanggal beli
-        if self.inventaris_data.get('tanggal_beli'):
-            try:
-                if isinstance(self.inventaris_data['tanggal_beli'], str):
-                    date = QDate.fromString(self.inventaris_data['tanggal_beli'], "yyyy-MM-dd")
-                else:
-                    date = QDate(self.inventaris_data['tanggal_beli'])
-                self.tanggal_beli_input.setDate(date)
-            except:
-                pass
-        
-        # Status & Lokasi
-        self.set_combo_value(self.kondisi_input, self.inventaris_data.get('kondisi', ''))
+        self.set_combo_value(self.satuan_input, self.inventaris_data.get('satuan', 'Unit'))
+        self.set_combo_value(self.kondisi_input, self.inventaris_data.get('kondisi', 'Baik'))
         self.lokasi_input.setText(str(self.inventaris_data.get('lokasi', '')))
+        self.harga_satuan_input.setValue(float(self.inventaris_data.get('harga_satuan', 0)))
         self.penanggung_jawab_input.setText(str(self.inventaris_data.get('penanggung_jawab', '')))
-        self.keterangan_input.setText(str(self.inventaris_data.get('keterangan', '')))
 
     def get_data(self):
-        """Ambil data dari form"""
+        """Ambil data dari form - hanya 8 field yang sesuai dengan kolom tabel"""
         def get_combo_value(combo_box):
-            if combo_box.currentIndex() == 0:
-                return ''
+            if combo_box == self.kategori_input and combo_box.currentIndex() == 0:
+                return ''  # Return empty for placeholder
             return combo_box.currentText()
-        
+
         return {
-            'nama_barang': self.nama_barang_input.text().strip(),
+            # Field sesuai dengan 8 kolom tabel inventaris
             'kode_barang': self.kode_barang_input.text().strip(),
+            'nama_barang': self.nama_barang_input.text().strip(),
             'kategori': get_combo_value(self.kategori_input),
-            'merk': self.merk_input.text().strip(),
-            'jumlah': self.jumlah_input.value(),
-            'satuan': get_combo_value(self.satuan_input),
-            'harga_satuan': self.harga_satuan_input.value(),
-            'tanggal_beli': self.tanggal_beli_input.date().toString("yyyy-MM-dd"),
-            'supplier': self.supplier_input.text().strip(),
-            'kondisi': get_combo_value(self.kondisi_input),
+            'jumlah': int(self.jumlah_input.value()),
+            'satuan': self.satuan_input.currentText(),
+            'kondisi': self.kondisi_input.currentText(),
             'lokasi': self.lokasi_input.text().strip(),
-            'penanggung_jawab': self.penanggung_jawab_input.text().strip(),
-            'keterangan': self.keterangan_input.toPlainText().strip()
+            'harga_satuan': self.harga_satuan_input.value(),
+            'penanggung_jawab': self.penanggung_jawab_input.text().strip()
         }
 
 
@@ -1300,8 +1325,8 @@ class KeuanganDialog(QDialog):
 
         # Buttons
         button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        button_box.accepted.connect(self.accept)
-        button_box.rejected.connect(self.reject)
+        button_box.accepted.connect(self.accept)  # type: ignore
+        button_box.rejected.connect(self.reject)  # type: ignore
         layout.addWidget(button_box)
 
     def get_data(self):
@@ -1321,6 +1346,8 @@ class StrukturDialog(QDialog):
     def __init__(self, parent=None, struktur_data=None):
         super().__init__(parent)
         self.struktur_data = struktur_data
+        self.parent_component = parent  # Store reference to parent component
+        self.uploaded_photo_path = None  # Store server photo path
         self.setWindowTitle("Tambah Pengurus" if not struktur_data else "Edit Pengurus")
         self.setModal(True)
         self.setFixedSize(500, 500)
@@ -1333,8 +1360,8 @@ class StrukturDialog(QDialog):
 
         # Buttons
         button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        button_box.accepted.connect(self.accept)
-        button_box.rejected.connect(self.reject)
+        button_box.accepted.connect(self.accept)  # type: ignore
+        button_box.rejected.connect(self.reject)  # type: ignore
         layout.addWidget(button_box)
         
         # Jika edit, isi data
@@ -1407,14 +1434,65 @@ class StrukturDialog(QDialog):
     
     
     def browse_foto(self):
-        """Browse untuk memilih foto"""
-        from PyQt5.QtWidgets import QFileDialog
+        """Browse untuk memilih foto dan upload ke server"""
+        from PyQt5.QtWidgets import QFileDialog, QMessageBox, QProgressDialog
+        from PyQt5.QtCore import Qt
+        
         filename, _ = QFileDialog.getOpenFileName(
             self, "Pilih Foto", "", 
             "Image Files (*.png *.jpg *.jpeg *.bmp *.gif)"
         )
+        
         if filename:
-            self.foto_path_input.setText(filename)
+            # Show progress dialog
+            progress = QProgressDialog("Mengupload foto ke server...", "Batal", 0, 100, self)
+            progress.setWindowModality(Qt.WindowModal)
+            progress.setValue(10)
+            
+            try:
+                # Get database manager from parent component
+                if hasattr(self.parent_component, 'db_manager') and self.parent_component.db_manager:
+                    db_manager = self.parent_component.db_manager
+                    
+                    progress.setValue(30)
+                    
+                    # Upload foto ke server
+                    success, result = db_manager.upload_struktur_photo_new(filename)
+                    progress.setValue(80)
+                    
+                    if success:
+                        # Store server photo path
+                        self.uploaded_photo_path = result.get('photo_path', '')
+                        photo_url = result.get('photo_url', '')
+                        
+                        # Update display with server path/URL
+                        self.foto_path_input.setText(f"Server: {photo_url}")
+                        self.foto_path_input.setToolTip(f"File uploaded to server: {self.uploaded_photo_path}")
+                        
+                        progress.setValue(100)
+                        QMessageBox.information(self, "Sukses", "Foto berhasil diupload ke server!")
+                    else:
+                        progress.setValue(100)
+                        QMessageBox.warning(self, "Error Upload", f"Gagal upload foto ke server:\n{result}")
+                        # Fallback to local path
+                        self.foto_path_input.setText(filename)
+                        self.uploaded_photo_path = None
+                else:
+                    progress.setValue(100)
+                    QMessageBox.warning(self, "Error", "Database manager tidak tersedia")
+                    # Fallback to local path
+                    self.foto_path_input.setText(filename)
+                    self.uploaded_photo_path = None
+                    
+            except Exception as e:
+                progress.setValue(100)
+                QMessageBox.critical(self, "Error", f"Error saat upload foto:\n{str(e)}")
+                # Fallback to local path
+                self.foto_path_input.setText(filename)
+                self.uploaded_photo_path = None
+            
+            finally:
+                progress.close()
     
     def setup_placeholder_style(self, combo_box):
         """Setup placeholder style for combo box"""
@@ -1544,18 +1622,18 @@ class StrukturDialog(QDialog):
             # KONTAK & FOTO - tampil di tabel sebagai Informasi Kontak
             'email': self.email_input.text().strip(),
             'telepon': self.telepon_input.text().strip(),
-            'foto_path': self.foto_path_input.text().strip(),
+            'foto_path': self.uploaded_photo_path or self.foto_path_input.text().strip(),
             
             # Default values untuk field yang diperlukan oleh sistem
             'gelar_depan': '',
             'gelar_belakang': '',
-            'jenis_kelamin': '',
-            'tanggal_lahir': '',
+            'jenis_kelamin': None,  # Use NULL instead of empty string
+            'tanggal_lahir': None,  # Use NULL instead of empty string
             'status_klerus': 'Awam',
             'level_hierarki': 9,
             'bidang_pelayanan': '',
-            'tanggal_mulai_jabatan': '',
-            'tanggal_berakhir_jabatan': '',
+            'tanggal_mulai_jabatan': None,  # Use NULL instead of empty string
+            'tanggal_berakhir_jabatan': None,  # Use NULL instead of empty string
             'alamat': '',
             'deskripsi_tugas': ''
         }

@@ -657,7 +657,7 @@ class ClientAppWindow(QMainWindow):
             show_action.triggered.connect(self.show)
             
             quit_action = tray_menu.addAction("Keluar")
-            quit_action.triggered.connect(self.close)
+            quit_action.triggered.connect(self.close)  # type: ignore
             
             self.tray_icon.setContextMenu(tray_menu)
             self.tray_icon.show()
@@ -802,7 +802,7 @@ class ClientAppWindow(QMainWindow):
                 background-color: #2980b9;
             }
         """)
-        close_btn.clicked.connect(dialog.accept)
+        close_btn.clicked.connect(dialog.accept)  # type: ignore
         layout.addWidget(close_btn)
         
         dialog.exec_()
@@ -882,7 +882,7 @@ class ClientAppWindow(QMainWindow):
                 background-color: #545b62;
             }
         """)
-        cancel_btn.clicked.connect(dialog.reject)
+        cancel_btn.clicked.connect(dialog.reject)  # type: ignore
         
         save_btn = QPushButton("Simpan")
         save_btn.setStyleSheet("""
