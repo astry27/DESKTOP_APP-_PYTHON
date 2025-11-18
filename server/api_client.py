@@ -10,9 +10,50 @@ from urllib3.util.retry import Retry
 from requests.adapters import HTTPAdapter
 from requests.exceptions import RequestException, ConnectionError, Timeout
 
-load_dotenv()
+# Force reload .env to get latest configuration
+import pathlib
+dotenv_path = pathlib.Path(__file__).parent.parent / '.env'
+load_dotenv(dotenv_path, override=True)
 
-BASE_URL = os.getenv('API_BASE_URL', 'https://enternal.my.id/flask')
+# Auto-detect API server: prioritize production server
+def get_api_base_url():
+    """
+    Auto-detect best API server:
+    1. Check .env API_BASE_URL setting (recommended: https://enternal.my.id/flask for production)
+    2. Try production server (https://enternal.my.id/flask)
+    3. Fallback to local Flask server (http://localhost:5000)
+    """
+    # Re-read .env to ensure we have latest values
+    import pathlib
+    dotenv_path = pathlib.Path(__file__).parent.parent / '.env'
+    load_dotenv(dotenv_path, override=True)
+
+    # Check .env first
+    env_url = os.getenv('API_BASE_URL')
+    if env_url and env_url.strip():
+        print(f"[API] Using API_BASE_URL from .env: {env_url}")
+        return env_url.strip()
+
+    # Try production server first
+    production_api = 'https://enternal.my.id/flask'
+    try:
+        response = requests.get(production_api, timeout=2)
+        print(f"[API] Production server detected at {production_api}")
+        return production_api
+    except requests.exceptions.ConnectionError:
+        print(f"[API] Production server not available at {production_api}")
+    except requests.exceptions.Timeout:
+        print(f"[API] Production server timeout at {production_api}")
+    except Exception as e:
+        print(f"[API] Error checking production server: {e}")
+
+    # Fallback to local Flask development
+    local_api = 'http://localhost:5000'
+    print(f"[API] Using fallback local API: {local_api}")
+    return local_api
+
+# Get initial URL on startup
+BASE_URL = get_api_base_url()
 
 class ApiClient:
     
@@ -37,6 +78,10 @@ class ApiClient:
     
     def _make_request(self, method, url, **kwargs):
         """Make HTTP request with improved error handling"""
+        # Validasi URL tidak kosong atau None
+        if not url or not isinstance(url, str) or url.strip() == '':
+            return {"success": False, "data": f"URL tidak valid atau kosong: '{url}'. Pastikan API_BASE_URL dikonfigurasi dengan benar di .env file (API_BASE_URL=http://localhost:5000)"}
+
         for attempt in range(2):  # Reduced from 3 to 2
             try:
                 if method.upper() == 'GET':
@@ -49,10 +94,10 @@ class ApiClient:
                     response = self.session.delete(url, timeout=self.timeout, **kwargs)
                 else:
                     response = self.session.request(method, url, timeout=self.timeout, **kwargs)
-                
+
                 response.raise_for_status()
                 return {"success": True, "data": response.json() if response.text else None}
-                
+
             except ConnectionError as e:
                 if "Failed to resolve" in str(e) or "getaddrinfo failed" in str(e) or "Name or service not known" in str(e):
                     if attempt < 2:  # Last attempt
@@ -67,10 +112,14 @@ class ApiClient:
                     continue
                 return {"success": False, "data": f"Timeout koneksi ke server: {e}"}
             except RequestException as e:
+                error_msg = str(e)
+                # Handle "No connection adapters" error
+                if "No connection adapters were found" in error_msg:
+                    return {"success": False, "data": f"Format URL tidak valid: {url}. Pastikan API_BASE_URL di .env file dimulai dengan http:// atau https://"}
                 return {"success": False, "data": f"Gagal terhubung ke API: {e}"}
             except Exception as e:
                 return {"success": False, "data": f"Error tidak terduga: {e}"}
-        
+
         return {"success": False, "data": "Gagal terhubung setelah 3 kali percobaan"}
 
     def check_server_connection(self):
@@ -211,36 +260,78 @@ class ApiClient:
     
     def delete_keuangan(self, keuangan_id):
         return self._make_request('DELETE', f"{self.base_url}/keuangan/{keuangan_id}")
-    
+
+    # ========== KEUANGAN KATEGORIAL METHODS ==========
+    def get_keuangan_kategorial(self):
+        """Get all keuangan_kategorial records"""
+        return self._make_request('GET', f"{self.base_url}/keuangan/kategorial?limit=1000")
+
+    def add_keuangan_kategorial(self, data, admin_id=None):
+        """Add new keuangan_kategorial record"""
+        # Add created_by_admin field if provided (required by API)
+        if admin_id:
+            data['created_by_admin'] = admin_id
+        return self._make_request('POST', f"{self.base_url}/keuangan/kategorial",
+                               json=data,
+                               headers={'Content-Type': 'application/json'})
+
+    def update_keuangan_kategorial(self, keuangan_id, data):
+        """Update existing keuangan_kategorial record"""
+        return self._make_request('PUT', f"{self.base_url}/keuangan/kategorial/{keuangan_id}",
+                              json=data,
+                              headers={'Content-Type': 'application/json'})
+
+    def delete_keuangan_kategorial(self, keuangan_id):
+        """Delete keuangan_kategorial record"""
+        return self._make_request('DELETE', f"{self.base_url}/keuangan/kategorial/{keuangan_id}")
+
     # ========== FILES METHODS ==========
     def get_files(self):
         return self._make_request('GET', f"{self.base_url}/files")
     
-    def upload_file(self, file_path, document_name=None, document_type=None):
+    def upload_file(self, file_path, document_name=None, document_type=None, keterangan=None, kategori=None):
         """Upload file with improved error handling"""
         for attempt in range(3):
             try:
                 with open(file_path, 'rb') as f:
                     files = {'file': f}
-                    
-                    # Prepare form data
+
+                    # Prepare form data - MUST match API expectations
                     data = {}
+                    # Nama dokumen
                     if document_name:
-                        data['document_name'] = document_name
+                        data['nama_dokumen'] = document_name
+
+                    # Jenis dokumen (required by API)
                     if document_type:
-                        data['document_type'] = document_type
                         data['jenis_dokumen'] = document_type
-                    
+                    else:
+                        data['jenis_dokumen'] = 'Administrasi'  # Default
+
+                    # Kategori (required by API)
+                    if kategori:
+                        data['kategori'] = kategori
+                    else:
+                        data['kategori'] = 'Lainnya'
+
+                    # Keterangan (optional)
+                    if keterangan:
+                        data['keterangan'] = keterangan
+                    else:
+                        data['keterangan'] = ''
+
                     # Debug logging untuk upload
-                    print(f"Upload API - name: {document_name}, type: {document_type}")
-                    
-                    response = self.session.post(f"{self.base_url}/upload", 
+                    print(f"Upload API - nama: {document_name}, jenis: {document_type}, kategori: {kategori or 'Lainnya'}, keterangan: {keterangan}")
+
+                    # Use longer timeout for file upload (up to 60 seconds for large files)
+                    upload_timeout = 60
+                    response = self.session.post(f"{self.base_url}/dokumen/upload",
                                                files=files,
                                                data=data,
-                                               timeout=self.timeout)
+                                               timeout=upload_timeout)
                     response.raise_for_status()
                     return {"success": True, "data": response.json()}
-                    
+
             except ConnectionError as e:
                 if "Failed to resolve" in str(e) or "getaddrinfo failed" in str(e) or "Name or service not known" in str(e):
                     if attempt < 2:
@@ -258,11 +349,11 @@ class ApiClient:
                 return {"success": False, "data": f"Gagal upload file: {e}"}
             except Exception as e:
                 return {"success": False, "data": f"Error reading file: {e}"}
-        
+
         return {"success": False, "data": "Gagal upload file setelah 3 kali percobaan"}
     
     def delete_file(self, file_id):
-        return self._make_request('DELETE', f"{self.base_url}/files/{file_id}")
+        return self._make_request('DELETE', f"{self.base_url}/dokumen/files/{file_id}")
 # ========== LOG METHODS ==========
     def get_log_activities(self, limit=100):
         return self._make_request('GET', f"{self.base_url}/log/activities?limit={limit}")
@@ -282,7 +373,7 @@ class ApiClient:
         """Download file with improved error handling"""
         for attempt in range(3):
             try:
-                response = self.session.get(f"{self.base_url}/files/{file_id}/download", 
+                response = self.session.get(f"{self.base_url}/dokumen/files/{file_id}/download",
                                           timeout=self.timeout)
                 response.raise_for_status()
                 
@@ -366,7 +457,50 @@ class ApiClient:
                 return {"success": True, "data": response.json()}
         except Exception as e:
             return {"success": False, "data": f"Error upload foto: {str(e)}"}
-    
+
+    # ========== KATEGORIAL METHODS ==========
+    def get_kategorial(self):
+        return self._make_request('GET', f"{self.base_url}/kategorial")
+
+    def add_kategorial(self, data):
+        return self._make_request('POST', f"{self.base_url}/kategorial",
+                               json=data,
+                               headers={'Content-Type': 'application/json'})
+
+    def update_kategorial(self, kategorial_id, data):
+        return self._make_request('PUT', f"{self.base_url}/kategorial/{kategorial_id}",
+                              json=data,
+                              headers={'Content-Type': 'application/json'})
+
+    def delete_kategorial(self, kategorial_id):
+        return self._make_request('DELETE', f"{self.base_url}/kategorial/{kategorial_id}")
+
+    # ========== WILAYAH ROHANI METHODS ==========
+    def get_wr(self):
+        return self._make_request('GET', f"{self.base_url}/wr")
+
+    def add_wr(self, data):
+        return self._make_request('POST', f"{self.base_url}/wr", json=data)
+
+    def update_wr(self, wr_id, data):
+        return self._make_request('PUT', f"{self.base_url}/wr/{wr_id}", json=data)
+
+    def delete_wr(self, wr_id):
+        return self._make_request('DELETE', f"{self.base_url}/wr/{wr_id}")
+
+    # ========== K. BINAAN METHODS ==========
+    def get_binaan(self):
+        return self._make_request('GET', f"{self.base_url}/binaan")
+
+    def add_binaan(self, data):
+        return self._make_request('POST', f"{self.base_url}/binaan", json=data)
+
+    def update_binaan(self, binaan_id, data):
+        return self._make_request('PUT', f"{self.base_url}/binaan/{binaan_id}", json=data)
+
+    def delete_binaan(self, binaan_id):
+        return self._make_request('DELETE', f"{self.base_url}/binaan/{binaan_id}")
+
     # ========== INVENTARIS METHODS ==========
     def get_inventaris(self):
         return self._make_request('GET', f"{self.base_url}/inventaris")
@@ -421,7 +555,57 @@ class ApiClient:
     def get_program_statistics(self):
         """Get program kerja statistics"""
         return self._make_request('GET', f"{self.base_url}/program-kerja/statistics")
-    
+
+    def get_program_kerja_dpp_list(self, search=None, month=None):
+        """Get list of program kerja DPP"""
+        params = {}
+        if search:
+            params['search'] = search
+        if month:
+            params['month'] = month
+        return self._make_request('GET', f"{self.base_url}/program-kerja-dpp", params=params)
+
+    def get_program_kerja_wr_list(self, search=None, wilayah_id=None):
+        """Get list of program kerja WR"""
+        params = {}
+        if search:
+            params['search'] = search
+        if wilayah_id:
+            params['wilayah_id'] = wilayah_id
+        return self._make_request('GET', f"{self.base_url}/program-kerja-wr", params=params)
+
+    def add_program_kerja_dpp(self, data):
+        """Add new program kerja DPP"""
+        return self._make_request('POST', f"{self.base_url}/program-kerja-dpp",
+                               json=data,
+                               headers={'Content-Type': 'application/json'})
+
+    def add_program_kerja_wr(self, data):
+        """Add new program kerja WR"""
+        return self._make_request('POST', f"{self.base_url}/program-kerja-wr",
+                               json=data,
+                               headers={'Content-Type': 'application/json'})
+
+    def update_program_kerja_dpp(self, program_id, data):
+        """Update program kerja DPP"""
+        return self._make_request('PUT', f"{self.base_url}/program-kerja-dpp/{program_id}",
+                              json=data,
+                              headers={'Content-Type': 'application/json'})
+
+    def update_program_kerja_wr(self, program_id, data):
+        """Update program kerja WR"""
+        return self._make_request('PUT', f"{self.base_url}/program-kerja-wr/{program_id}",
+                              json=data,
+                              headers={'Content-Type': 'application/json'})
+
+    def delete_program_kerja_dpp(self, program_id):
+        """Delete program kerja DPP"""
+        return self._make_request('DELETE', f"{self.base_url}/program-kerja-dpp/{program_id}")
+
+    def delete_program_kerja_wr(self, program_id):
+        """Delete program kerja WR"""
+        return self._make_request('DELETE', f"{self.base_url}/program-kerja-wr/{program_id}")
+
     def get_inventaris_statistics(self):
         return self._make_request('GET', f"{self.base_url}/inventaris/statistics")
     
@@ -430,3 +614,115 @@ class ApiClient:
     
     def get_inventaris_locations(self):
         return self._make_request('GET', f"{self.base_url}/inventaris/lokasi")
+
+    # ========== ASET METHODS ==========
+    def get_aset(self):
+        return self._make_request('GET', f"{self.base_url}/aset")
+
+    def add_aset(self, data):
+        return self._make_request('POST', f"{self.base_url}/aset",
+                               json=data,
+                               headers={'Content-Type': 'application/json'})
+
+    def update_aset(self, aset_id, data):
+        return self._make_request('PUT', f"{self.base_url}/aset/{aset_id}",
+                              json=data,
+                              headers={'Content-Type': 'application/json'})
+
+    def delete_aset(self, aset_id):
+        return self._make_request('DELETE', f"{self.base_url}/aset/{aset_id}")
+
+    def get_aset_statistics(self):
+        return self._make_request('GET', f"{self.base_url}/aset/statistics")
+
+    def get_aset_categories(self):
+        return self._make_request('GET', f"{self.base_url}/aset/kategori")
+
+    def get_aset_locations(self):
+        return self._make_request('GET', f"{self.base_url}/aset/lokasi")
+
+    # ========== BUKU KRONIK METHODS ==========
+    def get_buku_kronik(self):
+        """Get buku kronik list"""
+        return self._make_request('GET', f"{self.base_url}/buku-kronik")
+
+    def add_buku_kronik(self, data):
+        """Add new buku kronik entry"""
+        return self._make_request('POST', f"{self.base_url}/buku-kronik",
+                               json=data,
+                               headers={'Content-Type': 'application/json'})
+
+    def update_buku_kronik(self, kronik_id, data):
+        """Update buku kronik entry"""
+        return self._make_request('PUT', f"{self.base_url}/buku-kronik/{kronik_id}",
+                              json=data,
+                              headers={'Content-Type': 'application/json'})
+
+    def delete_buku_kronik(self, kronik_id):
+        """Delete buku kronik entry"""
+        return self._make_request('DELETE', f"{self.base_url}/buku-kronik/{kronik_id}")
+
+    # Tim Pembina methods
+    def get_tim_pembina(self):
+        return self._make_request('GET', f"{self.base_url}/tim_pembina")
+
+    def add_tim_pembina(self, data):
+        return self._make_request('POST', f"{self.base_url}/tim_pembina", json=data,
+                                headers={'Content-Type': 'application/json'})
+
+    def update_tim_pembina(self, tim_id, data):
+        return self._make_request('PUT', f"{self.base_url}/tim_pembina/{tim_id}", json=data,
+                                headers={'Content-Type': 'application/json'})
+
+    def delete_tim_pembina(self, tim_id):
+        return self._make_request('DELETE', f"{self.base_url}/tim_pembina/{tim_id}")
+
+    def add_tim_pembina_peserta(self, tim_id, data):
+        return self._make_request('POST', f"{self.base_url}/tim_pembina/{tim_id}/peserta", json=data,
+                                headers={'Content-Type': 'application/json'})
+
+    def delete_tim_pembina_peserta(self, peserta_id):
+        return self._make_request('DELETE', f"{self.base_url}/tim_pembina/peserta/{peserta_id}")
+
+    def get_tim_pembina_peserta(self):
+        """Get all peserta from tim_pembina table (new single-table approach)"""
+        return self._make_request('GET', f"{self.base_url}/tim_pembina_peserta")
+
+    def add_tim_pembina_peserta_new(self, data):
+        """Add new peserta to tim_pembina table (new single-table approach)"""
+        return self._make_request('POST', f"{self.base_url}/tim_pembina_peserta", json=data,
+                                headers={'Content-Type': 'application/json'})
+
+    def update_tim_pembina_peserta(self, peserta_id, data):
+        """Update peserta in tim_pembina table (new single-table approach)"""
+        return self._make_request('PUT', f"{self.base_url}/tim_pembina_peserta/{peserta_id}", json=data,
+                                headers={'Content-Type': 'application/json'})
+
+    def delete_tim_pembina_peserta_new(self, peserta_id):
+        """Delete peserta from tim_pembina table (new single-table approach)"""
+        return self._make_request('DELETE', f"{self.base_url}/tim_pembina_peserta/{peserta_id}")
+
+    # ========== PROGRAM KERJA KATEGORIAL METHODS ==========
+    def get_program_kerja_kategorial(self, search=None):
+        """Get program kerja kategorial list"""
+        url = f"{self.base_url}/program-kerja-k-kategorial"
+        params = {}
+        if search:
+            params['search'] = search
+        return self._make_request('GET', url, params=params)
+
+    def add_program_kerja_kategorial(self, data):
+        """Add new program kerja kategorial"""
+        return self._make_request('POST', f"{self.base_url}/program-kerja-k-kategorial",
+                               json=data,
+                               headers={'Content-Type': 'application/json'})
+
+    def update_program_kerja_kategorial(self, program_id, data):
+        """Update program kerja kategorial"""
+        return self._make_request('PUT', f"{self.base_url}/program-kerja-k-kategorial/{program_id}",
+                              json=data,
+                              headers={'Content-Type': 'application/json'})
+
+    def delete_program_kerja_kategorial(self, program_id):
+        """Delete program kerja kategorial"""
+        return self._make_request('DELETE', f"{self.base_url}/program-kerja-k-kategorial/{program_id}")
