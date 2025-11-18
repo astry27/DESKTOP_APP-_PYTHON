@@ -1299,22 +1299,6 @@ class DatabaseManager:
             self.logger.error(f"Error deleting peserta: {e}")
             return False, str(e)
 
-    def get_jemaat_list(self) -> Tuple[bool, Any]:
-        """Get all jemaat (for loading wilayah rohani list)"""
-        try:
-            success, response = self.api_client.get_jemaat()
-            if success:
-                if isinstance(response, list):
-                    return True, {'success': True, 'data': response}
-                elif isinstance(response, dict) and 'data' in response:
-                    return True, {'success': True, 'data': response['data']}
-                elif isinstance(response, dict) and response.get('success'):
-                    return True, {'success': True, 'data': response.get('data', [])}
-            return False, {'success': False, 'data': []}
-        except Exception as e:
-            self.logger.error(f"Error getting jemaat list: {e}")
-            return False, str(e)
-
     def search_jemaat_by_nama(self, keyword: str) -> Tuple[bool, Any]:
         """Search jemaat by nama"""
         try:
