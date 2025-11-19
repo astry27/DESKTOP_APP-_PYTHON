@@ -3090,7 +3090,7 @@ class TimPesertaDialog(QDialog):
         self.wilayah_rohani_input = QComboBox()
         self.wilayah_rohani_input.setMinimumWidth(350)
         self.wilayah_rohani_input.addItem("Pilih Wilayah Rohani")
-        self.wilayah_rohani_input.currentTextChanged.connect(self.on_wilayah_changed)
+        self.load_wilayah_list()  # Load immediately
         form_layout.addRow("Wilayah Rohani:", self.wilayah_rohani_input)
 
         # Jabatan (dropdown with fixed options)
@@ -3220,12 +3220,6 @@ class TimPesertaDialog(QDialog):
                 self.wilayah_rohani_input.setCurrentIndex(0)
         except Exception as e:
             print(f"[TimPesertaDialog] Error searching jemaat: {str(e)}")
-
-    def on_wilayah_changed(self):
-        """Handle wilayah rohani selection changed"""
-        # Load wilayah list if not already loaded
-        if self.wilayah_rohani_input.count() == 1:
-            self.load_wilayah_list()
 
     def load_data(self):
         """Load data untuk edit"""

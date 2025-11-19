@@ -4,7 +4,7 @@
 
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QComboBox,
                             QTableWidget, QTableWidgetItem, QMessageBox, QDialog,
-                            QHeaderView, QAbstractItemView, QSpacerItem, QSizePolicy)
+                            QHeaderView, QAbstractItemView, QSpacerItem, QSizePolicy, QLineEdit, QFrame)
 from PyQt5.QtCore import pyqtSignal, Qt, QTimer
 from PyQt5.QtGui import QFont, QColor
 from .dialogs import TimPesertaDialog
@@ -36,86 +36,48 @@ class TimPembinaComponent(QWidget):
     def setup_ui(self):
         """Setup UI untuk halaman Tim Pembina Peserta"""
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(15, 15, 15, 15)
-        main_layout.setSpacing(12)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
 
-        # Header section
-        header_layout = QVBoxLayout()
-        header_layout.setSpacing(8)
+        # Clean header without background (matching aset style)
+        header_frame = QWidget()
+        header_layout = QHBoxLayout(header_frame)
+        header_layout.setContentsMargins(15, 10, 10, 0)
 
-        # Title
         title_label = QLabel("Manajemen Tim Pembina")
-        title_font = QFont()
-        title_font.setPointSize(14)
-        title_font.setBold(True)
-        title_label.setFont(title_font)
+        title_label.setStyleSheet("font-size: 18px; font-weight: bold;")
         header_layout.addWidget(title_label)
+        header_layout.addStretch()
+
+        main_layout.addWidget(header_frame)
 
         # Info label
+        info_frame = QWidget()
+        info_layout = QHBoxLayout(info_frame)
+        info_layout.setContentsMargins(15, 0, 10, 5)
         self.info_label = QLabel("Total: 0 peserta")
         info_font = QFont()
         info_font.setPointSize(9)
         self.info_label.setFont(info_font)
-        self.info_label.setStyleSheet("color: #666; font-weight: normal;")
-        header_layout.addWidget(self.info_label)
+        self.info_label.setStyleSheet("color: #666;")
+        info_layout.addWidget(self.info_label)
+        info_layout.addStretch()
+        main_layout.addWidget(info_frame)
 
-        main_layout.addLayout(header_layout)
-
-        # Button and filter layout
+        # Toolbar with search dan buttons
         toolbar_layout = QHBoxLayout()
+        toolbar_layout.setContentsMargins(10, 5, 10, 5)
         toolbar_layout.setSpacing(10)
 
-        # Tambah Peserta button
-        self.tambah_peserta_btn = QPushButton("+ Tambah Peserta")
-        self.tambah_peserta_btn.setMinimumHeight(36)
-        self.tambah_peserta_btn.setMaximumWidth(150)
-        self.tambah_peserta_btn.setCursor(Qt.PointingHandCursor)
-        self.tambah_peserta_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #27ae60;
-                color: white;
-                border: none;
-                padding: 8px 16px;
-                border-radius: 4px;
-                font-weight: bold;
-                font-size: 11px;
-            }
-            QPushButton:hover {
-                background-color: #229954;
-            }
-            QPushButton:pressed {
-                background-color: #1e8449;
-            }
-        """)
-        self.tambah_peserta_btn.clicked.connect(self.on_tambah_peserta)
-        toolbar_layout.addWidget(self.tambah_peserta_btn)
+        # Search functionality
+        toolbar_layout.addWidget(QLabel("Cari:"))
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("Cari nama peserta...")
+        self.search_input.setFixedWidth(250)
+        self.search_input.textChanged.connect(self.filter_data)
+        toolbar_layout.addWidget(self.search_input)
 
-        # Refresh button
-        self.refresh_btn = QPushButton("🔄 Refresh")
-        self.refresh_btn.setMinimumHeight(36)
-        self.refresh_btn.setMaximumWidth(110)
-        self.refresh_btn.setCursor(Qt.PointingHandCursor)
-        self.refresh_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #3498db;
-                color: white;
-                border: none;
-                padding: 8px 12px;
-                border-radius: 4px;
-                font-weight: bold;
-                font-size: 11px;
-            }
-            QPushButton:hover {
-                background-color: #2980b9;
-            }
-            QPushButton:pressed {
-                background-color: #1f618d;
-            }
-        """)
-        self.refresh_btn.clicked.connect(self.load_data)
-        toolbar_layout.addWidget(self.refresh_btn)
-
-        # Filters
+        # Filters section
         toolbar_layout.addSpacing(20)
         toolbar_layout.addWidget(QLabel("Filter:"))
 
@@ -141,7 +103,60 @@ class TimPembinaComponent(QWidget):
         toolbar_layout.addWidget(self.jabatan_filter)
 
         toolbar_layout.addStretch()
-        main_layout.addLayout(toolbar_layout)
+
+        # Refresh button
+        self.refresh_btn = QPushButton("🔄 Refresh")
+        self.refresh_btn.setMinimumHeight(32)
+        self.refresh_btn.setMaximumWidth(110)
+        self.refresh_btn.setCursor(Qt.PointingHandCursor)
+        self.refresh_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #3498db;
+                color: white;
+                border: none;
+                padding: 6px 12px;
+                border-radius: 3px;
+                font-weight: bold;
+                font-size: 10px;
+            }
+            QPushButton:hover {
+                background-color: #2980b9;
+            }
+            QPushButton:pressed {
+                background-color: #1f618d;
+            }
+        """)
+        self.refresh_btn.clicked.connect(self.load_data)
+        toolbar_layout.addWidget(self.refresh_btn)
+
+        # Tambah Peserta button
+        self.tambah_peserta_btn = QPushButton("+ Tambah Peserta")
+        self.tambah_peserta_btn.setMinimumHeight(32)
+        self.tambah_peserta_btn.setMaximumWidth(150)
+        self.tambah_peserta_btn.setCursor(Qt.PointingHandCursor)
+        self.tambah_peserta_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #27ae60;
+                color: white;
+                border: none;
+                padding: 6px 16px;
+                border-radius: 3px;
+                font-weight: bold;
+                font-size: 10px;
+            }
+            QPushButton:hover {
+                background-color: #229954;
+            }
+            QPushButton:pressed {
+                background-color: #1e8449;
+            }
+        """)
+        self.tambah_peserta_btn.clicked.connect(self.on_tambah_peserta)
+        toolbar_layout.addWidget(self.tambah_peserta_btn)
+
+        toolbar_widget = QWidget()
+        toolbar_widget.setLayout(toolbar_layout)
+        main_layout.addWidget(toolbar_widget)
 
         # Table widget
         self.peserta_table = QTableWidget()
@@ -150,11 +165,10 @@ class TimPembinaComponent(QWidget):
             "Nama Peserta", "Wilayah Rohani", "Jabatan", "Tim Pembina", "Tahun", "Aksi"
         ])
 
-        # Configure table appearance
+        # Configure table appearance (matching Aset style)
         self.peserta_table.setStyleSheet("""
             QTableWidget {
-                border: 1px solid #ddd;
-                border-radius: 4px;
+                border: 1px solid #d0d0d0;
                 background-color: white;
                 alternate-background-color: #f9f9f9;
                 gridline-color: #eee;
@@ -164,12 +178,14 @@ class TimPembinaComponent(QWidget):
                 border: none;
             }
             QHeaderView::section {
-                background-color: #34495e;
-                color: white;
-                padding: 6px;
+                background-color: #f2f2f2;
+                color: #333333;
+                padding: 8px 4px;
                 border: none;
+                border-bottom: 1px solid #d4d4d4;
+                border-right: 1px solid #d4d4d4;
                 font-weight: bold;
-                font-size: 11px;
+                font-size: 10px;
             }
         """)
 
@@ -289,8 +305,22 @@ class TimPembinaComponent(QWidget):
         if jabatan_filter != "-- Semua Jabatan --":
             self.filtered_data = [p for p in self.filtered_data if p.get('jabatan', '') == jabatan_filter]
 
+        # Filter by search keyword
+        search_text = self.search_input.text().lower()
+        if search_text:
+            self.filtered_data = [p for p in self.filtered_data if (
+                search_text in p.get('nama_peserta', '').lower() or
+                search_text in p.get('wilayah_rohani', '').lower() or
+                search_text in p.get('jabatan', '').lower() or
+                search_text in p.get('nama_tim', p.get('tim_pembina', '')).lower()
+            )]
+
         self.populate_peserta_table()
         self.update_info_label()
+
+    def filter_data(self):
+        """Filter data when search text changed"""
+        self.apply_filters()
 
     def populate_peserta_table(self):
         """Populate table dengan peserta data"""
