@@ -1,8 +1,9 @@
 # Path: client/components/pengumuman_component.py
 
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QListWidget, QTextBrowser,
-                             QMessageBox, QSplitter, QLabel, QHBoxLayout, QPushButton)
+                             QMessageBox, QSplitter, QLabel, QHBoxLayout, QPushButton, QFrame)
 from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QFont
 
 class PengumumanComponent(QWidget):
     
@@ -15,27 +16,58 @@ class PengumumanComponent(QWidget):
 
     def init_ui(self):
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
 
-        # Header untuk pengumuman
-        header_layout = QHBoxLayout()
-        header_layout.addWidget(QLabel("Daftar Pengumuman"))
-        header_layout.addStretch()
+        # Title section with professional styling (matching dokumen_component.py style)
+        title_frame = QFrame()
+        title_frame.setStyleSheet("""
+            QFrame {
+                background-color: white;
+                border-bottom: 2px solid #ecf0f1;
+                padding: 10px 0px;
+            }
+        """)
+        title_layout = QHBoxLayout(title_frame)
+        title_layout.setContentsMargins(10, 0, 10, 0)
+        title_layout.setSpacing(0)
+
+        title_label = QLabel("Pengumuman Gereja")
+        title_font = QFont("Arial", 18, QFont.Bold)
+        title_label.setFont(title_font)
+        title_label.setStyleSheet("""
+            QLabel {
+                color: #2c3e50;
+                padding: 2px;
+                background-color: transparent;
+                border: none;
+            }
+        """)
+        title_layout.addWidget(title_label)
+        title_layout.addStretch()
+
         refresh_button = QPushButton("Refresh")
         refresh_button.clicked.connect(self.load_pengumuman)
         refresh_button.setStyleSheet("""
             QPushButton {
-                background-color: #3498db;
+                background-color: #27ae60;
                 color: white;
-                padding: 6px 12px;
+                padding: 8px 16px;
                 border: none;
                 border-radius: 4px;
+                font-weight: bold;
             }
             QPushButton:hover {
-                background-color: #2980b9;
+                background-color: #2ecc71;
             }
         """)
-        header_layout.addWidget(refresh_button)
-        layout.addLayout(header_layout)
+        title_layout.addWidget(refresh_button)
+        layout.addWidget(title_frame)
+
+        # Main content area with proper spacing
+        content_layout = QVBoxLayout()
+        content_layout.setContentsMargins(10, 10, 10, 10)
+        content_layout.setSpacing(6)
 
         # Splitter untuk list dan detail pengumuman
         splitter = QSplitter(Qt.Orientation.Horizontal)
@@ -43,23 +75,64 @@ class PengumumanComponent(QWidget):
         # Panel kiri - List pengumuman
         left_panel = QWidget()
         left_layout = QVBoxLayout(left_panel)
+        left_layout.setContentsMargins(0, 0, 0, 0)
+        left_layout.setSpacing(0)
+
+        # List title
+        list_title = QLabel("Daftar Pengumuman")
+        list_title_font = QFont("Arial", 10, QFont.Bold)
+        list_title.setFont(list_title_font)
+        list_title.setStyleSheet("color: #34495e; padding: 5px 0px;")
+        left_layout.addWidget(list_title)
 
         self.list_widget = QListWidget()
         self.list_widget.currentRowChanged.connect(self.display_pengumuman)
+        self.list_widget.setStyleSheet("""
+            QListWidget {
+                border: 1px solid #bdc3c7;
+                border-radius: 3px;
+                background-color: white;
+            }
+            QListWidget::item {
+                padding: 6px 8px;
+            }
+            QListWidget::item:selected {
+                background-color: #3498db;
+                color: white;
+            }
+        """)
         left_layout.addWidget(self.list_widget)
 
         # Panel kanan - Detail pengumuman
         right_panel = QWidget()
         right_layout = QVBoxLayout(right_panel)
-        right_layout.addWidget(QLabel("Detail Pengumuman"))
+        right_layout.setContentsMargins(0, 0, 0, 0)
+        right_layout.setSpacing(5)
+
+        detail_title = QLabel("Detail Pengumuman")
+        detail_title_font = QFont("Arial", 10, QFont.Bold)
+        detail_title.setFont(detail_title_font)
+        detail_title.setStyleSheet("color: #34495e; padding: 5px 0px;")
+        right_layout.addWidget(detail_title)
+
         self.detail_browser = QTextBrowser()
+        self.detail_browser.setStyleSheet("""
+            QTextBrowser {
+                border: 1px solid #bdc3c7;
+                border-radius: 3px;
+                background-color: white;
+            }
+        """)
         right_layout.addWidget(self.detail_browser)
 
         splitter.addWidget(left_panel)
         splitter.addWidget(right_panel)
-        splitter.setSizes([300, 500])
+        splitter.setSizes([280, 520])
+        splitter.setCollapsible(0, False)
+        splitter.setCollapsible(1, False)
 
-        layout.addWidget(splitter)
+        content_layout.addWidget(splitter)
+        layout.addLayout(content_layout)
 
     def load_pengumuman(self):
         """Load pengumuman resmi dari API"""

@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushBut
                             QGroupBox, QFormLayout, QTextEdit, QDialogButtonBox,
                             QGraphicsOpacityEffect, QGraphicsDropShadowEffect)
 from PyQt5.QtCore import Qt, pyqtSignal, QSize, QPropertyAnimation, QEasingCurve, QTimer
-from PyQt5.QtGui import QPixmap, QFont, QPainter, QPainterPath, QIcon
+from PyQt5.QtGui import QPixmap, QFont, QPainter, QPainterPath
 import os
 
 class ProfileDialog(QDialog):
@@ -23,21 +23,21 @@ class ProfileDialog(QDialog):
         self.cached_pixmap = None  # Cache for profile image
         self.is_closing = False  # Flag to prevent multiple close events
 
-        self.setWindowTitle("Profile User")  # Set proper title
-        self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.WindowCloseButtonHint)  # Normal dialog with close button  # type: ignore
-        self.setModal(True)  # Make it modal so it doesn't interfere with main window
-        self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, False)  # Don't delete on close
-        self.setFixedSize(320, 450)
+        self.setWindowTitle("Profile User")
+        self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.WindowCloseButtonHint)  # type: ignore
+        self.setModal(True)
+        self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, False)
+        self.setFixedSize(380, 580)  # Diperbesar agar semua konten terlihat
 
         # Standard font for consistency
         self.standard_font = QFont("Segoe UI", 9)
         self.setFont(self.standard_font)
 
-        # Modern styling with white background, rounded corners, and shadow effect
+        # Modern styling - light theme tanpa sudut hitam
         self.setStyleSheet("""
             QDialog {
-                background-color: white;
-                border: none;
+                background-color: #f8f9fa;
+                border: 1px solid #dee2e6;
                 border-radius: 12px;
             }
         """)
@@ -46,73 +46,74 @@ class ProfileDialog(QDialog):
         self.setup_animations()
 
     def init_ui(self):
-        # Main widget with white background and shadow effect
+        # Main widget dengan light theme modern
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
 
-        # Create main content widget
+        # Create main content widget dengan background putih bersih
         content_widget = QWidget()
         content_widget.setStyleSheet("""
             QWidget {
-                background-color: white;
+                background-color: #ffffff;
                 border-radius: 12px;
             }
             QLabel {
                 background: transparent;
-                color: #2c3e50;
+                color: #212529;
                 border: none;
                 font-family: 'Segoe UI', Arial, sans-serif;
-                font-size: 13px;
             }
             QPushButton {
-                background: transparent;
-                border: none;
+                background-color: #f8f9fa;
+                border: 1px solid #dee2e6;
+                border-radius: 8px;
                 text-align: left;
-                padding: 12px 20px;
+                padding: 12px 16px;
                 font-family: 'Segoe UI', Arial, sans-serif;
-                font-size: 14px;
-                color: #2c3e50;
+                font-size: 13px;
+                color: #212529;
             }
             QPushButton:hover {
-                background-color: #f8f9fa;
+                background-color: #e9ecef;
+                border-color: #adb5bd;
             }
             QPushButton:pressed {
-                background-color: #e9ecef;
+                background-color: #dee2e6;
             }
         """)
 
         content_layout = QVBoxLayout(content_widget)
-        content_layout.setContentsMargins(20, 25, 20, 25)
+        content_layout.setContentsMargins(0, 0, 0, 0)
         content_layout.setSpacing(0)
 
-        # Profile header section with contrasting background
+        # Profile header section dengan light gradient background
         profile_header = QWidget()
         profile_header.setStyleSheet("""
             QWidget {
-                background-color: #f8f9fa;
+                background-color: #e9ecef;
                 border-radius: 12px 12px 0 0;
-                border-bottom: 1px solid #e9ecef;
+                border: none;
             }
         """)
 
         profile_header_layout = QVBoxLayout(profile_header)
-        profile_header_layout.setContentsMargins(20, 25, 20, 20)
-        profile_header_layout.setSpacing(12)
+        profile_header_layout.setContentsMargins(24, 28, 24, 24)
+        profile_header_layout.setSpacing(8)
         profile_header_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        # Circular profile photo (80x80) - clickable
+        # Circular profile photo - clickable
         self.profile_image = QLabel()
-        self.profile_image.setFixedSize(80, 80)
+        self.profile_image.setFixedSize(90, 90)
         self.profile_image.setStyleSheet("""
             QLabel {
-                border: 3px solid #dee2e6;
-                border-radius: 40px;
-                background-color: white;
-                color: #495057;
-                font-size: 28px;
-                font-weight: bold;
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                border: 3px solid #ffffff;
+                border-radius: 45px;
+                background-color: #0d6efd;
+                color: #ffffff;
+                font-size: 36px;
+                font-weight: 700;
+                font-family: 'Segoe UI', Arial, sans-serif;
             }
         """)
         self.profile_image.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -120,37 +121,38 @@ class ProfileDialog(QDialog):
         self.profile_image.setCursor(Qt.CursorShape.PointingHandCursor)
         self.profile_image.mousePressEvent = lambda ev: self.select_profile_image()  # type: ignore
 
-        # User name (bold) and email (smaller, gray)
+        # User name (bold) dan email
         self.name_label = QLabel(self.user_data.get('nama_lengkap', 'Unknown User'))
         self.name_label.setStyleSheet("""
             font-family: 'Segoe UI', Arial, sans-serif;
-            font-size: 18px;
-            font-weight: bold;
+            font-size: 17px;
+            font-weight: 600;
             color: #212529;
             background: transparent;
-            margin: 0;
+            padding: 2px 0;
         """)
         self.name_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.email_label = QLabel(self.user_data.get('email', 'user@example.com'))
         self.email_label.setStyleSheet("""
             font-family: 'Segoe UI', Arial, sans-serif;
-            font-size: 13px;
+            font-size: 12px;
             color: #6c757d;
             background: transparent;
-            margin: 0;
+            padding: 2px 0;
         """)
         self.email_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        # Status label for connection status
-        self.status_label = QLabel("● Online")
+        # Status label untuk connection status
+        self.status_label = QLabel("")
         self.status_label.setStyleSheet("""
             font-family: 'Segoe UI', Arial, sans-serif;
-            font-size: 12px;
-            color: #60B861;
-            font-weight: 500;
-            background: transparent;
-            margin: 0;
+            font-size: 11px;
+            font-weight: 600;
+            color: #198754;
+            background-color: #d1e7dd;
+            border-radius: 12px;
+            padding: 4px 12px;
         """)
         self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
@@ -163,40 +165,55 @@ class ProfileDialog(QDialog):
         content_body = QWidget()
         content_body.setStyleSheet("""
             QWidget {
-                background-color: white;
+                background-color: #ffffff;
                 border-radius: 0 0 12px 12px;
             }
         """)
 
         content_body_layout = QVBoxLayout(content_body)
-        content_body_layout.setContentsMargins(20, 20, 20, 20)
-        content_body_layout.setSpacing(0)
+        content_body_layout.setContentsMargins(24, 20, 24, 24)
+        content_body_layout.setSpacing(16)
 
-        # Username and Role info with consistent spacing and alignment
+        # Username and Role info dengan spacing yang baik
         info_container = QWidget()
-        info_layout = QVBoxLayout(info_container)
-        info_layout.setSpacing(8)  # Consistent spacing between username and role
-        info_layout.setContentsMargins(0, 0, 0, 15)
+        info_layout = QFormLayout(info_container)
+        info_layout.setSpacing(10)
+        info_layout.setLabelAlignment(Qt.AlignmentFlag.AlignLeft)
+        info_layout.setFormAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)  # type: ignore
+        info_layout.setContentsMargins(0, 0, 0, 16)
 
-        # Create labels with consistent formatting for aligned colons
-        self.username_label = QLabel(f"Username  : {self.user_data.get('username', 'admin')}")
+        username_title = QLabel("Username")
+        username_title.setStyleSheet("""
+            font-family: 'Segoe UI', Arial, sans-serif;
+            font-size: 12px;
+            color: #6c757d;
+            font-weight: 500;
+        """)
+        self.username_label = QLabel(self.user_data.get('username', 'admin'))
         self.username_label.setStyleSheet("""
             font-family: 'Segoe UI', Arial, sans-serif;
-            font-size: 14px;
-            color: #495057;
-            padding: 4px 0;
+            font-size: 13px;
+            color: #212529;
+            font-weight: 600;
         """)
 
-        self.role_label = QLabel(f"Role      : {self.user_data.get('peran', 'Administrator')}")
+        role_title = QLabel("Role")
+        role_title.setStyleSheet("""
+            font-family: 'Segoe UI', Arial, sans-serif;
+            font-size: 12px;
+            color: #6c757d;
+            font-weight: 500;
+        """)
+        self.role_label = QLabel(self.user_data.get('peran', 'user'))
         self.role_label.setStyleSheet("""
             font-family: 'Segoe UI', Arial, sans-serif;
-            font-size: 14px;
-            color: #495057;
-            padding: 4px 0;
+            font-size: 13px;
+            color: #212529;
+            font-weight: 600;
         """)
 
-        info_layout.addWidget(self.username_label)
-        info_layout.addWidget(self.role_label)
+        info_layout.addRow(username_title, self.username_label)
+        info_layout.addRow(role_title, self.role_label)
 
         content_body_layout.addWidget(info_container)
 
@@ -213,9 +230,9 @@ class ProfileDialog(QDialog):
             }
         """)
 
-        # Action buttons with icons
+        # Action buttons dengan icons - diperbaiki agar tidak terpotong
         actions_layout = QVBoxLayout()
-        actions_layout.setSpacing(0)
+        actions_layout.setSpacing(10)
 
         # Edit Profile
         edit_profile_btn = self.create_action_button("profile.png", "Edit Profile")
@@ -225,13 +242,56 @@ class ProfileDialog(QDialog):
         change_password_btn = self.create_action_button("password.png", "Ganti Password")
         change_password_btn.clicked.connect(self.change_password)
 
-        # Logout
+        # Logout - dengan styling merah
         logout_btn = self.create_action_button("logout.png", "Logout")
         logout_btn.clicked.connect(self.handle_logout)
+        logout_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #f8d7da;
+                border: 1px solid #f5c2c7;
+                border-radius: 8px;
+                padding: 12px 16px;
+            }
+            QPushButton:hover {
+                background-color: #f1aeb5;
+                border-color: #ea868f;
+            }
+            QPushButton:pressed {
+                background-color: #ea868f;
+            }
+        """)
+        logout_labels = logout_btn.findChildren(QLabel)
+        if logout_labels:
+            logout_labels[0].setStyleSheet("""
+                QLabel {
+                    background-color: #dc3545;
+                    border-radius: 10px;
+                    color: #ffffff;
+                    font-weight: 600;
+                }
+            """)
+            if len(logout_labels) > 1:
+                logout_labels[1].setStyleSheet("""
+                    font-family: 'Segoe UI', Arial, sans-serif;
+                    font-size: 13px;
+                    color: #842029;
+                    background: transparent;
+                    font-weight: 600;
+                """)
+            if len(logout_labels) > 2:
+                logout_labels[-1].setStyleSheet("""
+                    font-family: 'Segoe UI', Arial, sans-serif;
+                    font-size: 14px;
+                    color: #842029;
+                    background: transparent;
+                """)
 
         actions_layout.addWidget(edit_profile_btn)
         actions_layout.addWidget(change_password_btn)
         actions_layout.addWidget(logout_btn)
+
+        # Add spacing agar button terakhir tidak terpotong
+        actions_layout.addSpacing(8)
 
         # Add all sections to content layout
         content_body_layout.addWidget(separator)
@@ -245,79 +305,95 @@ class ProfileDialog(QDialog):
         main_layout.addWidget(content_widget)
 
     def setup_animations(self):
-        """Setup smooth animations and shadow effects for the dialog"""
-        # Add drop shadow effect for modern look
+        """Setup smooth animations and subtle shadow effects"""
+        # Add subtle drop shadow untuk depth - tidak terlalu gelap
         shadow_effect = QGraphicsDropShadowEffect()
-        shadow_effect.setBlurRadius(30)
+        shadow_effect.setBlurRadius(20)
         shadow_effect.setXOffset(0)
-        shadow_effect.setYOffset(10)
-        shadow_effect.setColor(Qt.GlobalColor.black)
+        shadow_effect.setYOffset(4)
+        shadow_effect.setColor(Qt.GlobalColor.gray)  # Abu-abu lebih terang
         self.setGraphicsEffect(shadow_effect)
 
-        # Fade in animation for the dialog
+        # Fade in animation untuk dialog
         self.opacity_effect = QGraphicsOpacityEffect()
 
         self.fade_animation = QPropertyAnimation(self.opacity_effect, b"opacity")
-        self.fade_animation.setDuration(250)
+        self.fade_animation.setDuration(200)
         self.fade_animation.setStartValue(0.0)
         self.fade_animation.setEndValue(1.0)
         self.fade_animation.setEasingCurve(QEasingCurve.Type.OutQuart)
 
 
-    def create_icon_label(self, emoji):
-        """Create icon label with emoji"""
-        label = QLabel(emoji)
-        label.setStyleSheet("""
-            QLabel {
-                font-size: 16px;
-                padding-right: 8px;
-            }
-        """)
-        return label
-
     def create_action_button(self, icon_filename, text):
-        """Create action button with icon from assets folder"""
+        """Create action button with icon from assets folder - modern light theme"""
         button = QPushButton()
         button.setCursor(Qt.CursorShape.PointingHandCursor)
+        button.setMinimumHeight(44)  # Tinggi minimum agar tidak terpotong
 
-        # Create horizontal layout for icon and text
         layout = QHBoxLayout(button)
-        layout.setContentsMargins(20, 12, 20, 12)
-        layout.setSpacing(15)
+        layout.setContentsMargins(14, 10, 14, 10)
+        layout.setSpacing(12)
 
-        # Try to load icon from assets folder
+        # Icon label dengan background circular
         icon_label = QLabel()
+        icon_label.setFixedSize(26, 26)
+        icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        icon_label.setStyleSheet("""
+            QLabel {
+                background-color: #0d6efd;
+                border-radius: 13px;
+                color: #ffffff;
+                font-weight: 600;
+                font-size: 12px;
+            }
+        """)
+
+        # Coba load icon dari assets
         icon_path = os.path.join(os.path.dirname(__file__), '..', 'assets', icon_filename)
         if os.path.exists(icon_path):
             try:
                 pixmap = QPixmap(icon_path)
                 if not pixmap.isNull():
-                    scaled_pixmap = pixmap.scaled(20, 20, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
-                    icon_label.setPixmap(scaled_pixmap)
+                    icon_label.setPixmap(
+                        pixmap.scaled(16, 16, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+                    )
+                    icon_label.setStyleSheet("""
+                        QLabel {
+                            background-color: #0d6efd;
+                            border-radius: 13px;
+                        }
+                    """)
                 else:
-                    icon_label.setText("●")  # Fallback bullet point
+                    icon_label.setText("●")
             except Exception:
-                icon_label.setText("●")  # Fallback bullet point
+                icon_label.setText("●")
         else:
-            icon_label.setText("●")  # Fallback bullet point
-
-        icon_label.setFixedSize(20, 20)
-        icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            icon_label.setText("●")
 
         # Text label
         text_label = QLabel(text)
         text_label.setStyleSheet("""
             font-family: 'Segoe UI', Arial, sans-serif;
-            font-size: 14px;
-            color: #2c3e50;
+            font-size: 13px;
+            color: #212529;
+            background: transparent;
+            font-weight: 600;
+        """)
+
+        # Arrow label
+        arrow_label = QLabel("›")
+        arrow_label.setStyleSheet("""
+            font-family: 'Segoe UI', Arial, sans-serif;
+            font-size: 18px;
+            color: #adb5bd;
             background: transparent;
         """)
 
         layout.addWidget(icon_label)
         layout.addWidget(text_label)
         layout.addStretch()
+        layout.addWidget(arrow_label)
 
-        button.setLayout(layout)
         return button
 
     # Remove unused methods - we only need create_action_button
@@ -330,27 +406,29 @@ class ProfileDialog(QDialog):
         return 'U'
 
     def update_connection_status(self):
-        """Update connection status"""
+        """Update connection status dengan light theme"""
         if hasattr(self, 'status_label'):
             if self.connection_status:
-                self.status_label.setText("● Online")
+                self.status_label.setText("Online")
                 self.status_label.setStyleSheet("""
                     font-family: 'Segoe UI', Arial, sans-serif;
-                    font-size: 12px;
-                    color: #60B861;
-                    font-weight: 500;
-                    background: transparent;
-                    margin: 0;
+                    font-size: 11px;
+                    font-weight: 600;
+                    color: #198754;
+                    background-color: #d1e7dd;
+                    border-radius: 12px;
+                    padding: 4px 12px;
                 """)
             else:
-                self.status_label.setText("● Offline")
+                self.status_label.setText("Offline")
                 self.status_label.setStyleSheet("""
                     font-family: 'Segoe UI', Arial, sans-serif;
-                    font-size: 12px;
-                    color: #A94442;
-                    font-weight: 500;
-                    background: transparent;
-                    margin: 0;
+                    font-size: 11px;
+                    font-weight: 600;
+                    color: #dc3545;
+                    background-color: #f8d7da;
+                    border-radius: 12px;
+                    padding: 4px 12px;
                 """)
 
     def select_profile_image(self):
@@ -368,7 +446,7 @@ class ProfileDialog(QDialog):
             pixmap = QPixmap(image_path)
             if not pixmap.isNull():
                 # Create circular cropped image with caching
-                scaled_pixmap = pixmap.scaled(90, 90, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+                scaled_pixmap = pixmap.scaled(96, 96, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
                 circular_pixmap = self.create_circular_pixmap(scaled_pixmap)
                 self.cached_pixmap = circular_pixmap  # Cache the processed image
                 self.profile_image.setPixmap(circular_pixmap)
@@ -664,18 +742,18 @@ class ProfileDialog(QDialog):
             QMessageBox.information(self, "Sukses", "Password berhasil diubah!")
 
     def handle_logout(self):
-        """Handle logout button click"""
+        """Handle logout button click - akan redirect ke login page"""
         reply = QMessageBox.question(
             self,
             "Konfirmasi Logout",
-            "Apakah Anda yakin ingin logout?",
+            "Apakah Anda yakin ingin logout?\n\nAnda akan diarahkan ke halaman login.",
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No
         )
 
         if reply == QMessageBox.Yes:
             self.logout_requested.emit()  # type: ignore
-            self.close()
+            self.safe_close()
 
     def update_user_data(self, user_data):
         """Update user data if changed"""
@@ -683,8 +761,8 @@ class ProfileDialog(QDialog):
         # Update the labels instead of rebuilding entire UI
         if hasattr(self, 'name_label'):
             self.name_label.setText(self.user_data.get('nama_lengkap', 'Unknown User'))
-            self.username_label.setText(f"Username  : {self.user_data.get('username', 'admin')}")
-            self.role_label.setText(f"Role      : {self.user_data.get('peran', 'Administrator')}")
+            self.username_label.setText(self.user_data.get('username', 'admin'))
+            self.role_label.setText(self.user_data.get('peran', 'Administrator'))
             self.email_label.setText(self.user_data.get('email', 'user@example.com'))
             self.profile_image.setText(self.get_initial_letter())
 
@@ -728,8 +806,8 @@ class ProfileDialog(QDialog):
         if self.user_data:
             if hasattr(self, 'name_label'):
                 self.name_label.setText(self.user_data.get('nama_lengkap', 'Unknown User'))
-                self.username_label.setText(f"Username  : {self.user_data.get('username', 'admin')}")
-                self.role_label.setText(f"Role      : {self.user_data.get('peran', 'Administrator')}")
+                self.username_label.setText(self.user_data.get('username', 'admin'))
+                self.role_label.setText(self.user_data.get('peran', 'Administrator'))
                 self.email_label.setText(self.user_data.get('email', 'user@example.com'))
                 self.profile_image.setText(self.get_initial_letter())
         # Update connection status when dialog is shown

@@ -5,10 +5,65 @@ from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QTableWidget,
                              QMessageBox, QHeaderView, QLineEdit, QComboBox,
                              QCalendarWidget, QTextEdit, QSplitter, QDialog,
                              QFormLayout, QDateEdit, QTimeEdit, QFileDialog, QAbstractItemView)
-from PyQt5.QtCore import Qt, pyqtSignal, QDate, QTime, QSize
-from PyQt5.QtGui import QFont, QColor, QIcon, QBrush
+from PyQt5.QtCore import Qt, pyqtSignal, QDate, QTime, QSize, QTimer
+from PyQt5.QtGui import QFont, QColor, QIcon, QBrush, QPainter
 import os
 import datetime
+
+class WordWrapHeaderView(QHeaderView):
+    """Custom header view with word wrap and center alignment support"""
+    def __init__(self, orientation, parent=None):
+        super().__init__(orientation, parent)
+        self.setDefaultAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+        self.setSectionsClickable(True)
+        self.setHighlightSections(True)
+
+    def sectionSizeFromContents(self, logicalIndex):
+        """Calculate section size based on wrapped text"""
+        if self.model():
+            text = self.model().headerData(logicalIndex, self.orientation(), Qt.DisplayRole)
+            if text:
+                width = self.sectionSize(logicalIndex)
+                if width <= 0:
+                    width = self.defaultSectionSize()
+
+                font = self.font()
+                font.setBold(True)
+                fm = self.fontMetrics()
+
+                rect = fm.boundingRect(0, 0, width - 8, 1000,
+                                      Qt.AlignCenter | Qt.TextWordWrap, str(text))
+
+                return QSize(width, max(rect.height() + 12, 25))
+
+        return super().sectionSizeFromContents(logicalIndex)
+
+    def paintSection(self, painter, rect, logicalIndex):
+        """Paint section with word wrap and center alignment"""
+        painter.save()
+
+        bg_color = QColor(242, 242, 242)
+        painter.fillRect(rect, bg_color)
+
+        border_color = QColor(212, 212, 212)
+        painter.setPen(border_color)
+        painter.drawLine(rect.topRight(), rect.bottomRight())
+        painter.drawLine(rect.bottomLeft(), rect.bottomRight())
+
+        if self.model():
+            text = self.model().headerData(logicalIndex, self.orientation(), Qt.DisplayRole)
+            if text:
+                font = self.font()
+                font.setBold(True)
+                painter.setFont(font)
+
+                text_color = QColor(51, 51, 51)
+                painter.setPen(text_color)
+
+                text_rect = rect.adjusted(4, 4, -4, -4)
+                painter.drawText(text_rect, Qt.AlignCenter | Qt.TextWordWrap, str(text))
+
+        painter.restore()
 
 class KegiatanDialog(QDialog):
     """Dialog untuk menambah/edit kegiatan"""
@@ -64,54 +119,27 @@ class KegiatanDialog(QDialog):
         self.lokasi_input.setPlaceholderText("Masukkan tempat/lokasi kegiatan")
         form_layout.addRow("Tempat Kegiatan: *", self.lokasi_input)
 
-        # 4. Tanggal Pelaksanaan
-        date_layout = QHBoxLayout()
-
+        # 4. Tanggal Pelaksanaan (single date only)
         self.tanggal_mulai_input = QDateEdit()
         self.tanggal_mulai_input.setCalendarPopup(True)
         self.tanggal_mulai_input.setDate(QDate.currentDate())
         self.tanggal_mulai_input.setDisplayFormat("dd/MM/yyyy")
-        self.tanggal_mulai_input.setToolTip("Tanggal mulai kegiatan")
+        self.tanggal_mulai_input.setToolTip("Tanggal pelaksanaan kegiatan")
+        form_layout.addRow("Tanggal Pelaksanaan: *", self.tanggal_mulai_input)
 
-        date_label = QLabel(" s/d ")
-        date_label.setStyleSheet("font-weight: bold;")
-
-        self.tanggal_selesai_input = QDateEdit()
-        self.tanggal_selesai_input.setCalendarPopup(True)
-        self.tanggal_selesai_input.setDate(QDate.currentDate())
-        self.tanggal_selesai_input.setDisplayFormat("dd/MM/yyyy")
-        self.tanggal_selesai_input.setToolTip("Tanggal selesai kegiatan")
-
-        date_layout.addWidget(self.tanggal_mulai_input)
-        date_layout.addWidget(date_label)
-        date_layout.addWidget(self.tanggal_selesai_input)
-        date_layout.addStretch()
-
-        form_layout.addRow("Tanggal Pelaksanaan: *", date_layout)
-
-        # 5. Waktu Pelaksanaan (Format: HH.MM WITA - selesai)
+        # 5. Waktu Pelaksanaan (single time)
         time_layout = QHBoxLayout()
 
         self.waktu_mulai_input = QTimeEdit()
         self.waktu_mulai_input.setTime(QTime.currentTime())
         self.waktu_mulai_input.setDisplayFormat("HH:mm")
-        self.waktu_mulai_input.setToolTip("Waktu mulai (contoh: 08:00)")
+        self.waktu_mulai_input.setToolTip("Waktu pelaksanaan (contoh: 08:00)")
 
-        time_label = QLabel(" WITA - ")
+        time_label = QLabel(" WITA")
         time_label.setStyleSheet("font-weight: bold;")
-
-        self.waktu_selesai_input = QTimeEdit()
-        self.waktu_selesai_input.setTime(QTime.currentTime().addSecs(3600))  # +1 hour
-        self.waktu_selesai_input.setDisplayFormat("HH:mm")
-        self.waktu_selesai_input.setToolTip("Waktu selesai (contoh: 10:00)")
-
-        time_label2 = QLabel(" WITA")
-        time_label2.setStyleSheet("font-weight: bold;")
 
         time_layout.addWidget(self.waktu_mulai_input)
         time_layout.addWidget(time_label)
-        time_layout.addWidget(self.waktu_selesai_input)
-        time_layout.addWidget(time_label2)
         time_layout.addStretch()
 
         form_layout.addRow("Waktu Pelaksanaan: *", time_layout)
@@ -128,16 +156,10 @@ class KegiatanDialog(QDialog):
         ])
         form_layout.addRow("Status Kegiatan: *", self.status_input)
 
-        # Deskripsi (opsional)
-        self.deskripsi_input = QTextEdit()
-        self.deskripsi_input.setPlaceholderText("Masukkan deskripsi kegiatan (opsional)")
-        self.deskripsi_input.setMaximumHeight(80)
-        form_layout.addRow("Deskripsi:", self.deskripsi_input)
-
-        # Keterangan tambahan (opsional)
+        # Keterangan (opsional)
         self.keterangan_input = QTextEdit()
-        self.keterangan_input.setPlaceholderText("Keterangan tambahan (opsional)")
-        self.keterangan_input.setMaximumHeight(60)
+        self.keterangan_input.setPlaceholderText("Keterangan tambahan kegiatan (opsional)")
+        self.keterangan_input.setMaximumHeight(80)
         form_layout.addRow("Keterangan:", self.keterangan_input)
 
         layout.addLayout(form_layout)
@@ -211,31 +233,12 @@ class KegiatanDialog(QDialog):
             except:
                 pass
 
-        # Parse tanggal_selesai
-        tanggal_selesai_str = self.kegiatan_data.get('tanggal_selesai')
-        if tanggal_selesai_str:
-            try:
-                if isinstance(tanggal_selesai_str, str):
-                    date_obj = datetime.datetime.strptime(tanggal_selesai_str, '%Y-%m-%d')
-                    self.tanggal_selesai_input.setDate(QDate(date_obj.year, date_obj.month, date_obj.day))
-            except:
-                pass
-
         # Parse waktu_mulai
         waktu_mulai_str = self.kegiatan_data.get('waktu_mulai') or self.kegiatan_data.get('waktu', '')
         if waktu_mulai_str:
             try:
                 time_obj = datetime.datetime.strptime(waktu_mulai_str, '%H:%M').time()
                 self.waktu_mulai_input.setTime(QTime(time_obj.hour, time_obj.minute))
-            except:
-                pass
-
-        # Parse waktu_selesai
-        waktu_selesai_str = self.kegiatan_data.get('waktu_selesai') or self.kegiatan_data.get('waktu', '')
-        if waktu_selesai_str:
-            try:
-                time_obj = datetime.datetime.strptime(waktu_selesai_str, '%H:%M').time()
-                self.waktu_selesai_input.setTime(QTime(time_obj.hour, time_obj.minute))
             except:
                 pass
 
@@ -259,32 +262,24 @@ class KegiatanDialog(QDialog):
         penanggung_jawab = self.kegiatan_data.get('penanggung_jawab') or self.kegiatan_data.get('penanggungjawab', '')
         self.penanggungjawab_input.setText(penanggung_jawab)
 
-        # Deskripsi
-        self.deskripsi_input.setPlainText(self.kegiatan_data.get('deskripsi', ''))
-
         # Keterangan
         self.keterangan_input.setPlainText(self.kegiatan_data.get('keterangan', ''))
 
     def get_data(self):
         """Get form data - sesuai struktur tabel kegiatan_wr"""
         tanggal_pelaksanaan = self.tanggal_mulai_input.date().toString('yyyy-MM-dd')
-        tanggal_selesai = self.tanggal_selesai_input.date().toString('yyyy-MM-dd')
         waktu_mulai = self.waktu_mulai_input.time().toString('HH:mm')
-        waktu_selesai = self.waktu_selesai_input.time().toString('HH:mm')
 
         return {
             'nama_kegiatan': self.nama_input.text().strip(),
             'sasaran_kegiatan': self.sasaran_input.toPlainText().strip(),
             'tujuan_kegiatan': self.tujuan_input.toPlainText().strip(),
             'tanggal_pelaksanaan': tanggal_pelaksanaan,
-            'tanggal_selesai': tanggal_selesai,
             'waktu_mulai': waktu_mulai,
-            'waktu_selesai': waktu_selesai,
             'tempat_kegiatan': self.lokasi_input.text().strip(),
             'kategori': self.kategori_input.currentText(),
             'status_kegiatan': self.status_input.currentText(),
             'penanggung_jawab': self.penanggungjawab_input.text().strip(),
-            'deskripsi': self.deskripsi_input.toPlainText().strip(),
             'keterangan': self.keterangan_input.toPlainText().strip()
         }
 
@@ -300,11 +295,6 @@ class KegiatanDialog(QDialog):
 
         if not self.penanggungjawab_input.text().strip():
             QMessageBox.warning(self, "Validasi", "Penanggung jawab tidak boleh kosong")
-            return False
-
-        # Validasi tanggal selesai >= tanggal mulai
-        if self.tanggal_selesai_input.date() < self.tanggal_mulai_input.date():
-            QMessageBox.warning(self, "Validasi", "Tanggal selesai tidak boleh lebih awal dari tanggal mulai")
             return False
 
         return True
@@ -349,6 +339,7 @@ class KegiatanClientComponent(QWidget):
 
             self.filtered_data = self.kegiatan_data.copy()
             self.update_table()
+            self.update_calendar_indicators()
             self.update_statistics()
             self.log_message.emit(f"Data kegiatan WR berhasil dimuat: {len(self.kegiatan_data)} kegiatan")
 
@@ -364,7 +355,37 @@ class KegiatanClientComponent(QWidget):
 
     def setup_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(10, 10, 10, 10)
+
+        # Title section with professional styling
+        title_frame = QFrame()
+        title_frame.setStyleSheet("""
+            QFrame {
+                background-color: white;
+                border-bottom: 2px solid #ecf0f1;
+                padding: 10px 0px;
+            }
+        """)
+        title_layout = QHBoxLayout(title_frame)
+        title_layout.setContentsMargins(10, 0, 10, 0)
+
+        title_label = QLabel("Kegiatan Wilayah Rohani")
+        title_font = QFont("Arial", 18, QFont.Bold)
+        title_label.setFont(title_font)
+        title_label.setStyleSheet("""
+            QLabel {
+                color: #2c3e50;
+                padding: 2px;
+                background-color: transparent;
+                border: none;
+            }
+        """)
+        title_layout.addWidget(title_label)
+        title_layout.addStretch()
+        layout.addWidget(title_frame)
+
+        # Content area
+        content_layout = QVBoxLayout()
+        content_layout.setContentsMargins(10, 10, 10, 10)
 
         # Main content with splitter
         splitter = QSplitter(Qt.Horizontal)
@@ -402,40 +423,30 @@ class KegiatanClientComponent(QWidget):
         right_layout = QVBoxLayout(right_panel)
         right_layout.setContentsMargins(10, 0, 0, 0)
 
-        # Header with title
-        table_label = QLabel("Daftar Kegiatan Saya")
-        table_label.setFont(QFont("Arial", 12, QFont.Bold))
-        table_label.setStyleSheet("color: #2c3e50; margin-bottom: 10px;")
-        right_layout.addWidget(table_label)
-
-        # Combined toolbar with search/filter and add button
+        # Combined toolbar with search/filter and add button (tanpa title)
         toolbar_layout = QHBoxLayout()
         toolbar_layout.setSpacing(10)
 
-        # Search with icon
-        search_icon_label = QLabel()
-        search_icon_path = os.path.join(os.path.dirname(__file__), '..', 'assets', 'search.png')
-        if os.path.exists(search_icon_path):
-            search_icon = QIcon(search_icon_path)
-            search_icon_label.setPixmap(search_icon.pixmap(16, 16))
-        else:
-            search_icon_label.setText("🔍")
-        search_icon_label.setStyleSheet("margin-right: 5px;")
+        # Search - ukuran sama dengan keuangan_component
+        search_label = QLabel("Cari:")
+        search_label.setStyleSheet("font-weight: 500; color: #2c3e50;")
 
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("Cari kegiatan...")
-        self.search_input.setFixedWidth(180)
+        self.search_input.setFixedWidth(150)  # Smaller width matching reference image
         self.search_input.textChanged.connect(self.filter_data)
         self.search_input.setStyleSheet("""
             QLineEdit {
-                padding: 6px;
+                padding: 4px 6px;
                 border: 1px solid #bdc3c7;
-                border-radius: 4px;
+                border-radius: 3px;
                 background-color: white;
-                font-size: 12px;
+                font-size: 11px;
+                min-height: 24px;
+                max-height: 24px;
             }
             QLineEdit:focus {
-                border: 2px solid #3498db;
+                border: 1px solid #3498db;
             }
         """)
 
@@ -462,7 +473,7 @@ class KegiatanClientComponent(QWidget):
         add_button = self.create_professional_button("add.png", "Tambah Kegiatan", "#27ae60", "#2ecc71")
         add_button.clicked.connect(self.add_kegiatan)
 
-        toolbar_layout.addWidget(search_icon_label)
+        toolbar_layout.addWidget(search_label)
         toolbar_layout.addWidget(self.search_input)
         toolbar_layout.addWidget(category_label)
         toolbar_layout.addWidget(self.category_filter)
@@ -475,12 +486,15 @@ class KegiatanClientComponent(QWidget):
 
         # Table with new layout order
         self.table_widget = QTableWidget()
-        self.table_widget.setColumnCount(9)
+        self.table_widget.setColumnCount(11)
         self.table_widget.setHorizontalHeaderLabels([
             "Kategori", "Nama Kegiatan", "Sasaran Kegiatan", "Tujuan Kegiatan",
             "Tempat Kegiatan", "Tanggal Pelaksanaan",
-            "Waktu Pelaksanaan", "Penanggung Jawab", "Status Kegiatan"
+            "Waktu Pelaksanaan", "Penanggung Jawab", "User", "Status Kegiatan", "Keterangan"
         ])
+
+        custom_header = WordWrapHeaderView(Qt.Horizontal, self.table_widget)
+        self.table_widget.setHorizontalHeader(custom_header)
 
         # Set column widths properly
         header = self.table_widget.horizontalHeader()
@@ -492,37 +506,26 @@ class KegiatanClientComponent(QWidget):
         self.table_widget.setColumnWidth(5, 150)  # Tanggal Pelaksanaan
         self.table_widget.setColumnWidth(6, 150)  # Waktu Pelaksanaan
         self.table_widget.setColumnWidth(7, 120)  # Penanggung Jawab
-        self.table_widget.setColumnWidth(8, 120)  # Status Kegiatan
+        self.table_widget.setColumnWidth(8, 120)  # User
+        self.table_widget.setColumnWidth(9, 120)  # Status Kegiatan
+        self.table_widget.setColumnWidth(10, 200)  # Keterangan
 
         header.setStretchLastSection(True)
         header.setSectionResizeMode(QHeaderView.Interactive)
+        header.setMinimumSectionSize(50)
+        header.sectionResized.connect(self.update_header_height)
+        header.setVisible(True)
 
-        self.table_widget.setAlternatingRowColors(True)
+        self.apply_professional_table_style()
+        self.table_widget.horizontalHeader().setFixedHeight(25)
+        QTimer.singleShot(100, lambda: self.update_header_height(0, 0, 0))
+
+        self.table_widget.setAlternatingRowColors(False)
         self.table_widget.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.table_widget.setSelectionMode(QAbstractItemView.SingleSelection)
-        self.table_widget.itemSelectionChanged.connect(self.show_kegiatan_detail)
-        self.table_widget.setStyleSheet("""
-            QTableWidget {
-                background-color: white;
-                border: 1px solid #bdc3c7;
-                border-radius: 5px;
-                gridline-color: #d4d4d4;
-            }
-            QTableWidget::item {
-                padding: 6px 4px;
-                border-bottom: 1px solid #ecf0f1;
-            }
-            QTableWidget::item:selected {
-                background-color: #9b59b6;
-                color: white;
-            }
-            QHeaderView::section {
-                background-color: #ecf0f1;
-                padding: 6px;
-                border: 1px solid #bdc3c7;
-                font-weight: bold;
-            }
-        """)
+        self.table_widget.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.table_widget.verticalHeader().setVisible(True)
+        self.table_widget.verticalHeader().setDefaultSectionSize(24)
 
         # Set minimum height for table
         self.table_widget.setMinimumHeight(300)
@@ -531,7 +534,7 @@ class KegiatanClientComponent(QWidget):
 
         # Action buttons below table
         action_buttons_layout = QHBoxLayout()
-        action_buttons_layout.setSpacing(5)
+        action_buttons_layout.setSpacing(3)  # Reduced spacing between buttons
         action_buttons_layout.addStretch()
 
         # View button
@@ -563,36 +566,17 @@ class KegiatanClientComponent(QWidget):
 
         right_layout.addLayout(action_buttons_layout)
 
-        # Detail panel
-        detail_label = QLabel("Detail Kegiatan")
-        detail_label.setFont(QFont("Arial", 11, QFont.Bold))
-        detail_label.setStyleSheet("color: #2c3e50; margin: 10px 0px 5px 0px;")
-        right_layout.addWidget(detail_label)
-
-        self.detail_text = QTextEdit()
-        self.detail_text.setMaximumHeight(120)
-        self.detail_text.setReadOnly(True)
-        self.detail_text.setStyleSheet("""
-            QTextEdit {
-                background-color: #f8f9fa;
-                border: 1px solid #bdc3c7;
-                border-radius: 5px;
-                padding: 10px;
-                font-size: 11px;
-            }
-        """)
-        self.detail_text.setText("Pilih kegiatan untuk melihat detail...")
-        right_layout.addWidget(self.detail_text)
-
         # Add panels to splitter
         splitter.addWidget(left_panel)
         splitter.addWidget(right_panel)
         splitter.setSizes([300, 700])
 
-        layout.addWidget(splitter)
+        content_layout.addWidget(splitter)
+        layout.addLayout(content_layout)
 
         # Statistics
         self.stats_layout = QHBoxLayout()
+        self.stats_layout.setContentsMargins(10, 10, 10, 10)
         self.total_label = QLabel("Total: 0 kegiatan")
         self.upcoming_label = QLabel("Akan Datang: 0")
         self.today_label = QLabel("Hari Ini: 0")
@@ -604,11 +588,97 @@ class KegiatanClientComponent(QWidget):
 
         layout.addLayout(self.stats_layout)
 
+    def update_header_height(self, logical_index, old_size, new_size):
+        """Update header height when column widths change to fit wrapped text"""
+        if not hasattr(self, "table_widget"):
+            return
+
+        header = self.table_widget.horizontalHeader()
+        header.setMinimumHeight(25)
+        max_height = 25
+        for index in range(header.count()):
+            size = header.sectionSizeFromContents(index)
+            max_height = max(max_height, size.height())
+        header.setFixedHeight(max_height)
+
+    def apply_professional_table_style(self):
+        """Apply jemaat-style table styling for consistent appearance"""
+        header_font = QFont()
+        header_font.setBold(True)
+        header_font.setPointSize(9)
+        self.table_widget.horizontalHeader().setFont(header_font)
+
+        self.table_widget.horizontalHeader().setStyleSheet("""
+            QHeaderView::section {
+                background-color: #f2f2f2;
+                border: none;
+                border-bottom: 1px solid #d4d4d4;
+                border-right: 1px solid #d4d4d4;
+                padding: 6px 4px;
+                font-weight: bold;
+                color: #333333;
+            }
+        """)
+
+        self.table_widget.setStyleSheet("""
+            QTableWidget {
+                gridline-color: #d4d4d4;
+                background-color: white;
+                border: 1px solid #d4d4d4;
+                selection-background-color: #cce7ff;
+                font-family: 'Calibri', 'Segoe UI', Arial, sans-serif;
+                font-size: 9pt;
+                outline: none;
+            }
+            QTableWidget::item {
+                border: none;
+                padding: 4px 6px;
+                min-height: 18px;
+            }
+            QTableWidget::item:selected {
+                background-color: #cce7ff;
+                color: black;
+            }
+            QTableWidget::item:focus {
+                border: 2px solid #0078d4;
+                background-color: white;
+            }
+        """)
+
+        self.table_widget.verticalHeader().setStyleSheet("""
+            QHeaderView::section {
+                background-color: #f2f2f2;
+                border: none;
+                border-bottom: 1px solid #d4d4d4;
+                border-right: 1px solid #d4d4d4;
+                padding: 2px;
+                font-weight: normal;
+                color: #333333;
+                text-align: center;
+                width: 30px;
+            }
+        """)
+
+        self.table_widget.setShowGrid(True)
+        self.table_widget.setGridStyle(Qt.SolidLine)
+        self.table_widget.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self.table_widget.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self.table_widget.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
+        self.table_widget.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
+        self.table_widget.setSizeAdjustPolicy(QAbstractItemView.AdjustToContents)
+
     def create_professional_button(self, icon_name, text, bg_color, hover_color):
         """Create a professional button with icon and text"""
-        button = QPushButton(text)
-        button.setMinimumSize(100, 30)
-        button.setMaximumSize(130, 30)
+        button = QPushButton(f" {text}")  # Add space before text for icon spacing
+
+        # Dynamic size based on text length to prevent cutoff
+        # Calculate approximate width needed: icon(16) + spacing(6) + text(~8px per char) + padding(12)
+        estimated_width = 16 + 6 + (len(text) * 7) + 12
+        min_width = max(100, estimated_width)
+        max_width = max(150, estimated_width + 20)
+
+        button.setMinimumSize(min_width, 28)
+        button.setMaximumSize(max_width, 28)
 
         # Add icon if available
         icon_path = os.path.join(os.path.dirname(__file__), '..', 'assets', icon_name)
@@ -617,7 +687,7 @@ class KegiatanClientComponent(QWidget):
                 icon = QIcon(icon_path)
                 if not icon.isNull():
                     button.setIcon(icon)
-                    button.setIconSize(QSize(16, 16))
+                    button.setIconSize(QSize(16, 16))  # Slightly larger icon
             except Exception:
                 pass
 
@@ -627,11 +697,13 @@ class KegiatanClientComponent(QWidget):
                 color: white;
                 border: 1px solid {bg_color};
                 border-radius: 4px;
-                padding: 5px 10px;
+                padding: 4px 8px 4px 4px;
                 font-size: 11px;
                 font-weight: 500;
-                text-align: center;
-                margin: 1px 3px;
+                text-align: left;
+                padding-left: 6px;
+                margin: 1px 2px;
+                white-space: nowrap;
             }}
             QPushButton:hover {{
                 background-color: {hover_color};
@@ -811,7 +883,7 @@ class KegiatanClientComponent(QWidget):
                 import csv
                 with open(file_path, 'w', newline='', encoding='utf-8') as f:
                     writer = csv.DictWriter(f, fieldnames=[
-                        'Nama Kegiatan', 'Tanggal', 'Waktu', 'Tempat', 'Kategori', 'Status', 'Deskripsi'
+                        'Kategori', 'Nama Kegiatan', 'Sasaran', 'Tujuan', 'Tempat', 'Tanggal', 'Waktu', 'Penanggung Jawab', 'Status', 'Keterangan'
                     ])
                     writer.writeheader()
                     for kegiatan in self.filtered_data:
@@ -819,15 +891,19 @@ class KegiatanClientComponent(QWidget):
                         tanggal = kegiatan.get('tanggal') or kegiatan.get('tanggal_mulai', '')
                         waktu = kegiatan.get('waktu') or kegiatan.get('waktu_mulai', '')
                         tempat = kegiatan.get('tempat') or kegiatan.get('lokasi', '')
+                        penanggung_jawab = kegiatan.get('penanggung_jawab') or kegiatan.get('penanggungjawab', '')
 
                         writer.writerow({
+                            'Kategori': kegiatan.get('kategori', ''),
                             'Nama Kegiatan': kegiatan.get('nama_kegiatan', ''),
+                            'Sasaran': kegiatan.get('sasaran_kegiatan', ''),
+                            'Tujuan': kegiatan.get('tujuan_kegiatan', ''),
+                            'Tempat': tempat,
                             'Tanggal': tanggal,
                             'Waktu': waktu,
-                            'Tempat': tempat,
-                            'Kategori': kegiatan.get('kategori', ''),
+                            'Penanggung Jawab': penanggung_jawab,
                             'Status': self.get_kegiatan_status(kegiatan),
-                            'Deskripsi': kegiatan.get('deskripsi', '')
+                            'Keterangan': kegiatan.get('keterangan', '')
                         })
                 QMessageBox.information(self, "Export Berhasil", f"Data berhasil diekspor ke: {file_path}")
                 self.log_message.emit(f"Data kegiatan berhasil diekspor ke {file_path}")
@@ -844,10 +920,12 @@ class KegiatanClientComponent(QWidget):
 
         for row, kegiatan in enumerate(self.filtered_data):
             self.table_widget.insertRow(row)
+            self.table_widget.setRowHeight(row, 26)
 
             # 0. Kategori
             kategori = kegiatan.get('kategori', '') or 'Lainnya'
             kategori_item = QTableWidgetItem(str(kategori))
+            kategori_item.setTextAlignment(Qt.AlignCenter | Qt.AlignVCenter)
 
             # 1. Nama Kegiatan
             nama = kegiatan.get('nama_kegiatan', '') or 'N/A'
@@ -876,12 +954,12 @@ class KegiatanClientComponent(QWidget):
                     else:
                         dt = datetime.datetime.strptime(str(tanggal_mulai), '%Y-%m-%d')
 
-                    # Format: Hari, dd/mm/yyyy
-                    hari = nama_hari[dt.weekday()]
-                    tanggal_formatted = f"{hari}, {dt.strftime('%d/%m/%Y')}"
+                    # Format: dd/mm/yyyy
+                    tanggal_formatted = dt.strftime('%d/%m/%Y')
                 except:
                     tanggal_formatted = str(tanggal_mulai)
             tanggal_item = QTableWidgetItem(tanggal_formatted)
+            tanggal_item.setTextAlignment(Qt.AlignCenter | Qt.AlignVCenter)
 
             # 6. Waktu Pelaksanaan (Format: HH.MM WITA - selesai)
             waktu_mulai = kegiatan.get('waktu_mulai') or kegiatan.get('waktu', '') or 'N/A'
@@ -907,14 +985,23 @@ class KegiatanClientComponent(QWidget):
                 except:
                     waktu_formatted = str(waktu_mulai)
             waktu_item = QTableWidgetItem(waktu_formatted)
+            waktu_item.setTextAlignment(Qt.AlignCenter | Qt.AlignVCenter)
 
             # 7. Penanggung Jawab
             penanggung_jawab = kegiatan.get('penanggung_jawab') or kegiatan.get('penanggungjawab') or kegiatan.get('nama_lengkap') or kegiatan.get('username', 'Tidak Ada')
             penanggung_jawab_item = QTableWidgetItem(str(penanggung_jawab))
 
-            # 8. Status Kegiatan
+            # 8. User (Nama user yang melakukan input)
+            user_name = kegiatan.get('username') or kegiatan.get('user_name') or kegiatan.get('created_by') or 'Tidak Ada'
+            user_item = QTableWidgetItem(str(user_name))
+            user_item.setTextAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+
+            # 9. Status Kegiatan
             status_db = kegiatan.get('status_kegiatan') or kegiatan.get('status', '') or 'Direncanakan'
             status_db_item = QTableWidgetItem(str(status_db))
+
+            # Ensure status text is always visible by setting alignment and proper styling
+            status_db_item.setTextAlignment(Qt.AlignCenter | Qt.AlignVCenter)
 
             # Color code status berdasarkan status database
             if status_db == "Direncanakan":
@@ -930,6 +1017,10 @@ class KegiatanClientComponent(QWidget):
                 status_db_item.setBackground(QBrush(QColor("#e74c3c")))
                 status_db_item.setForeground(QBrush(QColor("white")))
 
+            # 10. Keterangan
+            keterangan = kegiatan.get('keterangan', '') or ''
+            keterangan_item = QTableWidgetItem(str(keterangan))
+
             # Set items ke tabel sesuai urutan baru
             self.table_widget.setItem(row, 0, kategori_item)
             self.table_widget.setItem(row, 1, nama_item)
@@ -939,7 +1030,58 @@ class KegiatanClientComponent(QWidget):
             self.table_widget.setItem(row, 5, tanggal_item)
             self.table_widget.setItem(row, 6, waktu_item)
             self.table_widget.setItem(row, 7, penanggung_jawab_item)
-            self.table_widget.setItem(row, 8, status_db_item)
+            self.table_widget.setItem(row, 8, user_item)
+            self.table_widget.setItem(row, 9, status_db_item)
+            self.table_widget.setItem(row, 10, keterangan_item)
+
+    def update_calendar_indicators(self):
+        """Update calendar to mark dates that have kegiatan"""
+        # Get all dates from kegiatan_data
+        kegiatan_dates = set()
+
+        for kegiatan in self.kegiatan_data:
+            # Support both old (tanggal) and new (tanggal_mulai) fields
+            tanggal_str = kegiatan.get('tanggal_pelaksanaan') or kegiatan.get('tanggal_mulai') or kegiatan.get('tanggal', '')
+            if tanggal_str:
+                try:
+                    if 'T' in str(tanggal_str):
+                        tanggal_date = datetime.datetime.fromisoformat(str(tanggal_str).replace('Z', '+00:00')).date()
+                    else:
+                        tanggal_date = datetime.datetime.strptime(str(tanggal_str), '%Y-%m-%d').date()
+                    kegiatan_dates.add(tanggal_date)
+                except:
+                    pass
+
+        # Create a custom formatting for calendar
+        # Mark dates with kegiatan by making them bold
+        if hasattr(self.calendar, 'setDateTextFormat'):
+            from PyQt5.QtGui import QTextCharFormat
+
+            # Default format (for dates without kegiatan)
+            default_format = QTextCharFormat()
+
+            # Format for dates with kegiatan (bold)
+            kegiatan_format = QTextCharFormat()
+            kegiatan_format.setFontWeight(700)  # Bold
+
+            # Current calendar month
+            current_date = self.calendar.selectedDate().toPyDate()
+            current_month = current_date.month()
+            current_year = current_date.year()
+
+            # Apply formatting
+            for day in range(1, 32):
+                try:
+                    date_obj = datetime.date(current_year, current_month, day)
+                    q_date = QDate(date_obj.year, date_obj.month, date_obj.day)
+
+                    if date_obj in kegiatan_dates:
+                        self.calendar.setDateTextFormat(q_date, kegiatan_format)
+                    else:
+                        self.calendar.setDateTextFormat(q_date, default_format)
+                except ValueError:
+                    # Invalid day for this month
+                    pass
 
     def get_kegiatan_status(self, kegiatan):
         """Determine status of kegiatan based on date/time"""
@@ -1004,8 +1146,8 @@ class KegiatanClientComponent(QWidget):
         # Filter kegiatan for selected date
         filtered_for_date = []
         for kegiatan in self.kegiatan_data:
-            # Support both old (tanggal) and new (tanggal_mulai) fields
-            tanggal = kegiatan.get('tanggal') or kegiatan.get('tanggal_mulai', '')
+            # Support multiple field names for date
+            tanggal = kegiatan.get('tanggal_pelaksanaan') or kegiatan.get('tanggal_mulai') or kegiatan.get('tanggal', '')
             if tanggal and selected_date in tanggal:
                 filtered_for_date.append(kegiatan)
 
@@ -1016,32 +1158,12 @@ class KegiatanClientComponent(QWidget):
             QMessageBox.information(self, "Kegiatan",
                 f"Ditemukan {len(filtered_for_date)} kegiatan pada {date.toString('dd/MM/yyyy')}")
         else:
+            self.filtered_data = []
+            self.update_table()
+            self.update_statistics()
             QMessageBox.information(self, "Kegiatan",
                 f"Tidak ada kegiatan pada {date.toString('dd/MM/yyyy')}")
 
-    def show_kegiatan_detail(self):
-        """Show detail of selected kegiatan"""
-        current_row = self.table_widget.currentRow()
-        if current_row >= 0 and current_row < len(self.filtered_data):
-            kegiatan = self.filtered_data[current_row]
-
-            # Support both old and new field names
-            tanggal = kegiatan.get('tanggal') or kegiatan.get('tanggal_mulai', 'N/A')
-            waktu = kegiatan.get('waktu') or kegiatan.get('waktu_mulai', 'N/A')
-            tempat = kegiatan.get('tempat') or kegiatan.get('lokasi', 'N/A')
-
-            detail_html = f"""
-            <h3 style="color: #9b59b6;">{kegiatan.get('nama_kegiatan', 'N/A')}</h3>
-            <p><strong>Tanggal:</strong> {tanggal}</p>
-            <p><strong>Waktu:</strong> {waktu}</p>
-            <p><strong>Tempat:</strong> {tempat}</p>
-            <p><strong>Kategori:</strong> {kegiatan.get('kategori', 'N/A')}</p>
-            <p><strong>Deskripsi:</strong><br>{kegiatan.get('deskripsi', 'Tidak ada deskripsi')}</p>
-            """
-
-            self.detail_text.setHtml(detail_html)
-        else:
-            self.detail_text.setText("Pilih kegiatan untuk melihat detail...")
 
     def update_statistics(self):
         """Update statistics labels"""

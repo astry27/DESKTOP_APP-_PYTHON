@@ -473,7 +473,7 @@ class DatabaseManager:
         else:
             return False, result["data"]
 
-    def add_keuangan_kategorial(self, data: Dict[str, Any], admin_id: int = None) -> Tuple[bool, Any]:
+    def add_keuangan_kategorial(self, data: Dict[str, Any], admin_id: Optional[int] = None) -> Tuple[bool, Any]:
         """Add new keuangan_kategorial record"""
         result = self.api_client.add_keuangan_kategorial(data, admin_id)
         if result["success"]:
@@ -505,7 +505,7 @@ class DatabaseManager:
         else:
             return False, result["data"]
     
-    def upload_file(self, file_path: str, document_name: str = None, document_type: str = None, keterangan: str = None, kategori: str = None) -> Tuple[bool, Any]:
+    def upload_file(self, file_path: str, document_name: Optional[str] = None, document_type: Optional[str] = None, keterangan: Optional[str] = None, kategori: Optional[str] = None) -> Tuple[bool, Any]:
         result = self.api_client.upload_file(file_path, document_name, document_type, keterangan, kategori)
         if result["success"]:
             return True, result["data"]
@@ -805,6 +805,51 @@ class DatabaseManager:
         except Exception as e:
             self.logger.error(f"Error uploading new struktur photo: {e}")
             return False, str(e)
+
+    # ========== TIM PEMBINA METHODS ==========
+    def get_tim_pembina_list(self, search: Optional[str] = None, tim_pembina: Optional[str] = None,
+                             wilayah_rohani: Optional[str] = None, jabatan: Optional[str] = None,
+                             tahun: Optional[str] = None) -> Tuple[bool, Any]:
+        """Get tim pembina list with optional filters"""
+        result = self.api_client.get_tim_pembina_list(search, tim_pembina, wilayah_rohani, jabatan, tahun)
+        if result["success"]:
+            data = result["data"].get("data", [])
+            return True, data
+        else:
+            return False, result["data"]
+
+    def add_tim_pembina(self, data: Dict[str, Any]) -> Tuple[bool, Any]:
+        """Add new tim pembina peserta"""
+        result = self.api_client.add_tim_pembina(data)
+        if result["success"]:
+            return True, result["data"].get("id", 0)
+        else:
+            return False, result["data"]
+
+    def update_tim_pembina(self, tim_pembina_id: int, data: Dict[str, Any]) -> Tuple[bool, Any]:
+        """Update tim pembina peserta"""
+        result = self.api_client.update_tim_pembina(tim_pembina_id, data)
+        if result["success"]:
+            return True, result["data"]
+        else:
+            return False, result["data"]
+
+    def delete_tim_pembina(self, tim_pembina_id: int) -> Tuple[bool, Any]:
+        """Delete tim pembina peserta"""
+        result = self.api_client.delete_tim_pembina(tim_pembina_id)
+        if result["success"]:
+            return True, result["data"]
+        else:
+            return False, result["data"]
+
+    def search_jemaat_for_tim_pembina(self, search: str) -> Tuple[bool, Any]:
+        """Search jemaat for tim pembina nama peserta field"""
+        result = self.api_client.search_jemaat_for_tim_pembina(search)
+        if result["success"]:
+            data = result["data"].get("data", [])
+            return True, data
+        else:
+            return False, result["data"]
 
     # ========== KATEGORIAL METHODS ==========
     def get_kategorial_list(self, search: Optional[str] = None) -> Tuple[bool, Any]:
@@ -1191,114 +1236,6 @@ class DatabaseManager:
             self.logger.error(f"Error deleting user: {e}")
             return False, str(e)
     
-    def get_tim_pembina(self) -> Tuple[bool, Any]:
-        """Get all tim pembina with peserta"""
-        try:
-            result = self.api_client.get_tim_pembina()
-            if result.get('success'):
-                return True, {'success': True, 'data': result.get('data', [])}
-            else:
-                return False, result.get('data', 'Error getting tim pembina')
-        except Exception as e:
-            self.logger.error(f"Error getting tim pembina: {e}")
-            return False, str(e)
-
-    def add_tim_pembina(self, data: Dict[str, Any]) -> Tuple[bool, Any]:
-        """Add new tim pembina"""
-        try:
-            result = self.api_client.add_tim_pembina(data)
-            if result.get('success'):
-                return True, {'success': True, 'data': result.get('data', {})}
-            else:
-                return False, result.get('data', 'Error adding tim pembina')
-        except Exception as e:
-            self.logger.error(f"Error adding tim pembina: {e}")
-            return False, str(e)
-
-    def update_tim_pembina(self, tim_id: int, data: Dict[str, Any]) -> Tuple[bool, Any]:
-        """Update tim pembina"""
-        try:
-            result = self.api_client.update_tim_pembina(tim_id, data)
-            if result.get('success'):
-                return True, {'success': True, 'data': result.get('data', {})}
-            else:
-                return False, result.get('data', 'Error updating tim pembina')
-        except Exception as e:
-            self.logger.error(f"Error updating tim pembina: {e}")
-            return False, str(e)
-
-    def add_tim_pembina_peserta(self, tim_id: int, data: Dict[str, Any]) -> Tuple[bool, Any]:
-        """Add peserta to tim pembina (old method - deprecated)"""
-        try:
-            result = self.api_client.add_tim_pembina_peserta(tim_id, data)
-            if result.get('success'):
-                return True, {'success': True, 'data': result.get('data', {})}
-            else:
-                return False, result.get('data', 'Error adding peserta')
-        except Exception as e:
-            self.logger.error(f"Error adding peserta: {e}")
-            return False, str(e)
-
-    def get_tim_pembina_peserta(self) -> Tuple[bool, Any]:
-        """Get all peserta from tim_pembina table (new single-table approach)"""
-        try:
-            result = self.api_client.get_tim_pembina_peserta()
-            if result.get('success'):
-                return True, {'success': True, 'data': result.get('data', [])}
-            else:
-                return False, result.get('data', 'Error getting tim pembina peserta')
-        except Exception as e:
-            self.logger.error(f"Error getting tim pembina peserta: {e}")
-            return False, str(e)
-
-    def add_tim_pembina_peserta_new(self, data: Dict[str, Any]) -> Tuple[bool, Any]:
-        """Add new peserta to tim_pembina table (new single-table approach)"""
-        try:
-            result = self.api_client.add_tim_pembina_peserta_new(data)
-            if result.get('success'):
-                return True, {'success': True, 'data': result.get('data', {})}
-            else:
-                return False, result.get('data', 'Error adding peserta')
-        except Exception as e:
-            self.logger.error(f"Error adding peserta: {e}")
-            return False, str(e)
-
-    def update_tim_pembina_peserta(self, peserta_id: int, data: Dict[str, Any]) -> Tuple[bool, Any]:
-        """Update peserta in tim_pembina table (new single-table approach)"""
-        try:
-            result = self.api_client.update_tim_pembina_peserta(peserta_id, data)
-            if result.get('success'):
-                return True, {'success': True, 'data': result.get('data', {})}
-            else:
-                return False, result.get('data', 'Error updating peserta')
-        except Exception as e:
-            self.logger.error(f"Error updating peserta: {e}")
-            return False, str(e)
-
-    def delete_tim_pembina_peserta(self, peserta_id: int) -> Tuple[bool, Any]:
-        """Delete peserta from tim_pembina table (old method - deprecated)"""
-        try:
-            result = self.api_client.delete_tim_pembina_peserta(peserta_id)
-            if result.get('success'):
-                return True, {'success': True, 'data': result.get('data', {})}
-            else:
-                return False, result.get('data', 'Error deleting peserta')
-        except Exception as e:
-            self.logger.error(f"Error deleting peserta: {e}")
-            return False, str(e)
-
-    def delete_tim_pembina_peserta_new(self, peserta_id: int) -> Tuple[bool, Any]:
-        """Delete peserta from tim_pembina table (new single-table approach)"""
-        try:
-            result = self.api_client.delete_tim_pembina_peserta_new(peserta_id)
-            if result.get('success'):
-                return True, {'success': True, 'data': result.get('data', {})}
-            else:
-                return False, result.get('data', 'Error deleting peserta')
-        except Exception as e:
-            self.logger.error(f"Error deleting peserta: {e}")
-            return False, str(e)
-
     def search_jemaat_by_nama(self, keyword: str) -> Tuple[bool, Any]:
         """Search jemaat by nama"""
         try:

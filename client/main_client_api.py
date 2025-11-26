@@ -2,6 +2,8 @@
 
 import sys
 import os
+import json
+from typing import Optional, Dict, Any
 
 # Add current directory to Python path for imports
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -11,22 +13,70 @@ if current_dir not in sys.path:
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                             QHBoxLayout, QTabWidget, QTextEdit, QPushButton,
                             QLabel, QLineEdit, QMessageBox, QStatusBar, QFrame,
-                            QSplitter, QSystemTrayIcon, QMenu)
+                            QSplitter, QSystemTrayIcon, QMenu, QDialog)
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QSize
 from PyQt5.QtGui import QFont, QIcon
-from typing import Optional
 
 # Use absolute imports with type ignore to suppress warnings
 from api_client import ApiClient  # type: ignore
+from threading_utils import Worker, AsyncAPICall  # type: ignore
 from components.login_dialog import LoginDialog  # type: ignore
 from components.pengumuman_component import PengumumanComponent  # type: ignore
 from components.dokumen_component import DokumenComponent  # type: ignore
 from components.jemaat_component import JemaatClientComponent  # type: ignore
 from components.keuangan_component import KeuanganClientComponent  # type: ignore
+from components.proker_component import ProkerComponent  # type: ignore
 from components.kegiatan_component import KegiatanClientComponent  # type: ignore
 from components.profile_dialog import ProfileDialog  # type: ignore
 from components.activity_dialog import ActivityDialog  # type: ignore
-from config import ClientConfig  # type: ignore
+
+# ============================================================================
+# CLIENT CONFIG - Pindah dari config.py ke sini untuk menghindari PyInstaller issues
+# ============================================================================
+class ClientConfig:
+    """Konfigurasi aplikasi client"""
+
+    # Path default untuk file konfigurasi pengguna
+    CONFIG_FILE_PATH = os.path.join(os.path.expanduser("~"), '.gereja_client_settings.json')
+
+    # Default values
+    DEFAULT_API_URL = os.getenv('DEFAULT_API_URL', 'http://localhost:3000')
+    DEFAULT_DOWNLOAD_DIR = os.path.join(os.path.expanduser("~"), "Downloads", "GerejaKatolikFiles")
+
+    @staticmethod
+    def load_settings() -> Dict[str, Any]:
+        """Memuat pengaturan dari file JSON. Jika tidak ada, kembalikan default."""
+        if os.path.exists(ClientConfig.CONFIG_FILE_PATH):
+            try:
+                with open(ClientConfig.CONFIG_FILE_PATH, 'r', encoding='utf-8') as f:
+                    settings = json.load(f)
+                    # Pastikan semua kunci default ada
+                    if 'api_url' not in settings:
+                        settings['api_url'] = ClientConfig.DEFAULT_API_URL
+                    if 'download_dir' not in settings:
+                        settings['download_dir'] = ClientConfig.DEFAULT_DOWNLOAD_DIR
+                    return settings
+            except (json.JSONDecodeError, IOError) as e:
+                print(f"Error memuat file konfigurasi: {e}. Menggunakan default.")
+
+        # Kembalikan pengaturan default jika file tidak ada atau rusak
+        return {
+            'api_url': ClientConfig.DEFAULT_API_URL,
+            'download_dir': ClientConfig.DEFAULT_DOWNLOAD_DIR,
+        }
+
+    @staticmethod
+    def save_settings(settings: Dict[str, Any]):
+        """Menyimpan pengaturan ke file JSON."""
+        try:
+            # Pastikan folder ada
+            os.makedirs(os.path.dirname(ClientConfig.CONFIG_FILE_PATH), exist_ok=True)
+            with open(ClientConfig.CONFIG_FILE_PATH, 'w', encoding='utf-8') as f:
+                json.dump(settings, f, indent=4)
+        except IOError as e:
+            print(f"Error menyimpan file konfigurasi: {e}")
+
+# ============================================================================
 
 class ClientMainWindow(QMainWindow):
 
@@ -192,6 +242,11 @@ class ClientMainWindow(QMainWindow):
         self.keuangan_component = KeuanganClientComponent(self.api_client)
         self.keuangan_component.log_message.connect(self.add_log)
         self.tab_widget.addTab(self.keuangan_component, "Keuangan WR")
+
+        # Tab Program Kerja WR
+        self.proker_component = ProkerComponent(self, self.api_client, self.user_data)
+        self.proker_component.log_message.connect(self.add_log)
+        self.tab_widget.addTab(self.proker_component, "Program Kerja WR")
 
         # Tab Kegiatan WR
         self.kegiatan_component = KegiatanClientComponent(self.api_client)
@@ -457,7 +512,7 @@ class ClientMainWindow(QMainWindow):
     
     def show_login(self):
         login_dialog = LoginDialog(self)
-        if login_dialog.exec_() == login_dialog.Accepted:
+        if login_dialog.exec_() == QDialog.Accepted:
             self.user_data = login_dialog.get_user_data()
             if self.user_data:
                 self.api_client.user_data = self.user_data
@@ -611,74 +666,97 @@ class ClientMainWindow(QMainWindow):
                 self.keuangan_component.load_user_keuangan_data()
 
     def connect_to_api(self):
+        """Connect to API using background thread"""
         self.add_log("Mencoba terhubung ke API...")
+        self.connection_label.setText("● Mencoba...")
+        self.connection_label.setStyleSheet("color: #f39c12; font-weight: bold; font-size: 10px;")
 
-        # Test koneksi API
-        result = self.api_client.check_server_connection()
-        if result["success"]:
-            # Register client untuk tracking
-            register_result = self.api_client.register_client()
-            if register_result["success"]:
-                self.is_connected = True
-                self.connection_label.setText("● Online")
-                self.connection_label.setStyleSheet("color: #27ae60; font-weight: bold; font-size: 10px;")
-                
-                self.api_status_label.setText("Terhubung ke API")
-                self.api_status_label.setStyleSheet("color: #27ae60; font-size: 14px;")
-                self.status_bar.showMessage("Terhubung ke API dan terdaftar")
+        # Create worker thread untuk connection check
+        worker = AsyncAPICall(self.api_client.check_server_connection)
+        worker.success.connect(self._on_connection_check_success)
+        worker.error.connect(self._on_connection_check_error)
+        self._connection_worker = worker
+        worker.start()
 
-                # Update connection button
-                self.update_connection_button()
-                
-                # Log informasi client
-                user_name = self.user_data.get('nama_lengkap', 'Unknown') if self.user_data else 'Unknown'
-                user_role = self.user_data.get('peran', 'Unknown') if self.user_data else 'Unknown'
-                session_id = self.api_client.session_id
-                device_info = self.api_client.device_info
-                
-                self.add_log(f"Client terdaftar: {user_name} ({user_role})")
-                self.add_log(f"IP Address: {self.api_client.client_ip}")
-                self.add_log(f"Hostname: {self.api_client.client_hostname}")
-                self.add_log(f"Perangkat: {device_info.get('platform', 'Unknown')} {device_info.get('platform_version', '')}")
-                self.add_log(f"Session ID: {session_id}")
-                
-                print(f"=== CLIENT CONNECTED ===")
-                print(f"User: {user_name} ({user_role})")
-                print(f"Device: {device_info.get('platform', 'Unknown')} - {self.api_client.client_hostname}")
-                print(f"IP: {self.api_client.client_ip}")
-                print(f"Session: {session_id}")
-                print(f"=======================")
-                
-                # Load semua data
-                self.refresh_all_data()
-                
-                # Update API status info
-                api_data = result["data"]
-                if "api_enabled" in api_data:
-                    status_text = "Aktif" if api_data["api_enabled"] else "Nonaktif"
-                    self.api_version_label.setText(f"Status API: {status_text}")
-                
-                # Start timers untuk heartbeat
-                self.heartbeat_timer.start()
+    def _on_connection_check_success(self, result):
+        """Handle successful server connection check"""
+        self.add_log("Server connection OK, registering client...")
 
-                # Log activity
-                if self.activity_dialog:
-                    self.activity_dialog.log_connection_success()
-                
-            else:
-                error_msg = register_result.get('data', 'Unknown error')
-                QMessageBox.warning(self, "Error Registrasi Client", f"Gagal registrasi client:\n{error_msg}")
-                self.add_log(f"ERROR: Gagal registrasi client - {error_msg}")
-                print(f"[ERROR] Client registration failed: {error_msg}")
-        else:
-            error_msg = result.get('data', 'Unknown connection error')
-            QMessageBox.warning(self, "Error Koneksi API", f"Gagal terhubung ke API:\n{error_msg}")
-            self.add_log(f"ERROR: Gagal terhubung ke API - {error_msg}")
-            print(f"[ERROR] API connection failed: {error_msg}")
+        # Now register client
+        worker = AsyncAPICall(self.api_client.register_client)
+        worker.success.connect(self._on_client_registration_success)
+        worker.error.connect(self._on_client_registration_error)
+        self._registration_worker = worker
+        worker.start()
 
-            # Log activity
-            if self.activity_dialog:
-                self.activity_dialog.log_connection_failed()
+    def _on_connection_check_error(self, error_type, error_msg):
+        """Handle server connection check error"""
+        QMessageBox.warning(self, f"Error {error_type}", f"Gagal terhubung ke API:\n{error_msg}")
+        self.add_log(f"ERROR: Gagal terhubung ke API - {error_msg}")
+        print(f"[ERROR] API connection failed: {error_type} - {error_msg}")
+
+        self.connection_label.setText("● Offline")
+        self.connection_label.setStyleSheet("color: #e74c3c; font-weight: bold; font-size: 10px;")
+
+        if self.activity_dialog:
+            self.activity_dialog.log_connection_failed()
+
+    def _on_client_registration_success(self, result):
+        """Handle successful client registration"""
+        self.is_connected = True
+        self.connection_label.setText("● Online")
+        self.connection_label.setStyleSheet("color: #27ae60; font-weight: bold; font-size: 10px;")
+
+        self.api_status_label.setText("Terhubung ke API")
+        self.api_status_label.setStyleSheet("color: #27ae60; font-size: 14px;")
+        self.status_bar.showMessage("Terhubung ke API dan terdaftar")
+
+        # Update connection button
+        self.update_connection_button()
+
+        # Log informasi client
+        user_name = self.user_data.get('nama_lengkap', 'Unknown') if self.user_data else 'Unknown'
+        user_role = self.user_data.get('peran', 'Unknown') if self.user_data else 'Unknown'
+        session_id = self.api_client.session_id
+        connection_id = self.api_client.connection_id
+        device_info = self.api_client.device_info
+
+        self.add_log(f"Client terdaftar: {user_name} ({user_role})")
+        self.add_log(f"IP Address: {self.api_client.client_ip}")
+        self.add_log(f"Hostname: {self.api_client.client_hostname}")
+        self.add_log(f"Perangkat: {device_info.get('platform', 'Unknown')} {device_info.get('platform_version', '')}")
+        self.add_log(f"Session ID: {session_id}")
+        if connection_id:
+            self.add_log(f"Connection ID: {connection_id}")
+
+        print(f"=== CLIENT CONNECTED ===")
+        print(f"User: {user_name} ({user_role})")
+        print(f"Device: {device_info.get('platform', 'Unknown')} - {self.api_client.client_hostname}")
+        print(f"IP: {self.api_client.client_ip}")
+        print(f"Session: {session_id}")
+        if connection_id:
+            print(f"Connection ID: {connection_id}")
+        print(f"=======================")
+
+        # Load data in parallel (NON-BLOCKING)
+        self.add_log("Loading data in background...")
+        self.refresh_all_data()
+
+        # Start timers untuk heartbeat
+        self.heartbeat_timer.start()
+
+        # Log activity
+        if self.activity_dialog:
+            self.activity_dialog.log_connection_success()
+
+    def _on_client_registration_error(self, error_type, error_msg):
+        """Handle client registration error"""
+        QMessageBox.warning(self, f"Error {error_type}", f"Gagal registrasi client:\n{error_msg}")
+        self.add_log(f"ERROR: Gagal registrasi client - {error_msg}")
+        print(f"[ERROR] Client registration failed: {error_type} - {error_msg}")
+
+        self.connection_label.setText("● Offline")
+        self.connection_label.setStyleSheet("color: #e74c3c; font-weight: bold; font-size: 10px;")
     
     def disconnect_from_api(self):
         if self.is_connected:
@@ -781,31 +859,31 @@ class ClientMainWindow(QMainWindow):
     #     self.broadcast_notification.setStyleSheet("color: #7f8c8d; font-style: italic; padding: 5px;")
 
     def refresh_all_data(self):
+        """Load all data - components handle their own threading safely"""
         if not self.is_connected:
             return
 
-        print("Memuat ulang semua data...")
+        print("Refreshing all data...")
+        self.add_log("Memuat data: jemaat, keuangan, program kerja, kegiatan, pengumuman, dokumen...")
 
-        # Refresh jemaat data - gunakan user-specific endpoint
+        # Each component loads its own data with proper threading (thread-safe)
+        # Components emit signals for UI updates, ensuring main thread updates
         if hasattr(self.jemaat_component, 'load_user_jemaat_data'):
-            self.jemaat_component.load_user_jemaat_data()  # ✅ BENAR! Hanya data user sendiri
+            self.jemaat_component.load_user_jemaat_data()
 
-        # Refresh keuangan data - gunakan user-specific endpoint
         if hasattr(self.keuangan_component, 'load_user_keuangan_data'):
-            self.keuangan_component.load_user_keuangan_data()  # ✅ BENAR! Hanya data user sendiri
+            self.keuangan_component.load_user_keuangan_data()
 
-        # Refresh kegiatan/jadwal data
+        if hasattr(self.proker_component, 'load_data'):
+            self.proker_component.load_data()
+
         if hasattr(self.kegiatan_component, 'load_kegiatan_data'):
             self.kegiatan_component.load_kegiatan_data()
 
-        # Refresh pengumuman
         self.pengumuman_component.load_pengumuman()
 
-        # Refresh dokumen
         if hasattr(self.dokumen_component, 'load_files'):
             self.dokumen_component.load_files()
-
-        print("Data berhasil dimuat ulang")
     
     def periodic_update(self):
         if self.is_connected:
@@ -934,32 +1012,93 @@ class ClientMainWindow(QMainWindow):
         self.activity_dialog.activateWindow()
 
     def handle_logout(self):
-        """Handle logout from profile dialog"""
-        reply = QMessageBox.question(
-            self,
-            "Konfirmasi Logout",
-            "Apakah Anda yakin ingin logout dan keluar dari aplikasi?",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No
-        )
+        """Handle logout from profile dialog - redirect to login page"""
+        # Log activity
+        if self.activity_dialog:
+            self.activity_dialog.log_logout()
 
-        if reply == QMessageBox.Yes:
-            # Log activity
-            if self.activity_dialog:
-                self.activity_dialog.log_logout()
+        # Disconnect dari API
+        if self.is_connected:
+            self.disconnect_from_api()
 
-            # Disconnect dari API
-            if self.is_connected:
-                self.disconnect_from_api()
+        # Close dialogs
+        if self.profile_dialog:
+            self.profile_dialog.close()
+        if self.activity_dialog:
+            self.activity_dialog.close()
 
-            # Close dialogs
-            if self.profile_dialog:
-                self.profile_dialog.close()
-            if self.activity_dialog:
-                self.activity_dialog.close()
+        # Clear all component data
+        self.clear_all_data()
 
-            # Exit aplikasi
+        # Reset user data
+        self.user_data = None
+        self.api_client.user_data = None
+
+        # Reset UI state
+        self.user_label.setText("Guest")
+        self.user_info_label.setText("Silakan login untuk mengakses sistem")
+
+        # Add logout log
+        self.add_log("User logout - mengarahkan ke halaman login...")
+
+        # Hide main window content
+        self.hide()
+
+        # Show login dialog again
+        self.show_login()
+
+        # If login successful, show window again
+        if self.user_data:
+            self.show()
+            self.add_log(f"Login kembali sebagai {self.user_data.get('nama_lengkap', 'Unknown')}")
+            # Reconnect to API
+            self.connect_to_api()
+        else:
+            # If login cancelled or failed, exit aplikasi
+            self.add_log("Login dibatalkan - menutup aplikasi")
             self.close()
+
+    def clear_all_data(self):
+        """Clear semua data dari component saat logout"""
+        # Clear jemaat data
+        if hasattr(self, 'jemaat_component') and self.jemaat_component:
+            self.jemaat_component.jemaat_data = []
+            if hasattr(self.jemaat_component, 'populate_table'):
+                self.jemaat_component.populate_table()
+
+        # Clear keuangan data
+        if hasattr(self, 'keuangan_component') and self.keuangan_component:
+            self.keuangan_component.keuangan_data = []
+            if hasattr(self.keuangan_component, 'populate_table'):
+                self.keuangan_component.populate_table()
+
+        # Clear program kerja WR data
+        if hasattr(self, 'proker_component') and self.proker_component:
+            self.proker_component.proker_list = []
+            if hasattr(self.proker_component, 'populate_table'):
+                self.proker_component.populate_table([])
+
+        # Clear kegiatan data
+        if hasattr(self, 'kegiatan_component') and self.kegiatan_component:
+            self.kegiatan_component.kegiatan_data = []
+            if hasattr(self.kegiatan_component, 'populate_table'):
+                self.kegiatan_component.populate_table()
+
+        # Clear pengumuman data
+        if hasattr(self, 'pengumuman_component') and self.pengumuman_component:
+            self.pengumuman_component.pengumuman_data = []
+            if hasattr(self.pengumuman_component, 'populate_table'):
+                self.pengumuman_component.populate_table()
+
+        # Clear dokumen data
+        if hasattr(self, 'dokumen_component') and self.dokumen_component:
+            self.dokumen_component.dokumen_data = []
+            if hasattr(self.dokumen_component, 'populate_table'):
+                self.dokumen_component.populate_table()
+
+        # Clear log
+        if hasattr(self, 'log_text'):
+            self.log_text.clear()
 
     def closeEvent(self, event):
         if self.is_connected:

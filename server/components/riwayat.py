@@ -1,12 +1,80 @@
 # Path: server/components/riwayat.py
 
 import datetime
-from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QTableWidget, 
-                            QTableWidgetItem, QHeaderView, QLabel, QLineEdit, 
+from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QTableWidget,
+                            QTableWidgetItem, QHeaderView, QLabel, QLineEdit,
                             QPushButton, QComboBox, QFrame, QMessageBox, QTabWidget,
                             QTextBrowser, QAbstractItemView, QDateEdit, QGroupBox)
-from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QDate, QSize
-from PyQt5.QtGui import QColor, QIcon, QFont
+from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QDate, QSize, QRect
+from PyQt5.QtGui import QColor, QIcon, QFont, QPainter
+
+class WordWrapHeaderView(QHeaderView):
+    """Custom header view with word wrap and center alignment support"""
+    def __init__(self, orientation, parent=None):
+        super().__init__(orientation, parent)
+        self.setDefaultAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+        self.setSectionsClickable(True)
+        self.setHighlightSections(True)
+
+    def sectionSizeFromContents(self, logicalIndex):
+        """Calculate section size based on wrapped text"""
+        if self.model():
+            # Get header text
+            text = self.model().headerData(logicalIndex, self.orientation(), Qt.DisplayRole)
+            if text:
+                # Get current section width
+                width = self.sectionSize(logicalIndex)
+                if width <= 0:
+                    width = self.defaultSectionSize()
+
+                # Create font metrics
+                font = self.font()
+                font.setBold(True)
+                fm = self.fontMetrics()
+
+                # Calculate text rect with word wrap
+                rect = fm.boundingRect(0, 0, width - 8, 1000,
+                                      Qt.AlignCenter | Qt.TextWordWrap, str(text))
+
+                # Return size with padding
+                return QSize(width, max(rect.height() + 12, 25))
+
+        return super().sectionSizeFromContents(logicalIndex)
+
+    def paintSection(self, painter, rect, logicalIndex):
+        """Paint section with word wrap and center alignment"""
+        painter.save()
+
+        # Draw background with consistent color
+        bg_color = QColor(242, 242, 242)  # #f2f2f2
+        painter.fillRect(rect, bg_color)
+
+        # Draw borders
+        border_color = QColor(212, 212, 212)  # #d4d4d4
+        painter.setPen(border_color)
+        # Right border
+        painter.drawLine(rect.topRight(), rect.bottomRight())
+        # Bottom border
+        painter.drawLine(rect.bottomLeft(), rect.bottomRight())
+
+        # Get header text
+        if self.model():
+            text = self.model().headerData(logicalIndex, self.orientation(), Qt.DisplayRole)
+            if text:
+                # Setup font
+                font = self.font()
+                font.setBold(True)
+                painter.setFont(font)
+
+                # Text color
+                text_color = QColor(51, 51, 51)  # #333333
+                painter.setPen(text_color)
+
+                # Draw text with word wrap and center alignment
+                text_rect = rect.adjusted(4, 4, -4, -4)
+                painter.drawText(text_rect, Qt.AlignCenter | Qt.TextWordWrap, str(text))
+
+        painter.restore()
 
 class RiwayatComponent(QWidget):
     
@@ -131,25 +199,36 @@ class RiwayatComponent(QWidget):
         return tab
         
     def create_professional_admin_table(self):
-        """Create admin table with professional styling matching program_kerja.py."""
+        """Create admin table with professional styling matching struktur.py."""
         table = QTableWidget(0, 4)
+
+        # Set custom header with word wrap and center alignment
+        custom_header = WordWrapHeaderView(Qt.Horizontal, table)
+        table.setHorizontalHeader(custom_header)
+
         table.setHorizontalHeaderLabels([
             "Waktu", "Admin", "Aktivitas", "Detail"
         ])
 
-        # Apply professional table styling matching program_kerja.py
+        # Apply professional table styling matching struktur.py
         self.apply_professional_table_style(table)
 
-        # Set initial column widths with better proportions for full layout (matching program_kerja.py approach)
+        # Set initial column widths with better proportions for full layout
         table.setColumnWidth(0, 150)   # Waktu - wider for datetime
         table.setColumnWidth(1, 120)   # Admin
         table.setColumnWidth(2, 180)   # Aktivitas - wider for content
         table.setColumnWidth(3, 250)   # Detail - wider for detailed content
 
-        # Excel-like column resizing - all columns can be resized (matching program_kerja.py)
+        # Excel-like column resizing - all columns can be resized
         header = table.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.Interactive)  # All columns resizable
         header.setStretchLastSection(True)  # Last column stretches to fill space
+
+        # Update header height when column is resized
+        header.sectionResized.connect(self.update_admin_header_height)
+
+        # Initial header height calculation (delayed to ensure proper rendering)
+        QTimer.singleShot(100, lambda: self.update_admin_header_height(0, 0, 0))
 
         return table
     
@@ -180,38 +259,81 @@ class RiwayatComponent(QWidget):
         return tab
         
     def create_professional_client_table(self):
-        """Create client table with professional styling matching program_kerja.py."""
+        """Create client table with professional styling matching struktur.py."""
         table = QTableWidget(0, 5)
+
+        # Set custom header with word wrap and center alignment
+        custom_header = WordWrapHeaderView(Qt.Horizontal, table)
+        table.setHorizontalHeader(custom_header)
+
         table.setHorizontalHeaderLabels([
             "Waktu", "Client IP", "Aktivitas", "Terakhir Aktif", "Status"
         ])
 
-        # Apply professional table styling matching program_kerja.py
+        # Apply professional table styling matching struktur.py
         self.apply_professional_table_style(table)
 
-        # Set initial column widths with better proportions for full layout (matching program_kerja.py approach)
+        # Set initial column widths with better proportions for full layout
         table.setColumnWidth(0, 150)   # Waktu - wider for datetime
         table.setColumnWidth(1, 130)   # Client IP
         table.setColumnWidth(2, 180)   # Aktivitas - wider for content
         table.setColumnWidth(3, 150)   # Terakhir Aktif
         table.setColumnWidth(4, 100)   # Status
 
-        # Excel-like column resizing - all columns can be resized (matching program_kerja.py)
+        # Excel-like column resizing - all columns can be resized
         header = table.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.Interactive)  # All columns resizable
         header.setStretchLastSection(True)  # Last column stretches to fill space
 
+        # Update header height when column is resized
+        header.sectionResized.connect(self.update_client_header_height)
+
+        # Initial header height calculation (delayed to ensure proper rendering)
+        QTimer.singleShot(100, lambda: self.update_client_header_height(0, 0, 0))
+
         return table
-    
+
+    def update_admin_header_height(self, logicalIndex, oldSize, newSize):
+        """Update admin table header height when column is resized"""
+        if hasattr(self, 'admin_table'):
+            header = self.admin_table.horizontalHeader()
+            # Force header to recalculate height
+            header.setMinimumHeight(25)
+            max_height = 25
+
+            # Calculate required height for each section
+            for i in range(header.count()):
+                size = header.sectionSizeFromContents(i)
+                max_height = max(max_height, size.height())
+
+            # Set header height to accommodate tallest section
+            header.setFixedHeight(max_height)
+
+    def update_client_header_height(self, logicalIndex, oldSize, newSize):
+        """Update client table header height when column is resized"""
+        if hasattr(self, 'client_table'):
+            header = self.client_table.horizontalHeader()
+            # Force header to recalculate height
+            header.setMinimumHeight(25)
+            max_height = 25
+
+            # Calculate required height for each section
+            for i in range(header.count()):
+                size = header.sectionSizeFromContents(i)
+                max_height = max(max_height, size.height())
+
+            # Set header height to accommodate tallest section
+            header.setFixedHeight(max_height)
+
     def apply_professional_table_style(self, table):
-        """Apply Excel-like table styling exactly matching program_kerja.py."""
-        # Header styling - Excel-like headers
+        """Apply Excel-like table styling with thin grid lines and minimal borders."""
+        # Header styling - Bold headers with center alignment
         header_font = QFont()
-        header_font.setBold(False)  # Remove bold from headers
+        header_font.setBold(True)  # Make headers bold
         header_font.setPointSize(9)
         table.horizontalHeader().setFont(header_font)
 
-        # Excel-style header styling (exact copy from program_kerja.py)
+        # Header with bold text, center alignment, and word wrap
         table.horizontalHeader().setStyleSheet("""
             QHeaderView::section {
                 background-color: #f2f2f2;
@@ -219,13 +341,20 @@ class RiwayatComponent(QWidget):
                 border-bottom: 1px solid #d4d4d4;
                 border-right: 1px solid #d4d4d4;
                 padding: 6px 4px;
-                font-weight: normal;
+                font-weight: bold;
                 color: #333333;
-                text-align: left;
             }
         """)
 
-        # Excel-style table body styling (exact copy from program_kerja.py)
+        # Configure header behavior
+        header = table.horizontalHeader()
+        header.setDefaultAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+        header.setSectionsClickable(True)
+        header.setMinimumHeight(25)
+        header.setMinimumSectionSize(50)
+        header.setMaximumSectionSize(500)
+
+        # Excel-style table body styling
         table.setStyleSheet("""
             QTableWidget {
                 gridline-color: #d4d4d4;
@@ -251,11 +380,10 @@ class RiwayatComponent(QWidget):
             }
         """)
 
-        # Excel-style table settings (matching program_kerja.py exactly)
+        # Excel-style table settings - header configuration
         header = table.horizontalHeader()
-        header.setMinimumSectionSize(50)
+        # Header height will adjust based on content wrapping
         header.setDefaultSectionSize(80)
-        # Allow adjustable header height - removed setMaximumHeight constraint
 
         # Enable scrolling
         table.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
@@ -263,8 +391,8 @@ class RiwayatComponent(QWidget):
         table.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
         table.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
 
-        # Excel-style row settings with better content visibility
-        table.verticalHeader().setDefaultSectionSize(24)  # Slightly taller for content
+        # Excel-style row settings
+        table.verticalHeader().setDefaultSectionSize(20)  # Thin rows like Excel
         table.setSelectionBehavior(QAbstractItemView.SelectItems)  # Select individual cells
         table.setAlternatingRowColors(False)
         table.verticalHeader().setVisible(True)  # Show row numbers like Excel
@@ -290,9 +418,8 @@ class RiwayatComponent(QWidget):
         table.setEditTriggers(QAbstractItemView.DoubleClicked | QAbstractItemView.EditKeyPressed)
         table.setSelectionMode(QAbstractItemView.ExtendedSelection)
 
-        # Set proper size for Excel look with better visibility (matching program_kerja.py)
-        table.setMinimumHeight(200)
-        table.setSizePolicy(table.sizePolicy().Expanding, table.sizePolicy().Expanding)
+        # Set compact size for Excel look
+        table.setMinimumHeight(150)
         table.setSizeAdjustPolicy(QAbstractItemView.AdjustToContents)
 
     def create_statistics(self):

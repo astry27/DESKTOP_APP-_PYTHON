@@ -2,114 +2,413 @@
 
 import os
 import datetime
-from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QTableWidget, 
-                            QTableWidgetItem, QHeaderView, QLabel, QPushButton, 
+from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QTableWidget,
+                            QTableWidgetItem, QHeaderView, QLabel, QPushButton,
                             QLineEdit, QMessageBox, QFrame, QProgressBar, QFileDialog,
                             QApplication, QAbstractItemView, QDialog, QComboBox, QFormLayout,
-                            QDialogButtonBox, QMenu)
-from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QSize
-from PyQt5.QtGui import QIcon, QFont
+                            QDialogButtonBox, QMenu, QTextEdit)
+from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QSize, QRect
+from PyQt5.QtGui import QIcon, QFont, QColor, QPainter
+
+class WordWrapHeaderView(QHeaderView):
+    """Custom header view with word wrap and center alignment support"""
+    def __init__(self, orientation, parent=None):  # type: ignore
+        super().__init__(orientation, parent)  # type: ignore
+        self.setDefaultAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+        self.setSectionsClickable(True)
+        self.setHighlightSections(True)
+
+    def sectionSizeFromContents(self, logicalIndex):
+        """Calculate section size based on wrapped text"""
+        if self.model():
+            # Get header text
+            text = self.model().headerData(logicalIndex, self.orientation(), Qt.DisplayRole)
+            if text:
+                # Get current section width
+                width = self.sectionSize(logicalIndex)
+                if width <= 0:
+                    width = self.defaultSectionSize()
+
+                # Create font metrics
+                font = self.font()
+                font.setBold(True)
+                fm = self.fontMetrics()
+
+                # Calculate text rect with word wrap
+                rect = fm.boundingRect(0, 0, width - 8, 1000,
+                                      Qt.AlignCenter | Qt.TextWordWrap, str(text))
+
+                # Return size with padding
+                return QSize(width, max(rect.height() + 12, 25))
+
+        return super().sectionSizeFromContents(logicalIndex)
+
+    def paintSection(self, painter, rect, logicalIndex):
+        """Paint section with word wrap and center alignment"""
+        painter.save()
+
+        # Draw background with consistent color
+        bg_color = QColor(242, 242, 242)  # #f2f2f2
+        painter.fillRect(rect, bg_color)
+
+        # Draw borders
+        border_color = QColor(212, 212, 212)  # #d4d4d4
+        painter.setPen(border_color)
+        # Right border
+        painter.drawLine(rect.topRight(), rect.bottomRight())
+        # Bottom border
+        painter.drawLine(rect.bottomLeft(), rect.bottomRight())
+
+        # Get header text
+        if self.model():
+            text = self.model().headerData(logicalIndex, self.orientation(), Qt.DisplayRole)
+            if text:
+                # Setup font
+                font = self.font()
+                font.setBold(True)
+                painter.setFont(font)
+
+                # Text color
+                text_color = QColor(51, 51, 51)  # #333333
+                painter.setPen(text_color)
+
+                # Draw text with word wrap and center alignment
+                text_rect = rect.adjusted(4, 4, -4, -4)
+                painter.drawText(text_rect, Qt.AlignCenter | Qt.TextWordWrap, str(text))
+
+        painter.restore()
 
 class UploadDialog(QDialog):
-    def __init__(self, parent=None):
-        super().__init__(parent)
+    def __init__(self, parent=None):  # type: ignore
+        super().__init__(parent)  # type: ignore
         self.setWindowTitle("Upload Dokumen")
         self.setModal(True)
-        self.resize(400, 300)
-        
+        self.resize(550, 380)  # More compact size
+        self.setMinimumWidth(500)
+
         self.file_path = ""
         self.document_name = ""
         self.document_type = ""
-        
+        self.bentuk = ""
+        self.keterangan = ""
+
         self.setup_ui()
-    
+
     def setup_ui(self):
-        layout = QFormLayout(self)
-        
-        # Nama Dokumen
-        self.name_input = QLineEdit()
-        self.name_input.setPlaceholderText("Masukkan nama dokumen...")
-        layout.addRow("Nama Dokumen:", self.name_input)
-        
-        # Jenis Dokumen
-        self.type_combo = QComboBox()
-        self.type_combo.addItems([
-            "Administrasi", "Keanggotaan", "Keuangan", 
-            "Liturgi", "Legalitas"
-        ])
-        layout.addRow("Jenis Dokumen:", self.type_combo)
-        
-        # File Path
-        file_layout = QHBoxLayout()
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(15, 15, 15, 15)
+        main_layout.setSpacing(8)  # Reduced spacing
+
+        # ===== FORM CONTENT SECTION =====
+        form_layout = QFormLayout()
+        form_layout.setLabelAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        form_layout.setFormAlignment(Qt.AlignLeft | Qt.AlignTop)
+        form_layout.setVerticalSpacing(8)  # Reduced from 10
+        form_layout.setHorizontalSpacing(12)
+        form_layout.setContentsMargins(0, 0, 0, 0)
+
+        # ===== PILIH DOKUMEN (FILE) =====
+        file_label = QLabel("Pilih Dokumen *:")
+        file_label.setMinimumWidth(110)
+        file_widget = QWidget()
+        file_layout = QHBoxLayout(file_widget)
+        file_layout.setContentsMargins(0, 0, 0, 0)
+        file_layout.setSpacing(5)
+
         self.file_input = QLineEdit()
         self.file_input.setReadOnly(True)
-        self.file_input.setPlaceholderText("Pilih file...")
-        
-        self.browse_button = QPushButton("Browse")
+        self.file_input.setPlaceholderText("Belum ada file dipilih...")
+        file_layout.addWidget(self.file_input, 1)
+
+        self.browse_button = QPushButton("Pilih File")
         self.browse_button.clicked.connect(self.browse_file)
-        
-        file_layout.addWidget(self.file_input)
+        self.browse_button.setFixedWidth(80)
+        self.browse_button.setFixedHeight(30)
+        self.browse_button.setStyleSheet("""
+            QPushButton {
+                background-color: #3498db;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                font-weight: bold;
+                padding: 6px 12px;
+                font-size: 10px;
+            }
+            QPushButton:hover {
+                background-color: #2980b9;
+            }
+            QPushButton:pressed {
+                background-color: #21618c;
+            }
+        """)
         file_layout.addWidget(self.browse_button)
-        
-        file_widget = QWidget()
-        file_widget.setLayout(file_layout)
-        layout.addRow("File:", file_widget)
-        
-        # Buttons
-        button_box = QDialogButtonBox(
-            QDialogButtonBox.Ok | QDialogButtonBox.Cancel
-        )
-        button_box.accepted.connect(self.accept_dialog)
-        button_box.rejected.connect(self.reject)  # type: ignore
-        
-        layout.addWidget(button_box)
+
+        form_layout.addRow(file_label, file_widget)
+
+        # ===== NAMA DOKUMEN (EDITABLE) =====
+        nama_label = QLabel("Nama Dokumen *:")
+        nama_label.setMinimumWidth(110)
+        self.name_input = QLineEdit()
+        self.name_input.setReadOnly(False)  # Now editable
+        self.name_input.setPlaceholderText("Nama file otomatis muncul di sini, bisa diedit...")
+        form_layout.addRow(nama_label, self.name_input)
+
+        # ===== KATEGORI DOKUMEN =====
+        jenis_label = QLabel("Kategori Dokumen *:")
+        jenis_label.setMinimumWidth(110)
+        self.type_combo = QComboBox()
+        self.type_combo.addItem("-- Pilih Kategori Dokumen --")  # Default non-selectable placeholder
+        self.type_combo.addItems([
+            "Dokumen Sakramental & Liturgi",
+            "Dokumen Data Umat (Pastoral)",
+            "Dokumen Administrasi & Surat-Menyurat",
+            "Dokumen Keuangan",
+            "Dokumen Aset & Inventaris",
+            "Dokumen Organisasi & Program Pastoral",
+            "Dokumen Katekese & Pembinaan",
+            "Dokumen Kegiatan & Dokumentasi",
+            "Dokumen Arsip Digital & Media",
+            "Dokumen Lainnya"
+        ])
+        self.type_combo.setCurrentIndex(0)  # Set to placeholder
+        form_layout.addRow(jenis_label, self.type_combo)
+
+        # ===== BENTUK DOKUMEN =====
+        bentuk_label = QLabel("Bentuk Dokumen *:")
+        bentuk_label.setMinimumWidth(110)
+        self.bentuk_combo = QComboBox()
+        self.bentuk_combo.addItem("-- Pilih Bentuk Dokumen --")  # Default non-selectable placeholder
+        self.bentuk_combo.addItems([
+            "Surat Masuk",
+            "Surat Keluar",
+            "Proposal",
+            "Laporan",
+            "Laporan Pertanggungjawaban (LPJ)",
+            "Notulen",
+            "Daftar Hadir",
+            "Formulir",
+            "Sertifikat/Piagam",
+            "Jadwal/Agenda/Calendar",
+            "Panduan/Pedoman",
+            "SOP (Standar Operasional Prosedur)",
+            "Rencana Anggaran",
+            "Kuitansi",
+            "Invoice/Faktur",
+            "Bukti Pembayaran/Bukti Transfer",
+            "Daftar Inventaris",
+            "Dokumen Kontrak/Perjanjian",
+            "Dokumen Legal Aset",
+            "Arsip Dokumentasi",
+            "Publikasi/Media (poster, brosur, banner, konten medsos)",
+            "Database/Spreadsheet Data (arsip digital)",
+            "Lainnya"
+        ])
+        self.bentuk_combo.setCurrentIndex(0)  # Set to placeholder
+        form_layout.addRow(bentuk_label, self.bentuk_combo)
+
+        # ===== KETERANGAN (OPTIONAL) =====
+        keterangan_label = QLabel("Keterangan:")
+        keterangan_label.setMinimumWidth(110)
+        keterangan_label.setAlignment(Qt.AlignTop)
+        self.keterangan_input = QTextEdit()
+        self.keterangan_input.setPlaceholderText("Masukkan deskripsi tentang dokumen ini (opsional)...")
+        self.keterangan_input.setMinimumHeight(45)
+        self.keterangan_input.setMaximumHeight(65)
+        form_layout.addRow(keterangan_label, self.keterangan_input)
+
+        main_layout.addLayout(form_layout)
+
+        # ===== INFO LABEL =====
+        info_label = QLabel("* Field wajib diisi")
+        info_label.setStyleSheet("color: #7f8c8d; font-style: italic; font-size: 10px;")
+        main_layout.addWidget(info_label)
+
+        # ===== BUTTON SECTION =====
+        button_layout = QHBoxLayout()
+        button_layout.setSpacing(10)
+        button_layout.setContentsMargins(0, 8, 0, 0)
+        button_layout.addStretch()
+
+        self.cancel_button = QPushButton("Batal")
+        self.cancel_button.clicked.connect(self.reject)
+        self.cancel_button.setFixedWidth(85)
+        self.cancel_button.setFixedHeight(32)
+        self.cancel_button.setStyleSheet("""
+            QPushButton {
+                background-color: #95a5a6;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                padding: 6px 16px;
+                font-weight: bold;
+                font-size: 11px;
+            }
+            QPushButton:hover {
+                background-color: #7f8c8d;
+            }
+            QPushButton:pressed {
+                background-color: #6c7a7b;
+            }
+        """)
+
+        self.upload_button = QPushButton("Upload")
+        self.upload_button.clicked.connect(self.accept_dialog)
+        self.upload_button.setFixedWidth(85)
+        self.upload_button.setFixedHeight(32)
+        self.upload_button.setStyleSheet("""
+            QPushButton {
+                background-color: #27ae60;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                font-weight: bold;
+                padding: 6px 16px;
+                font-size: 11px;
+            }
+            QPushButton:hover {
+                background-color: #229954;
+            }
+            QPushButton:pressed {
+                background-color: #1e8449;
+            }
+        """)
+
+        button_layout.addWidget(self.cancel_button)
+        button_layout.addWidget(self.upload_button)
+        main_layout.addLayout(button_layout)
+        main_layout.addStretch()  # Add stretch to prevent extra space at bottom
     
     def browse_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
-            self, "Pilih Dokumen untuk Upload", "", 
+            self, "Pilih Dokumen untuk Upload", "",
             "All Files (*);;PDF Files (*.pdf);;Word Files (*.docx);;Excel Files (*.xlsx);;PowerPoint (*.ppt *.pptx);;Images (*.png *.jpg *.jpeg);;Text Files (*.txt)"
         )
-        
+
         if file_path:
             self.file_input.setText(file_path)
             self.file_path = file_path
-            
-            # Auto-fill name if empty
-            if not self.name_input.text():
-                file_name = os.path.splitext(os.path.basename(file_path))[0]
-                self.name_input.setText(file_name)
+
+            # Selalu isi nama dokumen dengan nama file (termasuk ekstensi)
+            file_name = os.path.basename(file_path)
+            self.name_input.setText(file_name)
     
     def accept_dialog(self):
         self.document_name = self.name_input.text().strip()
         self.document_type = self.type_combo.currentText()
-        
+        self.bentuk = self.bentuk_combo.currentText()
+        self.keterangan = self.keterangan_input.toPlainText().strip()
+
         if not self.document_name:
             QMessageBox.warning(self, "Error", "Nama dokumen harus diisi!")
             return
-        
+
         if not self.file_path:
             QMessageBox.warning(self, "Error", "File harus dipilih!")
             return
-        
+
+        # Validate kategori dokumen - must not be placeholder
+        if self.document_type == "-- Pilih Kategori Dokumen --" or not self.document_type:
+            QMessageBox.warning(self, "Error", "Kategori dokumen harus dipilih!")
+            return
+
+        # Validate bentuk dokumen - must not be placeholder
+        if self.bentuk == "-- Pilih Bentuk Dokumen --" or not self.bentuk:
+            QMessageBox.warning(self, "Error", "Bentuk dokumen harus dipilih!")
+            return
+
         self.accept()
 
 class DokumenComponent(QWidget):
-    
+
     log_message: pyqtSignal = pyqtSignal(str)  # type: ignore
-    
-    def __init__(self, parent=None):
-        super().__init__(parent)
+
+    def __init__(self, parent=None):  # type: ignore
+        super().__init__(parent)  # type: ignore
         self.database_manager = None
         self.all_documents = []
         self.filtered_documents = []
-        self.current_doc_type_filter = "Semua"
-        self.current_file_type_filter = "Semua"
+        self._user_cache = {}  # Cache untuk mapping user_id ke nama
+        self._admin_cache = {}  # Cache untuk mapping admin_id ke nama
+        self.current_admin = None
         self.setup_ui()
         self.setup_timer()
     
     def set_database_manager(self, database_manager):
         self.database_manager = database_manager
+        self.load_user_cache()  # Load user cache saat database manager di-set
         self.load_data()
+
+    def set_current_admin(self, admin_data):
+        """Set the current admin data."""
+        self.current_admin = admin_data
+
+    def load_user_cache(self):
+        """Load cache untuk mapping user_id dan admin_id ke nama"""
+        if not self.database_manager:
+            return
+
+        try:
+            # Load pengguna (users)
+            success, users = self.database_manager.get_pengguna_list()
+            if success and users:
+                for user in users:
+                    user_id = user.get('id_pengguna')
+                    nama = user.get('nama_lengkap') or user.get('username')
+                    if user_id and nama:
+                        self._user_cache[str(user_id)] = nama
+                self.log_message.emit(f"Loaded {len(self._user_cache)} users to cache")
+        except Exception as e:
+            self.log_message.emit(f"Error loading user cache: {str(e)}")
+
+        try:
+            # Load admin
+            success, admins = self.database_manager.get_admin_list()
+            if success and admins:
+                for admin in admins:
+                    admin_id = admin.get('id_admin')
+                    nama = admin.get('nama_lengkap') or admin.get('username')
+                    if admin_id and nama:
+                        self._admin_cache[str(admin_id)] = nama
+                self.log_message.emit(f"Loaded {len(self._admin_cache)} admins to cache")
+        except Exception as e:
+            self.log_message.emit(f"Error loading admin cache: {str(e)}")
+
+    def get_uploader_name(self, doc):
+        """Get nama uploader dari dokumen dengan lookup ke cache"""
+        # Cek field nama langsung
+        upload_by = (doc.get('uploaded_by_name', '') or
+                    doc.get('uploader_name', '') or
+                    doc.get('user_name', '') or
+                    doc.get('admin_name', ''))
+
+        if upload_by:
+            return str(upload_by)
+
+        # Cek ID user dan lookup ke cache
+        user_id = (doc.get('uploaded_by', '') or
+                  doc.get('user_id', '') or
+                  doc.get('id_pengguna', ''))
+
+        if user_id:
+            user_id_str = str(user_id)
+            # Cek di user cache
+            if user_id_str in self._user_cache:
+                return self._user_cache[user_id_str]
+            # Cek di admin cache
+            if user_id_str in self._admin_cache:
+                return self._admin_cache[user_id_str]
+            # Return User #ID jika tidak ditemukan di cache
+            return f"User #{user_id}"
+
+        # Cek admin_id
+        admin_id = doc.get('admin_id', '') or doc.get('id_admin', '')
+        if admin_id:
+            admin_id_str = str(admin_id)
+            if admin_id_str in self._admin_cache:
+                return self._admin_cache[admin_id_str]
+            return f"Admin #{admin_id}"
+
+        return 'System'
     
     def setup_ui(self):
         layout = QVBoxLayout(self)
@@ -155,23 +454,35 @@ class DokumenComponent(QWidget):
             }
         """)
         toolbar_layout.addWidget(self.upload_button)
-        
-        self.filter_button = QPushButton("Filter")
-        self.filter_button.clicked.connect(self.show_filter_menu)
-        self.filter_button.setStyleSheet("""
-            QPushButton {
-                background-color: #9b59b6;
-                color: white;
-                padding: 6px 12px;
-                border: none;
-                border-radius: 4px;
-            }
-            QPushButton:hover {
-                background-color: #8e44ad;
-            }
-        """)
-        toolbar_layout.addWidget(self.filter_button)
-        
+
+        # Filter Jenis Dokumen menggunakan QComboBox
+        toolbar_layout.addWidget(QLabel("Filter Jenis:"))
+        self.filter_doc_type = QComboBox()
+        self.filter_doc_type.addItems([
+            "Semua",
+            "Dokumen Sakramental & Liturgi",
+            "Dokumen Data Umat (Pastoral)",
+            "Dokumen Administrasi & Surat-Menyurat",
+            "Dokumen Keuangan",
+            "Dokumen Aset & Inventaris",
+            "Dokumen Organisasi & Program Pastoral",
+            "Dokumen Katekese & Pembinaan",
+            "Dokumen Kegiatan & Dokumentasi",
+            "Dokumen Arsip Digital & Media",
+            "Dokumen Lainnya"
+        ])
+        self.filter_doc_type.setFixedWidth(220)
+        self.filter_doc_type.currentTextChanged.connect(self.apply_filters)
+        toolbar_layout.addWidget(self.filter_doc_type)
+
+        # Filter Jenis File menggunakan QComboBox
+        toolbar_layout.addWidget(QLabel("Filter File:"))
+        self.filter_file_type = QComboBox()
+        self.filter_file_type.addItems(["Semua", ".DOCX", ".PDF", ".TXT", ".XLS", ".PPT", ".JPG", ".JPEG", ".PNG", "Lainnya"])
+        self.filter_file_type.setFixedWidth(120)
+        self.filter_file_type.currentTextChanged.connect(self.apply_filters)
+        toolbar_layout.addWidget(self.filter_file_type)
+
         toolbar_layout.addStretch()
         layout.addLayout(toolbar_layout)
         
@@ -208,44 +519,72 @@ class DokumenComponent(QWidget):
         layout.addLayout(stats_layout)
     
     def create_professional_table(self):
-        """Create table with professional styling matching program_kerja.py."""
-        table = QTableWidget(0, 7)
+        """Create table with professional styling matching struktur.py."""
+        table = QTableWidget(0, 8)
+
+        # Set custom header with word wrap and center alignment
+        custom_header = WordWrapHeaderView(Qt.Horizontal, table)
+        table.setHorizontalHeader(custom_header)
+
         table.setHorizontalHeaderLabels([
-            "Nama Dokumen", "Jenis Dokumen", "Ukuran", "Tipe File", "Upload By", "Tanggal Upload", "Aksi"
+            "Nama Dokumen", "Jenis Dokumen", "Keterangan", "Ukuran", "Tipe File", "Upload By", "Tanggal Upload", "Aksi"
         ])
 
-        # Apply professional table styling matching program_kerja.py
+        # Apply professional table styling matching struktur.py
         self.apply_professional_table_style(table)
 
-        # Set initial column widths with better proportions for full layout (matching program_kerja.py approach)
+        # Set initial column widths with better proportions for full layout
         table.setColumnWidth(0, 200)   # Nama Dokumen - wider for content
         table.setColumnWidth(1, 130)   # Jenis Dokumen
-        table.setColumnWidth(2, 80)    # Ukuran
-        table.setColumnWidth(3, 100)   # Tipe File
-        table.setColumnWidth(4, 120)   # Upload By
-        table.setColumnWidth(5, 130)   # Tanggal Upload
-        table.setColumnWidth(6, 100)   # Aksi
+        table.setColumnWidth(2, 180)   # Keterangan - wider for description text
+        table.setColumnWidth(3, 80)    # Ukuran
+        table.setColumnWidth(4, 100)   # Tipe File
+        table.setColumnWidth(5, 120)   # Upload By
+        table.setColumnWidth(6, 130)   # Tanggal Upload
+        table.setColumnWidth(7, 100)   # Aksi
 
-        # Excel-like column resizing - all columns can be resized (matching program_kerja.py)
+        # Excel-like column resizing - all columns can be resized
         header = table.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.Interactive)  # All columns resizable
         header.setStretchLastSection(True)  # Last column stretches to fill space
 
+        # Update header height when column is resized
+        header.sectionResized.connect(self.update_header_height)
+
         # Enable context menu
-        table.setContextMenuPolicy(3)  # Qt.CustomContextMenu
+        table.setContextMenuPolicy(Qt.CustomContextMenu)
         table.customContextMenuRequested.connect(self.show_context_menu)
 
+        # Initial header height calculation (delayed to ensure proper rendering)
+        QTimer.singleShot(100, lambda: self.update_header_height(0, 0, 0))
+
         return table
-        
+
+    def update_header_height(self, logicalIndex, oldSize, newSize):
+        """Update header height when column is resized"""
+        if hasattr(self, 'table_widget'):
+            header = self.table_widget.horizontalHeader()
+            # Force header to recalculate height
+            header.setMinimumHeight(25)
+            max_height = 25
+
+            # Calculate required height for each section
+            for i in range(header.count()):
+                size = header.sectionSizeFromContents(i)
+                max_height = max(max_height, size.height())
+
+            # Set header height to accommodate tallest section
+            header.setFixedHeight(max_height)
+
     def apply_professional_table_style(self, table):
-        """Apply Excel-like table styling exactly matching program_kerja.py."""
-        # Header styling - Excel-like headers
+        """Apply Excel-like table styling with thin grid lines and minimal borders."""
+        # Header styling - Bold headers with center alignment
         header_font = QFont()
-        header_font.setBold(False)  # Remove bold from headers
+        header_font.setBold(True)  # Make headers bold
         header_font.setPointSize(9)
         table.horizontalHeader().setFont(header_font)
 
-        # Excel-style header styling (exact copy from program_kerja.py)
+        # Header with bold text, center alignment, and word wrap
         table.horizontalHeader().setStyleSheet("""
             QHeaderView::section {
                 background-color: #f2f2f2;
@@ -253,13 +592,20 @@ class DokumenComponent(QWidget):
                 border-bottom: 1px solid #d4d4d4;
                 border-right: 1px solid #d4d4d4;
                 padding: 6px 4px;
-                font-weight: normal;
+                font-weight: bold;
                 color: #333333;
-                text-align: left;
             }
         """)
 
-        # Excel-style table body styling (exact copy from program_kerja.py)
+        # Configure header behavior
+        header = table.horizontalHeader()
+        header.setDefaultAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+        header.setSectionsClickable(True)
+        header.setMinimumHeight(25)
+        header.setMinimumSectionSize(50)
+        header.setMaximumSectionSize(500)
+
+        # Excel-style table body styling
         table.setStyleSheet("""
             QTableWidget {
                 gridline-color: #d4d4d4;
@@ -285,11 +631,10 @@ class DokumenComponent(QWidget):
             }
         """)
 
-        # Excel-style table settings (matching program_kerja.py exactly)
+        # Excel-style table settings - header configuration
         header = table.horizontalHeader()
-        header.setMinimumSectionSize(50)
+        # Header height will adjust based on content wrapping
         header.setDefaultSectionSize(80)
-        # Allow adjustable header height - removed setMaximumHeight constraint
 
         # Enable scrolling
         table.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
@@ -297,8 +642,8 @@ class DokumenComponent(QWidget):
         table.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
         table.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
 
-        # Excel-style row settings with better content visibility
-        table.verticalHeader().setDefaultSectionSize(42)  # Taller for button widgets
+        # Excel-style row settings - keep 32px for action buttons
+        table.verticalHeader().setDefaultSectionSize(32)  # Optimized height for action buttons
         table.setSelectionBehavior(QAbstractItemView.SelectItems)  # Select individual cells
         table.setAlternatingRowColors(False)
         table.verticalHeader().setVisible(True)  # Show row numbers like Excel
@@ -324,80 +669,35 @@ class DokumenComponent(QWidget):
         table.setEditTriggers(QAbstractItemView.DoubleClicked | QAbstractItemView.EditKeyPressed)
         table.setSelectionMode(QAbstractItemView.ExtendedSelection)
 
-        # Set proper size for Excel look with better visibility (matching program_kerja.py)
-        table.setMinimumHeight(200)
-        table.setSizePolicy(table.sizePolicy().Expanding, table.sizePolicy().Expanding)
+        # Set compact size for Excel look
+        table.setMinimumHeight(150)
         table.setSizeAdjustPolicy(QAbstractItemView.AdjustToContents)
 
-    def show_filter_menu(self):
-        """Tampilkan menu filter"""
-        menu = QMenu(self)
-        
-        # Filter Jenis Dokumen
-        doc_type_menu = menu.addMenu("Jenis Dokumen")
-        doc_types = ["Semua", "Administrasi", "Keanggotaan", "Keuangan", "Liturgi", "Legalitas"]
-        for doc_type in doc_types:
-            action = doc_type_menu.addAction(doc_type)
-            action.triggered.connect(lambda checked, dt=doc_type: self.set_doc_type_filter(dt))
-            if doc_type == self.current_doc_type_filter:
-                action.setChecked(True)
-        
-        # Filter Jenis File
-        file_type_menu = menu.addMenu("Jenis File")
-        file_types = ["Semua", ".DOCX", ".PDF", ".TXT", ".XLS", ".PPT", ".JPG", ".JPEG", ".PNG", "Lainnya"]
-        for file_type in file_types:
-            action = file_type_menu.addAction(file_type)
-            action.triggered.connect(lambda checked, ft=file_type: self.set_file_type_filter(ft))
-            if file_type == self.current_file_type_filter:
-                action.setChecked(True)
-        
-        # Reset Filter
-        menu.addSeparator()
-        reset_action = menu.addAction("Reset Filter")
-        reset_action.triggered.connect(self.reset_filters)
-        
-        menu.exec_(self.filter_button.mapToGlobal(self.filter_button.rect().bottomLeft()))
-    
-    def set_doc_type_filter(self, doc_type):
-        """Set filter jenis dokumen"""
-        self.current_doc_type_filter = doc_type
-        self.apply_filters()
-        self.log_message.emit(f"Filter jenis dokumen: {doc_type}")
-    
-    def set_file_type_filter(self, file_type):
-        """Set filter jenis file"""
-        self.current_file_type_filter = file_type
-        self.apply_filters()
-        self.log_message.emit(f"Filter jenis file: {file_type}")
-    
-    def reset_filters(self):
-        """Reset semua filter"""
-        self.current_doc_type_filter = "Semua"
-        self.current_file_type_filter = "Semua"
-        self.apply_filters()
-        self.log_message.emit("Filter direset")
-    
     def apply_filters(self):
-        """Terapkan filter ke dokumen"""
+        """Terapkan filter ke dokumen berdasarkan dropdown selections"""
+        # Get current filter values from dropdowns
+        filter_doc_type = self.filter_doc_type.currentText() if hasattr(self, 'filter_doc_type') else "Semua"
+        filter_file_type = self.filter_file_type.currentText() if hasattr(self, 'filter_file_type') else "Semua"
+
         filtered_docs = self.all_documents.copy()
-        
+
         # Filter berdasarkan jenis dokumen
-        if self.current_doc_type_filter != "Semua":
-            filtered_docs = [doc for doc in filtered_docs 
-                           if (doc.get('jenis_dokumen', '') == self.current_doc_type_filter or
-                               doc.get('document_type', '') == self.current_doc_type_filter or
-                               doc.get('category', '') == self.current_doc_type_filter)]
-        
+        if filter_doc_type != "Semua":
+            filtered_docs = [doc for doc in filtered_docs
+                           if (doc.get('jenis_dokumen', '') == filter_doc_type or
+                               doc.get('document_type', '') == filter_doc_type or
+                               doc.get('category', '') == filter_doc_type)]
+
         # Filter berdasarkan jenis file
-        if self.current_file_type_filter != "Semua":
-            if self.current_file_type_filter == "Lainnya":
+        if filter_file_type != "Semua":
+            if filter_file_type == "Lainnya":
                 common_types = ['.DOCX', '.PDF', '.TXT', '.XLS', '.PPT', '.JPG', '.JPEG', '.PNG']
-                filtered_docs = [doc for doc in filtered_docs 
+                filtered_docs = [doc for doc in filtered_docs
                                if not any(doc.get('nama_dokumen', '').upper().endswith(ext) for ext in common_types)]
             else:
-                filtered_docs = [doc for doc in filtered_docs 
-                               if doc.get('nama_dokumen', '').upper().endswith(self.current_file_type_filter)]
-        
+                filtered_docs = [doc for doc in filtered_docs
+                               if doc.get('nama_dokumen', '').upper().endswith(filter_file_type)]
+
         self.filtered_documents = filtered_docs
         self.update_table_display(self.filtered_documents)
         self.update_statistics()
@@ -477,6 +777,18 @@ class DokumenComponent(QWidget):
                     pass  # Jika sorting gagal, tetap pakai urutan original
                 
                 self.filtered_documents = self.all_documents.copy()
+
+                # Reset filter dropdowns ke "Semua"
+                if hasattr(self, 'filter_doc_type'):
+                    self.filter_doc_type.blockSignals(True)
+                    self.filter_doc_type.setCurrentText("Semua")
+                    self.filter_doc_type.blockSignals(False)
+
+                if hasattr(self, 'filter_file_type'):
+                    self.filter_file_type.blockSignals(True)
+                    self.filter_file_type.setCurrentText("Semua")
+                    self.filter_file_type.blockSignals(False)
+
                 self.update_table_display(self.filtered_documents)
                 self.update_statistics()
                 self.log_message.emit(f"Daftar dokumen berhasil dimuat: {len(self.all_documents)} file")
@@ -500,8 +812,22 @@ class DokumenComponent(QWidget):
         self.table_widget.setRowCount(len(documents))
         
         for i, doc in enumerate(documents):
-            # Nama dokumen
-            nama_dokumen = doc.get('nama_dokumen', '') or doc.get('file_name', '') or doc.get('filename', '') or ''
+            # Nama dokumen - prioritas pada nama yang diinput user
+            nama_dokumen = (doc.get('nama_dokumen', '') or
+                           doc.get('document_name', '') or
+                           doc.get('name', '') or
+                           doc.get('file_name', '') or
+                           doc.get('filename', '') or
+                           doc.get('original_name', '') or '')
+
+            # Jika masih kosong, gunakan nama file tanpa path
+            if not nama_dokumen:
+                file_path = doc.get('file_path', '') or doc.get('path', '') or ''
+                if file_path:
+                    nama_dokumen = os.path.basename(file_path)
+                else:
+                    nama_dokumen = 'Unknown Document'
+
             self.table_widget.setItem(i, 0, QTableWidgetItem(str(nama_dokumen)))
             
             # Jenis dokumen - diambil dari input saat upload dengan fallback yang lebih lengkap
@@ -524,7 +850,18 @@ class DokumenComponent(QWidget):
                         self.log_message.emit(f"  {key}: '{value}'")
             
             self.table_widget.setItem(i, 1, QTableWidgetItem(str(jenis_dokumen)))
-            
+
+            # Keterangan
+            keterangan = doc.get('keterangan', '') or ''
+            # Truncate long description for table display
+            if len(keterangan) > 50:
+                keterangan_display = keterangan[:47] + "..."
+            else:
+                keterangan_display = keterangan
+            keterangan_item = QTableWidgetItem(str(keterangan_display))
+            keterangan_item.setToolTip(str(keterangan))  # Show full text on hover
+            self.table_widget.setItem(i, 2, keterangan_item)
+
             # Ukuran file
             size_bytes = doc.get('ukuran_file', 0) or doc.get('file_size', 0) or doc.get('size', 0) or 0
             try:
@@ -537,8 +874,8 @@ class DokumenComponent(QWidget):
                     size_str = f"{size_bytes} B"
             except (ValueError, TypeError):
                 size_str = "0 B"
-            self.table_widget.setItem(i, 2, QTableWidgetItem(size_str))
-            
+            self.table_widget.setItem(i, 3, QTableWidgetItem(size_str))
+
             # Tipe file - diambil dari ekstensi file
             file_type = doc.get('tipe_file', '') or doc.get('mime_type', '') or doc.get('content_type', '') or ''
             file_name = doc.get('nama_dokumen', '') or doc.get('file_name', '') or doc.get('filename', '') or ''
@@ -576,14 +913,12 @@ class DokumenComponent(QWidget):
                     type_display = "Text"
                 else:
                     type_display = file_type.split('/')[-1].upper() if '/' in file_type else file_type or "Unknown"
-            
-            self.table_widget.setItem(i, 3, QTableWidgetItem(type_display))
-            
-            # Upload by
-            upload_by = (doc.get('uploaded_by_name', '') or 
-                        doc.get('uploaded_by', '') or 
-                        doc.get('uploader', '') or 'Unknown')
-            self.table_widget.setItem(i, 4, QTableWidgetItem(str(upload_by)))
+
+            self.table_widget.setItem(i, 4, QTableWidgetItem(type_display))
+
+            # Upload by - gunakan method get_uploader_name untuk lookup yang benar
+            upload_by = self.get_uploader_name(doc)
+            self.table_widget.setItem(i, 5, QTableWidgetItem(str(upload_by)))
             
             # Tanggal upload
             upload_date = (doc.get('upload_date', '') or 
@@ -601,34 +936,36 @@ class DokumenComponent(QWidget):
                     date_str = str(upload_date)
             else:
                 date_str = "-"
-            self.table_widget.setItem(i, 5, QTableWidgetItem(date_str))
-            
-            # Aksi buttons with icons - professional clean styling with centered positioning
+            self.table_widget.setItem(i, 6, QTableWidgetItem(date_str))
+
+            # Aksi buttons with icons - improved sizing and perfect centering
             action_widget = QWidget()
             action_layout = QHBoxLayout(action_widget)
-            action_layout.setContentsMargins(4, 7, 4, 7)  # Equal top and bottom margins for perfect centering
-            action_layout.setSpacing(5)  # Better spacing between buttons
-            action_layout.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)  # Center align buttons horizontally and vertically
+            action_layout.setContentsMargins(3, 3, 3, 3)  # Balanced margins for perfect centering
+            action_layout.setSpacing(3)  # Compact spacing between buttons
+            action_layout.setAlignment(Qt.AlignCenter)  # Center align buttons
 
-            # View button with lihat.png icon - clean professional styling
+            # View button with lihat.png icon - smaller, more balanced sizing
             view_button = QPushButton()
             view_icon = QIcon("server/assets/lihat.png")
             if not view_icon.isNull():
                 view_button.setIcon(view_icon)
-                view_button.setIconSize(QSize(16, 16))
+                view_button.setIconSize(QSize(12, 12))  # Smaller icon size
             else:
                 view_button.setText("👁")  # Fallback emoji if icon not found
+                view_button.setStyleSheet("""
+                    QPushButton {
+                        font-size: 10px;
+                    }
+                """)
+            view_button.setFixedSize(22, 22)  # Fixed square size for consistency
             view_button.setStyleSheet("""
                 QPushButton {
                     background-color: #3498db;
                     color: white;
-                    padding: 4px 10px;
                     border: none;
-                    border-radius: 3px;
-                    min-width: 30px;
-                    min-height: 26px;
-                    max-height: 26px;
-                    font-weight: bold;
+                    border-radius: 2px;
+                    padding: 0px;
                 }
                 QPushButton:hover {
                     background-color: #2980b9;
@@ -641,25 +978,27 @@ class DokumenComponent(QWidget):
             view_button.clicked.connect(lambda _, row=i: self.view_document(row))
             action_layout.addWidget(view_button)
 
-            # Download button with unduh.png icon - clean professional styling
+            # Download button with unduh.png icon - smaller, more balanced sizing
             download_button = QPushButton()
             download_icon = QIcon("server/assets/unduh.png")
             if not download_icon.isNull():
                 download_button.setIcon(download_icon)
-                download_button.setIconSize(QSize(16, 16))
+                download_button.setIconSize(QSize(12, 12))  # Smaller icon size
             else:
                 download_button.setText("⬇")  # Fallback emoji if icon not found
+                download_button.setStyleSheet("""
+                    QPushButton {
+                        font-size: 10px;
+                    }
+                """)
+            download_button.setFixedSize(22, 22)  # Fixed square size for consistency
             download_button.setStyleSheet("""
                 QPushButton {
                     background-color: #27ae60;
                     color: white;
-                    padding: 4px 10px;
                     border: none;
-                    border-radius: 3px;
-                    min-width: 30px;
-                    min-height: 26px;
-                    max-height: 26px;
-                    font-weight: bold;
+                    border-radius: 2px;
+                    padding: 0px;
                 }
                 QPushButton:hover {
                     background-color: #229954;
@@ -672,25 +1011,27 @@ class DokumenComponent(QWidget):
             download_button.clicked.connect(lambda _, row=i: self.download_document(row))
             action_layout.addWidget(download_button)
 
-            # Delete button with hapus.png icon - clean professional styling
+            # Delete button with hapus.png icon - smaller, more balanced sizing
             delete_button = QPushButton()
             delete_icon = QIcon("server/assets/hapus.png")
             if not delete_icon.isNull():
                 delete_button.setIcon(delete_icon)
-                delete_button.setIconSize(QSize(16, 16))
+                delete_button.setIconSize(QSize(12, 12))  # Smaller icon size
             else:
                 delete_button.setText("🗑")  # Fallback emoji if icon not found
+                delete_button.setStyleSheet("""
+                    QPushButton {
+                        font-size: 10px;
+                    }
+                """)
+            delete_button.setFixedSize(22, 22)  # Fixed square size for consistency
             delete_button.setStyleSheet("""
                 QPushButton {
                     background-color: #e74c3c;
                     color: white;
-                    padding: 4px 10px;
                     border: none;
-                    border-radius: 3px;
-                    min-width: 30px;
-                    min-height: 26px;
-                    max-height: 26px;
-                    font-weight: bold;
+                    border-radius: 2px;
+                    padding: 0px;
                 }
                 QPushButton:hover {
                     background-color: #c0392b;
@@ -703,7 +1044,7 @@ class DokumenComponent(QWidget):
             delete_button.clicked.connect(lambda _, row=i: self.delete_document(row))
             action_layout.addWidget(delete_button)
 
-            self.table_widget.setCellWidget(i, 6, action_widget)
+            self.table_widget.setCellWidget(i, 7, action_widget)
     
     def filter_data(self):
         search_text = self.search_input.text().lower()
@@ -715,19 +1056,28 @@ class DokumenComponent(QWidget):
             source_docs = self.filtered_documents if hasattr(self, 'filtered_documents') else self.all_documents
             
             for doc in source_docs:
-                nama_dokumen = doc.get('nama_dokumen', '') or doc.get('file_name', '') or doc.get('filename', '') or ''
-                uploaded_by = (doc.get('uploaded_by_name', '') or 
-                             doc.get('uploaded_by', '') or 
-                             doc.get('uploader', '') or '')
+                # Nama dokumen dengan mapping yang sama seperti di update_table_display
+                nama_dokumen = (doc.get('nama_dokumen', '') or
+                               doc.get('document_name', '') or
+                               doc.get('name', '') or
+                               doc.get('file_name', '') or
+                               doc.get('filename', '') or
+                               doc.get('original_name', '') or '')
+
+                # Upload by - gunakan method get_uploader_name
+                uploaded_by = self.get_uploader_name(doc)
+
                 tipe_file = doc.get('tipe_file', '') or doc.get('mime_type', '') or doc.get('content_type', '') or ''
-                jenis_dokumen = (doc.get('jenis_dokumen', '') or 
-                               doc.get('document_type', '') or 
+                jenis_dokumen = (doc.get('jenis_dokumen', '') or
+                               doc.get('document_type', '') or
                                doc.get('category', '') or '')
-                
-                if (search_text in nama_dokumen.lower() or 
+                keterangan = doc.get('keterangan', '') or ''
+
+                if (search_text in nama_dokumen.lower() or
                     search_text in uploaded_by.lower() or
                     search_text in tipe_file.lower() or
-                    search_text in jenis_dokumen.lower()):
+                    search_text in jenis_dokumen.lower() or
+                    search_text in keterangan.lower()):
                     filtered_docs.append(doc)
             
             self.update_table_display(filtered_docs)
@@ -756,32 +1106,145 @@ class DokumenComponent(QWidget):
         self.last_update_label.setText(f"Terakhir diperbarui: {datetime.datetime.now().strftime('%H:%M:%S')}")
     
     def view_document(self, row):
+        """Preview dokumen - download dan tampilkan preview"""
         current_docs = self.filtered_documents if hasattr(self, 'filtered_documents') else self.all_documents
         if row < len(current_docs):
             doc = current_docs[row]
-            doc_name = doc.get('nama_dokumen', 'Unknown') or doc.get('file_name', 'Unknown') or 'Unknown'
-            jenis_dokumen = doc.get('jenis_dokumen', 'Unknown') or doc.get('document_type', 'Unknown') or 'Unknown'
-            size = doc.get('ukuran_file', 0) or doc.get('file_size', 0) or 0
-            file_type = doc.get('tipe_file', 'Unknown') or doc.get('mime_type', 'Unknown') or 'Unknown'
-            uploaded_by = doc.get('uploaded_by_name', 'Unknown') or doc.get('uploaded_by', 'Unknown') or 'Unknown'
-            upload_date = doc.get('upload_date', 'Unknown') or doc.get('tanggal_upload', 'Unknown') or 'Unknown'
-            
-            QMessageBox.information(
-                self, "Info Dokumen", 
-                f"Nama: {doc_name}\n"
-                f"Jenis Dokumen: {jenis_dokumen}\n"
-                f"Ukuran: {size} bytes\n"
-                f"Tipe: {file_type}\n"
-                f"Upload by: {uploaded_by}\n"
-                f"Tanggal: {upload_date}"
-            )
-            self.log_message.emit(f"Melihat info dokumen: {doc_name}")
+            doc_name = (doc.get('nama_dokumen', '') or
+                       doc.get('document_name', '') or
+                       doc.get('name', '') or
+                       doc.get('file_name', '') or
+                       doc.get('filename', '') or 'document')
+
+            doc_id = doc.get('id_dokumen') or doc.get('file_id') or doc.get('id')
+
+            if not doc_id:
+                QMessageBox.warning(self, "Error", "ID dokumen tidak ditemukan")
+                return
+
+            if not self.database_manager:
+                QMessageBox.warning(self, "Error", "Database manager tidak tersedia")
+                return
+
+            # Show progress
+            self.progress_bar.setVisible(True)
+            self.progress_bar.setValue(0)
+
+            try:
+                self.log_message.emit(f"Mengunduh dokumen untuk preview: {doc_name}")
+                self.progress_bar.setValue(25)
+                QApplication.processEvents()
+
+                success, result = self.database_manager.download_file_from_api(doc_id)
+
+                self.progress_bar.setValue(75)
+                QApplication.processEvents()
+
+                if success:
+                    file_content = result.get('content')
+                    if file_content and isinstance(file_content, bytes):
+                        self.progress_bar.setValue(100)
+                        QApplication.processEvents()
+
+                        # Tampilkan preview berdasarkan tipe file
+                        self.show_document_preview(doc_name, file_content)
+                        self.log_message.emit(f"Preview dokumen: {doc_name}")
+                    else:
+                        QMessageBox.critical(self, "Error", "Format file tidak valid dari server")
+                else:
+                    QMessageBox.critical(self, "Error", f"Gagal mengunduh dokumen: {result}")
+                    self.log_message.emit(f"Error preview dokumen: {result}")
+
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Gagal preview dokumen: {str(e)}")
+                self.log_message.emit(f"Error preview dokumen: {str(e)}")
+            finally:
+                self.progress_bar.setVisible(False)
+
+    def show_document_preview(self, filename, content):
+        """Tampilkan preview dokumen dalam dialog"""
+        # Deteksi tipe file dari nama
+        file_ext = os.path.splitext(filename)[1].lower()
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle(f"Preview: {filename}")
+        dialog.resize(800, 600)
+
+        layout = QVBoxLayout(dialog)
+
+        if file_ext in ['.txt', '.log', '.md', '.csv']:
+            # Preview teks
+            try:
+                text_content = content.decode('utf-8', errors='ignore')
+                text_edit = QTextEdit()
+                text_edit.setReadOnly(True)
+                text_edit.setPlainText(text_content)
+                layout.addWidget(text_edit)
+            except Exception as e:
+                error_label = QLabel(f"Error menampilkan teks: {str(e)}")
+                layout.addWidget(error_label)
+
+        elif file_ext in ['.jpg', '.jpeg', '.png', '.gif', '.bmp']:
+            # Preview gambar
+            try:
+                from PyQt5.QtGui import QPixmap
+                from PyQt5.QtWidgets import QScrollArea
+
+                pixmap = QPixmap()
+                pixmap.loadFromData(content)
+
+                if not pixmap.isNull():
+                    image_label = QLabel()
+                    image_label.setPixmap(pixmap)
+                    image_label.setScaledContents(False)
+
+                    scroll_area = QScrollArea()
+                    scroll_area.setWidget(image_label)
+                    scroll_area.setWidgetResizable(True)
+                    layout.addWidget(scroll_area)
+                else:
+                    error_label = QLabel("Gagal memuat gambar")
+                    layout.addWidget(error_label)
+            except Exception as e:
+                error_label = QLabel(f"Error menampilkan gambar: {str(e)}")
+                layout.addWidget(error_label)
+
+        elif file_ext == '.pdf':
+            # Untuk PDF, tampilkan pesan dan tombol untuk membuka eksternal
+            info_label = QLabel(f"<b>File PDF: {filename}</b><br><br>"
+                              "Preview PDF tidak didukung secara langsung.<br>"
+                              "Silakan download file untuk melihat isinya.")
+            info_label.setWordWrap(True)
+            layout.addWidget(info_label)
+
+        else:
+            # File lain yang tidak didukung preview
+            info_label = QLabel(f"<b>File: {filename}</b><br><br>"
+                              f"Tipe file: {file_ext}<br>"
+                              f"Ukuran: {len(content)} bytes<br><br>"
+                              "Preview tidak didukung untuk tipe file ini.<br>"
+                              "Silakan download file untuk melihat isinya.")
+            info_label.setWordWrap(True)
+            layout.addWidget(info_label)
+
+        # Close button
+        button_box = QDialogButtonBox(QDialogButtonBox.Close)
+        button_box.clicked.connect(dialog.close)  # type: ignore
+        layout.addWidget(button_box)
+
+        dialog.exec_()
     
     def download_document(self, row):
         current_docs = self.filtered_documents if hasattr(self, 'filtered_documents') else self.all_documents
         if row < len(current_docs):
             doc = current_docs[row]
-            doc_name = doc.get('nama_dokumen', 'Unknown') or doc.get('file_name', 'Unknown') or 'document'
+            # Gunakan mapping yang konsisten dengan display
+            doc_name = (doc.get('nama_dokumen', '') or
+                       doc.get('document_name', '') or
+                       doc.get('name', '') or
+                       doc.get('file_name', '') or
+                       doc.get('filename', '') or 'document')
+
             doc_id = doc.get('id_dokumen') or doc.get('file_id') or doc.get('id')
             
             if not doc_id:
@@ -843,7 +1306,13 @@ class DokumenComponent(QWidget):
         current_docs = self.filtered_documents if hasattr(self, 'filtered_documents') else self.all_documents
         if row < len(current_docs):
             doc = current_docs[row]
-            doc_name = doc.get('nama_dokumen', 'Unknown') or doc.get('file_name', 'Unknown') or 'Unknown'
+            # Gunakan mapping yang konsisten dengan display
+            doc_name = (doc.get('nama_dokumen', '') or
+                       doc.get('document_name', '') or
+                       doc.get('name', '') or
+                       doc.get('file_name', '') or
+                       doc.get('filename', '') or 'Unknown')
+
             doc_id = doc.get('id_dokumen') or doc.get('file_id') or doc.get('id')
             
             if not doc_id:
@@ -880,33 +1349,35 @@ class DokumenComponent(QWidget):
         if dialog.exec_() != QDialog.Accepted:
             self.log_message.emit("Upload dibatalkan oleh user")
             return
-        
+
         file_path = dialog.file_path
         document_name = dialog.document_name
         document_type = dialog.document_type
-        
+        bentuk = dialog.bentuk
+        keterangan = dialog.keterangan
+
         if not self.database_manager:
             QMessageBox.warning(self, "Error", "Database manager tidak tersedia")
             self.log_message.emit("Error: Database manager tidak tersedia untuk upload")
             return
-        
+
         # Check if upload_file method exists
         if not hasattr(self.database_manager, 'upload_file'):
             QMessageBox.critical(self, "Error", "Method upload_file tidak ditemukan di database manager")
             self.log_message.emit("Error: Method upload_file tidak tersedia")
             return
-        
+
         # Validate file exists and accessible
         if not os.path.exists(file_path):
             QMessageBox.warning(self, "Error", "File tidak ditemukan")
             self.log_message.emit(f"Error: File tidak ditemukan - {file_path}")
             return
-        
+
         try:
             # Check file size (max 50MB)
             file_size = os.path.getsize(file_path)
             self.log_message.emit(f"Ukuran file: {file_size} bytes ({file_size / (1024*1024):.2f} MB)")
-            
+
             if file_size > 52428800:  # 50MB
                 QMessageBox.warning(self, "Error", "Ukuran file terlalu besar (max 50MB)")
                 self.log_message.emit(f"Error: File terlalu besar - {file_size} bytes")
@@ -915,36 +1386,49 @@ class DokumenComponent(QWidget):
             QMessageBox.warning(self, "Error", f"Gagal mengecek ukuran file: {str(e)}")
             self.log_message.emit(f"Error mengecek ukuran file: {str(e)}")
             return
-        
+
         self.progress_bar.setVisible(True)
         self.progress_bar.setValue(0)
-        
+
         try:
             self.log_message.emit(f"Memulai upload file: {document_name}")
             self.log_message.emit(f"DEBUG Upload - document_name: '{document_name}'")
             self.log_message.emit(f"DEBUG Upload - document_type: '{document_type}'")
+            self.log_message.emit(f"DEBUG Upload - bentuk: '{bentuk}'")
+            self.log_message.emit(f"DEBUG Upload - keterangan: '{keterangan}'")
             self.log_message.emit(f"DEBUG Upload - file_path: '{file_path}'")
-            
+
             # Progress simulation
             for i in range(1, 51, 10):
                 self.progress_bar.setValue(i)
                 QApplication.processEvents()
-            
+
             self.log_message.emit("Memanggil database_manager.upload_file...")
-            
+
             # Upload file melalui API dengan informasi tambahan
             try:
-                # Try with new parameters first
+                # Try with new parameters first (including bentuk and keterangan)
                 success, result = self.database_manager.upload_file(
-                    file_path, 
-                    document_name=document_name, 
-                    document_type=document_type
+                    file_path,
+                    document_name=document_name,
+                    document_type=document_type,
+                    keterangan=keterangan,
+                    bentuk=bentuk
                 )
                 self.log_message.emit(f"DEBUG Upload - API call dengan parameter berhasil")
             except TypeError:
                 # Fallback to old method if new parameters not supported
-                self.log_message.emit("Database manager belum mendukung parameter baru, menggunakan method lama...")
-                success, result = self.database_manager.upload_file(file_path)
+                self.log_message.emit("Database manager belum mendukung parameter keterangan, mencoba tanpa keterangan...")
+                try:
+                    success, result = self.database_manager.upload_file(
+                        file_path,
+                        document_name=document_name,
+                        document_type=document_type
+                    )
+                except TypeError:
+                    # Final fallback to basic method
+                    self.log_message.emit("Database manager belum mendukung parameter baru, menggunakan method lama...")
+                    success, result = self.database_manager.upload_file(file_path)
             
             self.progress_bar.setValue(75)
             QApplication.processEvents()

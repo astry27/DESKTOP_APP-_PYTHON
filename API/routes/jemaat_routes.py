@@ -216,11 +216,24 @@ def add_jemaat():
                 connection.close()
 
             # Provide detailed error message for debugging
+            print(f"[DEBUG] Error inserting jemaat: {error_msg}")
+            print(f"[DEBUG] Query: {query}")
+            print(f"[DEBUG] Params: {params}")
+
             if 'Unknown column' in error_msg:
+                # Extract column name from error
+                import re
+                col_match = re.search(r"Unknown column '([^']+)'", error_msg)
+                col_name = col_match.group(1) if col_match else "unknown"
                 return jsonify({
                     'success': False,
-                    'data': f'Database column error - Missing column. Please run migration: sql/49-ensure_all_jemaat_columns.sql. Error: {error_msg}'
+                    'data': f'Database column error: Column "{col_name}" does not exist. Please run migration: sql/49-ensure_all_jemaat_columns.sql'
                 }), 500
+            elif 'Duplicate entry' in error_msg:
+                return jsonify({
+                    'success': False,
+                    'data': f'Data sudah ada / Duplicate entry. Error: {error_msg}'
+                }), 400
             else:
                 return jsonify({'success': False, 'data': f'Database error: {error_msg}'}), 500
     except Exception as e:
@@ -321,10 +334,10 @@ def update_jemaat(jemaat_id):
 
         # Dynamically build update clauses (skip user_id and other system fields)
         for field_name, db_column in field_mapping.items():
-            if field_name in data and data[field_name] not in [None, '']:
+            if data and field_name in data and data[field_name] not in [None, '']:  # type: ignore
                 try:
                     set_clauses.append(f"{db_column} = %s")
-                    params.append(data[field_name])
+                    params.append(data[field_name])  # type: ignore
                 except Exception as e:
                     # Log but continue - skip fields that cause issues
                     print(f"[WARNING] Skipping field {field_name}: {e}")

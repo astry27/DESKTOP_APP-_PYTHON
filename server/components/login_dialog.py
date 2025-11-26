@@ -164,10 +164,10 @@ class LoginDialog(QDialog):
                 'username': username,
                 'password': password
             }
-            
+
             # Coba authenticate melalui API client
             result = self.database_manager.api_client.authenticate_admin(login_data)
-            
+
             if result["success"]:
                 api_response = result["data"]
                 if api_response.get("status") == "success":
@@ -175,10 +175,32 @@ class LoginDialog(QDialog):
                 else:
                     return False, api_response.get("message", "Login gagal")
             else:
-                return False, result["data"]
-                
+                # API failed - return offline login mode
+                self.database_manager.connection = False
+                self.show_error("API tidak tersedia - mode offline")
+                # Allow offline login with default credentials
+                if username == "admin" and password == "admin123":
+                    return True, {
+                        'id_admin': 1,
+                        'username': 'offline_admin',
+                        'nama_lengkap': 'Administrator (Offline Mode)',
+                        'peran': 'administrator'
+                    }
+                return False, "Offline mode - hanya admin/admin123 yang berlaku"
+
         except Exception as e:
-            return False, f"Error autentikasi: {str(e)}"
+            # Connection failed - try offline mode
+            self.database_manager.connection = False
+            self.show_error("Koneksi API gagal - mode offline")
+            # Allow offline login with default credentials
+            if username == "admin" and password == "admin123":
+                return True, {
+                    'id_admin': 1,
+                    'username': 'offline_admin',
+                    'nama_lengkap': 'Administrator (Offline Mode)',
+                    'peran': 'administrator'
+                }
+            return False, f"Offline mode - hanya admin/admin123 yang berlaku"
     
     def update_last_login(self, admin_id):
         """Update waktu last login admin"""

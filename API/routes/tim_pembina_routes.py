@@ -1,477 +1,472 @@
-# Path: routes/tim_pembina_routes.py
+# Path: API/routes/tim_pembina_routes.py
+# PRODUCTION VERSION - Compatible with production server wrapper
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, jsonify, request
 from config import get_db_connection
-import logging
+import os
 
-tim_pembina_bp = Blueprint('tim_pembina', __name__, url_prefix='/tim_pembina')
-logger = logging.getLogger(__name__)
+tim_pembina_bp = Blueprint('tim_pembina', __name__, url_prefix='/tim-pembina')
 
+API_STATUS_FILE = 'api_status.txt'
+
+def get_api_status():
+    try:
+        if os.path.exists(API_STATUS_FILE):
+            with open(API_STATUS_FILE, 'r') as f:
+                content = f.read().strip()
+                return content == 'enabled'
+        else:
+            return True
+    except Exception as e:
+        print(f"Error reading API status: {e}")
+        return True
+
+def check_api_enabled():
+    if not get_api_status():
+        return jsonify({
+            'status': 'error',
+            'message': 'API sedang dinonaktifkan'
+        }), 503
+    return None
 
 @tim_pembina_bp.route('', methods=['GET'])
 def get_tim_pembina():
-    """Get all tim pembina with peserta"""
+    """Ambil semua data tim pembina peserta"""
+    status_check = check_api_enabled()
+    if status_check:
+        return status_check
+
+    connection = get_db_connection()
+    if not connection:
+        return jsonify({'status': 'error', 'message': 'Database error'}), 500
+
     try:
-        conn = get_db_connection()
-        if not conn:
-            return jsonify({'success': False, 'error': 'Gagal terhubung ke database'}), 500
+        search = request.args.get('search', '')
+        tim_pembina_filter = request.args.get('tim_pembina', '')
+        wilayah_rohani_filter = request.args.get('wilayah_rohani', '')
+        jabatan_filter = request.args.get('jabatan', '')
+        tahun_filter = request.args.get('tahun', '')
 
-        cursor = conn.cursor(dictionary=True)
+        cursor = connection.cursor(dictionary=True)
 
-        # Get all tim pembina
-        query_tim = "SELECT * FROM tim_pembina ORDER BY tim_pembina"
-        cursor.execute(query_tim)
-        tim_list = cursor.fetchall()
+        # Build query dengan filter
+        base_query = """
+        SELECT * FROM tim_pembina_peserta
+        WHERE 1=1
+        """
+        params = []
 
-        # For each tim, get peserta and lainnya (if applicable)
-        for tim in tim_list:
-            tim_id = tim['id_tim_pembina']
-            query_peserta = """
-                SELECT * FROM tim_pembina_peserta
-                WHERE id_tim_pembina = %s
-                ORDER BY jabatan, nama_lengkap
-            """
-            cursor.execute(query_peserta, (tim_id,))
-            tim['peserta'] = cursor.fetchall()
+        if search:
+            base_query += """ AND (
+                nama_peserta LIKE %s OR
+                tim_pembina LIKE %s OR
+                tim_pembina_lainnya LIKE %s OR
+                wilayah_rohani LIKE %s OR
+                jabatan LIKE %s
+            )"""
+            search_param = f'%{search}%'
+            params.extend([search_param] * 5)
 
-            # tim_pembina_lainnya column sudah termasuk dalam SELECT * query
+        if tim_pembina_filter:
+            base_query += " AND tim_pembina = %s"
+            params.append(tim_pembina_filter)
 
-        cursor.close()
-        conn.close()
+        if wilayah_rohani_filter:
+            base_query += " AND wilayah_rohani = %s"
+            params.append(wilayah_rohani_filter)
 
-        return jsonify({'success': True, 'data': tim_list}), 200
+        if jabatan_filter:
+            base_query += " AND jabatan = %s"
+            params.append(jabatan_filter)
+
+        if tahun_filter:
+            base_query += " AND tahun = %s"
+            params.append(tahun_filter)
+
+        base_query += " ORDER BY tahun DESC, nama_peserta ASC"
+
+        cursor.execute(base_query, params)
+        tim_pembina_list = cursor.fetchall()
+
+        # Convert dates to string untuk JSON serialization
+        for tim_pembina in tim_pembina_list:
+            created_at = tim_pembina.get('created_at')
+            if created_at:
+                tim_pembina['created_at'] = created_at.isoformat()  # type: ignore
+            updated_at = tim_pembina.get('updated_at')
+            if updated_at:
+                tim_pembina['updated_at'] = updated_at.isoformat()  # type: ignore
+            # Convert boolean to int
+            if 'is_manual_entry' in tim_pembina:
+                tim_pembina['is_manual_entry'] = 1 if tim_pembina['is_manual_entry'] else 0  # type: ignore
+
+        return jsonify({
+            'status': 'success',
+            'data': tim_pembina_list,
+            'total': len(tim_pembina_list)
+        })
 
     except Exception as e:
-        logger.error(f"Error getting tim pembina: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)}), 500
-
+        print(f"Error getting tim pembina: {e}")
+        return jsonify({'status': 'error', 'message': f'Error: {str(e)}'}), 500
+    finally:
+        if connection:
+            connection.close()
 
 @tim_pembina_bp.route('', methods=['POST'])
 def add_tim_pembina():
-    """Add new tim pembina"""
+    """Tambah data tim pembina peserta baru"""
+    status_check = check_api_enabled()
+    if status_check:
+        return status_check
+
+    connection = get_db_connection()
+    if not connection:
+        return jsonify({'status': 'error', 'message': 'Database error'}), 500
+
     try:
-        data = request.json
+        data = request.get_json()
 
-        if not data.get('tim_pembina'):
-            return jsonify({'success': False, 'error': 'Tim pembina harus dipilih'}), 400
+        # Validasi required fields
+        required_fields = ['nama_peserta', 'tim_pembina', 'wilayah_rohani', 'jabatan', 'tahun']
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({
+                    'status': 'error',
+                    'message': f'Field {field} diperlukan'
+                }), 400
 
-        conn = get_db_connection()
-        if not conn:
-            return jsonify({'success': False, 'error': 'Gagal terhubung ke database'}), 500
+        cursor = connection.cursor()
 
-        cursor = conn.cursor(dictionary=True)
-
-        tim_pembina = data.get('tim_pembina')
-        nama_lainnya = data.get('nama_lainnya', '').strip() if data.get('tim_pembina') == 'Lainnya' else ''
-
-        # Insert into tim_pembina table
-        query = """
-            INSERT INTO tim_pembina
-            (tim_pembina, tim_pembina_lainnya, tanggal_pelantikan, keterangan)
-            VALUES (%s, %s, %s, %s)
+        # Cek duplikasi
+        check_query = """
+        SELECT id_tim_pembina FROM tim_pembina_peserta
+        WHERE nama_peserta = %s AND tim_pembina = %s AND tahun = %s
         """
+        cursor.execute(check_query, (data.get('nama_peserta'), data.get('tim_pembina'), data.get('tahun')))
+        existing = cursor.fetchone()
 
-        values = (
-            tim_pembina,
-            nama_lainnya if tim_pembina == 'Lainnya' else None,
-            data.get('tanggal_pelantikan'),
-            data.get('keterangan')
+        if existing:
+            return jsonify({
+                'status': 'error',
+                'message': 'Peserta sudah terdaftar di tim ini pada tahun yang sama'
+            }), 400
+
+        insert_query = """
+        INSERT INTO tim_pembina_peserta (
+            nama_peserta, is_manual_entry, id_jemaat, tim_pembina,
+            tim_pembina_lainnya, wilayah_rohani, jabatan, tahun
+        ) VALUES (
+            %s, %s, %s, %s, %s, %s, %s, %s
         )
-
-        cursor.execute(query, values)
-        conn.commit()
-
-        # Get the inserted ID - use cursor.lastrowid which works after commit
-        tim_id = cursor.lastrowid
-        logger.info(f"[ADD TIM PEMBINA] lastrowid: {tim_id}")
-
-        if tim_id == 0 or tim_id is None:
-            # Fallback: query the database for the last inserted record by tim_pembina name and creation time
-            select_query = """
-                SELECT id_tim_pembina FROM tim_pembina
-                WHERE tim_pembina = %s AND tanggal_pelantikan = %s
-                ORDER BY created_at DESC LIMIT 1
-            """
-            cursor.execute(select_query, (tim_pembina, data.get('tanggal_pelantikan')))
-            result = cursor.fetchone()
-            tim_id = result['id_tim_pembina'] if result else 0
-            logger.info(f"[ADD TIM PEMBINA] Fallback query result: {tim_id}")
-
-        cursor.close()
-        conn.close()
-
-        return jsonify({'success': True, 'message': 'Tim pembina berhasil ditambahkan', 'id_tim_pembina': tim_id}), 201
-
-    except Exception as e:
-        logger.error(f"Error adding tim pembina: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-
-@tim_pembina_bp.route('/<int:tim_id>', methods=['GET'])
-def get_tim_pembina_detail(tim_id):
-    """Get detail tim pembina with peserta"""
-    try:
-        conn = get_db_connection()
-        if not conn:
-            return jsonify({'success': False, 'error': 'Gagal terhubung ke database'}), 500
-
-        cursor = conn.cursor(dictionary=True)
-
-        # Get tim
-        query_tim = "SELECT * FROM tim_pembina WHERE id_tim_pembina = %s"
-        cursor.execute(query_tim, (tim_id,))
-        tim = cursor.fetchone()
-
-        if not tim:
-            cursor.close()
-            conn.close()
-            return jsonify({'success': False, 'error': 'Tim tidak ditemukan'}), 404
-
-        # Get peserta
-        query_peserta = """
-            SELECT * FROM tim_pembina_peserta
-            WHERE id_tim_pembina = %s
-            ORDER BY jabatan, nama_lengkap
-        """
-        cursor.execute(query_peserta, (tim_id,))
-        tim['peserta'] = cursor.fetchall()
-
-        # tim_pembina_lainnya column sudah termasuk dalam SELECT * query
-
-        cursor.close()
-        conn.close()
-
-        return jsonify({'success': True, 'data': tim}), 200
-
-    except Exception as e:
-        logger.error(f"Error getting tim pembina detail: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-
-@tim_pembina_bp.route('/<int:tim_id>', methods=['PUT'])
-def update_tim_pembina(tim_id):
-    """Update tim pembina"""
-    try:
-        data = request.json
-
-        conn = get_db_connection()
-        if not conn:
-            return jsonify({'success': False, 'error': 'Gagal terhubung ke database'}), 500
-
-        cursor = conn.cursor()
-
-        tim_pembina = data.get('tim_pembina')
-        nama_lainnya = data.get('nama_lainnya', '').strip() if data.get('tim_pembina') == 'Lainnya' else ''
-
-        # Update tim_pembina table
-        query = """
-            UPDATE tim_pembina
-            SET tim_pembina = %s, tim_pembina_lainnya = %s,
-                tanggal_pelantikan = %s, keterangan = %s
-            WHERE id_tim_pembina = %s
         """
 
-        values = (
-            tim_pembina,
-            nama_lainnya if tim_pembina == 'Lainnya' else None,
-            data.get('tanggal_pelantikan'),
-            data.get('keterangan'),
-            tim_id
-        )
-
-        cursor.execute(query, values)
-        conn.commit()
-
-        cursor.close()
-        conn.close()
-
-        return jsonify({'success': True, 'message': 'Tim pembina berhasil diupdate'}), 200
-
-    except Exception as e:
-        logger.error(f"Error updating tim pembina: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-
-@tim_pembina_bp.route('/<int:tim_id>', methods=['DELETE'])
-def delete_tim_pembina(tim_id):
-    """Delete tim pembina"""
-    try:
-        conn = get_db_connection()
-        if not conn:
-            return jsonify({'success': False, 'error': 'Gagal terhubung ke database'}), 500
-
-        cursor = conn.cursor()
-
-        # Delete will cascade to peserta due to foreign key
-        query = "DELETE FROM tim_pembina WHERE id_tim_pembina = %s"
-        cursor.execute(query, (tim_id,))
-        conn.commit()
-        cursor.close()
-        conn.close()
-
-        return jsonify({'success': True, 'message': 'Tim pembina berhasil dihapus'}), 200
-
-    except Exception as e:
-        logger.error(f"Error deleting tim pembina: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-
-@tim_pembina_bp.route('/<int:tim_id>/peserta', methods=['POST'])
-def add_peserta(tim_id):
-    """Add peserta to tim pembina"""
-    try:
-        data = request.json
-
-        if not data.get('id_jemaat') or not data.get('jabatan'):
-            return jsonify({'success': False, 'error': 'Data tidak lengkap'}), 400
-
-        conn = get_db_connection()
-        if not conn:
-            return jsonify({'success': False, 'error': 'Gagal terhubung ke database'}), 500
-
-        cursor = conn.cursor()
-
-        query = """
-            INSERT INTO tim_pembina_peserta
-            (id_tim_pembina, id_jemaat, nama_lengkap, wilayah_rohani, jabatan,
-             koordinator_bidang, sie_bidang)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
-        """
-
-        values = (
-            tim_id,
-            data.get('id_jemaat'),
-            data.get('nama_lengkap'),
-            data.get('wilayah_rohani'),
-            data.get('jabatan'),
-            data.get('koordinator_bidang'),
-            data.get('sie_bidang')
-        )
-
-        cursor.execute(query, values)
-        conn.commit()
-        cursor.close()
-        conn.close()
-
-        return jsonify({'success': True, 'message': 'Peserta berhasil ditambahkan'}), 201
-
-    except Exception as e:
-        logger.error(f"Error adding peserta: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-
-@tim_pembina_bp.route('/peserta/<int:peserta_id>', methods=['DELETE'])
-def delete_peserta(peserta_id):
-    """Delete peserta from tim pembina"""
-    try:
-        conn = get_db_connection()
-        if not conn:
-            return jsonify({'success': False, 'error': 'Gagal terhubung ke database'}), 500
-
-        cursor = conn.cursor()
-
-        query = "DELETE FROM tim_pembina_peserta WHERE id_peserta = %s"
-        cursor.execute(query, (peserta_id,))
-        conn.commit()
-        cursor.close()
-        conn.close()
-
-        return jsonify({'success': True, 'message': 'Peserta berhasil dihapus'}), 200
-
-    except Exception as e:
-        logger.error(f"Error deleting peserta: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-
-# ========== NEW SINGLE-TABLE APPROACH ENDPOINTS (2025-11-19) ==========
-# These endpoints handle the new simplified tim_pembina structure where
-# peserta data is stored directly in tim_pembina table
-# Note: These endpoints use base path /tim_pembina with _peserta suffix
-# to avoid conflicts with old two-table approach
-
-# Blueprint root is /tim_pembina, so these become:
-# GET/POST /tim_pembina_peserta (external path, routed through _peserta)
-
-@tim_pembina_bp.route('_peserta', methods=['GET'])
-def get_tim_pembina_peserta_new():
-    """Get all peserta from tim_pembina table (new single-table approach)
-    External URL: /tim_pembina_peserta"""
-    try:
-        conn = get_db_connection()
-        if not conn:
-            return jsonify({'success': False, 'error': 'Gagal terhubung ke database'}), 500
-
-        cursor = conn.cursor(dictionary=True)
-
-        # Get all peserta from tim_pembina table where nama_peserta is not null
-        query = """
-            SELECT
-                id_tim_pembina,
-                nama_peserta,
-                wilayah_rohani,
-                jabatan,
-                tahun,
-                tim_pembina as nama_tim,
-                id_jemaat
-            FROM tim_pembina
-            WHERE nama_peserta IS NOT NULL AND nama_peserta != ''
-            ORDER BY tahun DESC, tim_pembina, jabatan, nama_peserta
-        """
-        cursor.execute(query)
-        peserta_list = cursor.fetchall()
-
-        cursor.close()
-        conn.close()
-
-        return jsonify({'success': True, 'data': peserta_list}), 200
-
-    except Exception as e:
-        logger.error(f"Error getting tim pembina peserta: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-
-@tim_pembina_bp.route('_peserta', methods=['POST'])
-def add_tim_pembina_peserta_new():
-    """Add new peserta to tim_pembina table (new single-table approach)
-    External URL: /tim_pembina_peserta"""
-    try:
-        data = request.json
-
-        # Validate required fields
-        if not data.get('nama_peserta') or not data.get('jabatan') or not data.get('nama_tim') or not data.get('tahun'):
-            return jsonify({'success': False, 'error': 'Data tidak lengkap (nama_peserta, jabatan, nama_tim, tahun wajib)'}), 400
-
-        conn = get_db_connection()
-        if not conn:
-            return jsonify({'success': False, 'error': 'Gagal terhubung ke database'}), 500
-
-        cursor = conn.cursor(dictionary=True)
-
-        # First, find the tim_pembina id by name
-        query_find_tim = "SELECT id_tim_pembina FROM tim_pembina WHERE tim_pembina = %s LIMIT 1"
-        cursor.execute(query_find_tim, (data.get('nama_tim'),))
-        tim_result = cursor.fetchone()
-
-        if not tim_result:
-            cursor.close()
-            conn.close()
-            return jsonify({'success': False, 'error': f'Tim pembina "{data.get("nama_tim")}" tidak ditemukan'}), 404
-
-        tim_pembina_id = tim_result['id_tim_pembina']
-
-        # Insert peserta into tim_pembina table
-        query = """
-            INSERT INTO tim_pembina
-            (tim_pembina, nama_peserta, id_jemaat, wilayah_rohani, jabatan, tahun)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """
-
-        values = (
-            data.get('nama_tim'),
+        params = (
             data.get('nama_peserta'),
+            1 if data.get('is_manual_entry') else 0,
             data.get('id_jemaat'),
+            data.get('tim_pembina'),
+            data.get('tim_pembina_lainnya') if data.get('tim_pembina') == 'Lainnya' else None,
             data.get('wilayah_rohani'),
             data.get('jabatan'),
             data.get('tahun')
         )
 
-        cursor.execute(query, values)
-        conn.commit()
+        cursor.execute(insert_query, params)
+        connection.commit()
 
-        peserta_id = cursor.lastrowid
-
-        cursor.close()
-        conn.close()
+        tim_pembina_id = cursor.lastrowid
 
         return jsonify({
-            'success': True,
-            'message': 'Peserta berhasil ditambahkan',
-            'id_tim_pembina': peserta_id,
-            'data': {
-                'id_tim_pembina': peserta_id,
-                'nama_peserta': data.get('nama_peserta'),
-                'wilayah_rohani': data.get('wilayah_rohani'),
-                'jabatan': data.get('jabatan'),
-                'nama_tim': data.get('nama_tim'),
-                'tahun': data.get('tahun')
-            }
-        }), 201
+            'status': 'success',
+            'message': 'Data tim pembina peserta berhasil ditambahkan',
+            'id': tim_pembina_id
+        })
 
     except Exception as e:
-        logger.error(f"Error adding peserta: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        print(f"Error adding tim pembina: {e}")
+        return jsonify({'status': 'error', 'message': f'Error: {str(e)}'}), 500
+    finally:
+        if connection:
+            connection.close()
 
+@tim_pembina_bp.route('/<int:tim_pembina_id>', methods=['GET'])
+def get_tim_pembina_by_id(tim_pembina_id):
+    """Ambil data tim pembina peserta berdasarkan ID"""
+    status_check = check_api_enabled()
+    if status_check:
+        return status_check
 
-@tim_pembina_bp.route('_peserta/<int:peserta_id>', methods=['PUT'])
-def update_tim_pembina_peserta_new(peserta_id):
-    """Update peserta in tim_pembina table (new single-table approach)
-    External URL: /tim_pembina_peserta/{peserta_id}"""
+    connection = get_db_connection()
+    if not connection:
+        return jsonify({'status': 'error', 'message': 'Database error'}), 500
+
     try:
-        data = request.json
+        cursor = connection.cursor(dictionary=True)
+        cursor.execute("SELECT * FROM tim_pembina_peserta WHERE id_tim_pembina = %s", (tim_pembina_id,))
+        tim_pembina_row = cursor.fetchone()
 
-        conn = get_db_connection()
-        if not conn:
-            return jsonify({'success': False, 'error': 'Gagal terhubung ke database'}), 500
+        if not tim_pembina_row:
+            return jsonify({'status': 'error', 'message': 'Data tim pembina tidak ditemukan'}), 404
 
-        cursor = conn.cursor()
+        # Convert dates to string untuk JSON serialization
+        created_at = tim_pembina_row.get('created_at')
+        if created_at:
+            tim_pembina_row['created_at'] = created_at.isoformat()  # type: ignore
+        updated_at = tim_pembina_row.get('updated_at')
+        if updated_at:
+            tim_pembina_row['updated_at'] = updated_at.isoformat()  # type: ignore
+        # Convert boolean to int
+        if 'is_manual_entry' in tim_pembina_row:
+            tim_pembina_row['is_manual_entry'] = 1 if tim_pembina_row['is_manual_entry'] else 0  # type: ignore
 
-        # Update peserta in tim_pembina table
-        query = """
-            UPDATE tim_pembina
-            SET nama_peserta = %s,
-                id_jemaat = %s,
-                wilayah_rohani = %s,
-                jabatan = %s,
-                tahun = %s,
-                tim_pembina = %s
-            WHERE id_tim_pembina = %s
+        return jsonify({
+            'status': 'success',
+            'data': tim_pembina_row
+        })
+
+    except Exception as e:
+        print(f"Error getting tim pembina by ID: {e}")
+        return jsonify({'status': 'error', 'message': f'Error: {str(e)}'}), 500
+    finally:
+        if connection:
+            connection.close()
+
+@tim_pembina_bp.route('/<int:tim_pembina_id>', methods=['PUT'])
+def update_tim_pembina(tim_pembina_id):
+    """Update data tim pembina peserta"""
+    status_check = check_api_enabled()
+    if status_check:
+        return status_check
+
+    connection = get_db_connection()
+    if not connection:
+        return jsonify({'status': 'error', 'message': 'Database error'}), 500
+
+    try:
+        data = request.get_json()
+
+        cursor = connection.cursor()
+
+        # Check if exists
+        cursor.execute("SELECT id_tim_pembina FROM tim_pembina_peserta WHERE id_tim_pembina = %s", (tim_pembina_id,))
+        if not cursor.fetchone():
+            return jsonify({'status': 'error', 'message': 'Data tim pembina tidak ditemukan'}), 404
+
+        # Cek duplikasi (kecuali record sendiri)
+        check_query = """
+        SELECT id_tim_pembina FROM tim_pembina_peserta
+        WHERE nama_peserta = %s AND tim_pembina = %s AND tahun = %s AND id_tim_pembina != %s
+        """
+        cursor.execute(check_query, (data.get('nama_peserta'), data.get('tim_pembina'), data.get('tahun'), tim_pembina_id))
+        existing = cursor.fetchone()
+
+        if existing:
+            return jsonify({
+                'status': 'error',
+                'message': 'Peserta sudah terdaftar di tim ini pada tahun yang sama'
+            }), 400
+
+        update_query = """
+        UPDATE tim_pembina_peserta SET
+            nama_peserta = %s, is_manual_entry = %s, id_jemaat = %s,
+            tim_pembina = %s, tim_pembina_lainnya = %s, wilayah_rohani = %s,
+            jabatan = %s, tahun = %s, updated_at = NOW()
+        WHERE id_tim_pembina = %s
         """
 
-        values = (
+        params = (
             data.get('nama_peserta'),
+            1 if data.get('is_manual_entry') else 0,
             data.get('id_jemaat'),
+            data.get('tim_pembina'),
+            data.get('tim_pembina_lainnya') if data.get('tim_pembina') == 'Lainnya' else None,
             data.get('wilayah_rohani'),
             data.get('jabatan'),
             data.get('tahun'),
-            data.get('nama_tim'),
-            peserta_id
+            tim_pembina_id
         )
 
-        cursor.execute(query, values)
-        conn.commit()
-        cursor.close()
-        conn.close()
+        cursor.execute(update_query, params)
+        connection.commit()
 
-        return jsonify({'success': True, 'message': 'Peserta berhasil diupdate'}), 200
+        return jsonify({
+            'status': 'success',
+            'message': 'Data tim pembina peserta berhasil diupdate'
+        })
 
     except Exception as e:
-        logger.error(f"Error updating peserta: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        print(f"Error updating tim pembina: {e}")
+        return jsonify({'status': 'error', 'message': f'Error: {str(e)}'}), 500
+    finally:
+        if connection:
+            connection.close()
 
+@tim_pembina_bp.route('/<int:tim_pembina_id>', methods=['DELETE'])
+def delete_tim_pembina(tim_pembina_id):
+    """Hapus data tim pembina peserta"""
+    status_check = check_api_enabled()
+    if status_check:
+        return status_check
 
-@tim_pembina_bp.route('_peserta/<int:peserta_id>', methods=['DELETE'])
-def delete_tim_pembina_peserta_new(peserta_id):
-    """Delete peserta from tim_pembina table (new single-table approach)
-    External URL: /tim_pembina_peserta/{peserta_id}"""
+    connection = get_db_connection()
+    if not connection:
+        return jsonify({'status': 'error', 'message': 'Database error'}), 500
+
     try:
-        conn = get_db_connection()
-        if not conn:
-            return jsonify({'success': False, 'error': 'Gagal terhubung ke database'}), 500
+        cursor = connection.cursor(dictionary=True)
 
-        cursor = conn.cursor()
+        # Check if exists
+        cursor.execute("SELECT nama_peserta FROM tim_pembina_peserta WHERE id_tim_pembina = %s", (tim_pembina_id,))
+        tim_pembina = cursor.fetchone()
+        if not tim_pembina:
+            return jsonify({'status': 'error', 'message': 'Data tim pembina tidak ditemukan'}), 404
 
-        # Delete peserta record from tim_pembina table
-        query = """
-            DELETE FROM tim_pembina
-            WHERE id_tim_pembina = %s AND nama_peserta IS NOT NULL
-        """
-        cursor.execute(query, (peserta_id,))
-        conn.commit()
-        cursor.close()
-        conn.close()
+        nama_peserta = tim_pembina.get('nama_peserta', 'Unknown')
 
-        return jsonify({'success': True, 'message': 'Peserta berhasil dihapus'}), 200
+        cursor.execute("DELETE FROM tim_pembina_peserta WHERE id_tim_pembina = %s", (tim_pembina_id,))
+        connection.commit()
+
+        return jsonify({
+            'status': 'success',
+            'message': f'Data peserta {nama_peserta} berhasil dihapus'
+        })
 
     except Exception as e:
-        logger.error(f"Error deleting peserta: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        print(f"Error deleting tim pembina: {e}")
+        return jsonify({'status': 'error', 'message': f'Error: {str(e)}'}), 500
+    finally:
+        if connection:
+            connection.close()
+
+@tim_pembina_bp.route('/statistics', methods=['GET'])
+def get_tim_pembina_statistics():
+    """Ambil statistik tim pembina"""
+    status_check = check_api_enabled()
+    if status_check:
+        return status_check
+
+    connection = get_db_connection()
+    if not connection:
+        return jsonify({'status': 'error', 'message': 'Database error'}), 500
+
+    try:
+        cursor = connection.cursor(dictionary=True)
+
+        # Total peserta
+        cursor.execute("SELECT COUNT(*) as total FROM tim_pembina_peserta")
+        total_row = cursor.fetchone()
+        total = total_row.get('total', 0) if total_row else 0
+
+        # Per tim pembina
+        cursor.execute("""
+            SELECT
+                CASE
+                    WHEN tim_pembina = 'Lainnya' AND tim_pembina_lainnya IS NOT NULL
+                    THEN tim_pembina_lainnya
+                    ELSE tim_pembina
+                END as tim,
+                COUNT(*) as jumlah
+            FROM tim_pembina_peserta
+            GROUP BY tim
+            ORDER BY jumlah DESC
+        """)
+        per_tim = cursor.fetchall()
+
+        # Per wilayah rohani
+        cursor.execute("""
+            SELECT wilayah_rohani, COUNT(*) as jumlah
+            FROM tim_pembina_peserta
+            GROUP BY wilayah_rohani
+            ORDER BY jumlah DESC
+        """)
+        per_wilayah = cursor.fetchall()
+
+        # Per jabatan
+        cursor.execute("""
+            SELECT jabatan, COUNT(*) as jumlah
+            FROM tim_pembina_peserta
+            GROUP BY jabatan
+            ORDER BY jumlah DESC
+        """)
+        per_jabatan = cursor.fetchall()
+
+        # Per tahun
+        cursor.execute("""
+            SELECT tahun, COUNT(*) as jumlah
+            FROM tim_pembina_peserta
+            GROUP BY tahun
+            ORDER BY tahun DESC
+        """)
+        per_tahun = cursor.fetchall()
+
+        return jsonify({
+            'status': 'success',
+            'data': {
+                'total': total,
+                'per_tim': per_tim,
+                'per_wilayah': per_wilayah,
+                'per_jabatan': per_jabatan,
+                'per_tahun': per_tahun
+            }
+        })
+
+    except Exception as e:
+        print(f"Error getting tim pembina statistics: {e}")
+        return jsonify({'status': 'error', 'message': f'Error: {str(e)}'}), 500
+    finally:
+        if connection:
+            connection.close()
+
+@tim_pembina_bp.route('/search-jemaat', methods=['GET'])
+def search_jemaat():
+    """Cari umat berdasarkan nama untuk field Nama Peserta"""
+    status_check = check_api_enabled()
+    if status_check:
+        return status_check
+
+    connection = get_db_connection()
+    if not connection:
+        return jsonify({'status': 'error', 'message': 'Database error'}), 500
+
+    try:
+        search = request.args.get('search', '')
+
+        cursor = connection.cursor(dictionary=True)
+
+        # If search is empty, return all jemaat with limit
+        # Otherwise, filter by search keyword
+        if search and len(search) >= 1:
+            query = """
+            SELECT id_jemaat, nama_lengkap, wilayah_rohani
+            FROM jemaat
+            WHERE nama_lengkap LIKE %s
+            ORDER BY nama_lengkap ASC
+            LIMIT 50
+            """
+            search_param = f'%{search}%'
+            cursor.execute(query, (search_param,))
+        else:
+            # No search keyword - return all jemaat
+            query = """
+            SELECT id_jemaat, nama_lengkap, wilayah_rohani
+            FROM jemaat
+            ORDER BY nama_lengkap ASC
+            LIMIT 100
+            """
+            cursor.execute(query)
+
+        jemaat_list = cursor.fetchall()
+
+        return jsonify({
+            'status': 'success',
+            'data': jemaat_list,
+            'total': len(jemaat_list)
+        })
+
+    except Exception as e:
+        print(f"Error searching jemaat: {e}")
+        return jsonify({'status': 'error', 'message': f'Error: {str(e)}'}), 500
+    finally:
+        if connection:
+            connection.close()

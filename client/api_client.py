@@ -9,7 +9,7 @@ from datetime import datetime
 
 load_dotenv()
 
-# Prioritaskan remote server untuk production, fallback ke localhost untuk development
+# Production server with local fallback
 BASE_URL = os.getenv('API_BASE_URL', 'https://enternal.my.id/flask')  # Server production
 REMOTE_URL = 'https://enternal.my.id/flask'  # Production URL
 
@@ -20,23 +20,26 @@ class ApiClient:
         self.remote_url = REMOTE_URL
         self.timeout = 10
         self.client_ip = self.get_client_ip()
-        self.client_hostname = socket.gethostname()
+        # Add app identifier to hostname untuk membedakan admin dan client di komputer yang sama
+        # Format: HOSTNAME-CLIENT (e.g., DESKTOP-XYZ-CLIENT)
+        self.client_hostname = f"{socket.gethostname()}-CLIENT"
         self.session_id = None
+        self.connection_id = None  # ID koneksi dari database server
         self.user_data = None
         self.device_info = self.get_device_info()
-        
+
         # Auto-detect best server
         self._detect_best_server()
     
     def _detect_best_server(self):
-        """Auto-detect apakah menggunakan localhost atau remote server"""
+        """Auto-detect apakah menggunakan production atau local server"""
         # List server untuk dicoba - prioritaskan production server
         servers_to_try = [
             'https://enternal.my.id/flask',  # Production server (prioritas utama)
-            'http://localhost:5000',  # Flask default local
+            'http://localhost:5000',  # Flask local development fallback
+            'http://127.0.0.1:5000',  # IPv4 localhost Flask
             'http://localhost:8000',  # Server HTTP lokal
             'http://localhost:3000',  # Express default
-            'http://127.0.0.1:5000',  # IPv4 localhost Flask
         ]
         
         print("Mencari server yang tersedia...")
@@ -118,44 +121,64 @@ class ApiClient:
             print(f"[DEBUG] Client IP: {self.client_ip}")
             print(f"[DEBUG] Hostname: {self.client_hostname}")
             
-            # Coba registrasi ke server lokal (prioritas pertama)
+            # Variable untuk tracking registrasi
+            local_registered = False
+            remote_registered = False
+            final_connection_id = None
+
+            # Coba registrasi ke server lokal (opsional, untuk admin tracking)
             try:
                 # Coba ke server lokal dulu
-                local_response = requests.post("http://localhost:8080/client/register", 
-                                             json=data, 
+                local_response = requests.post("http://localhost:8080/client/register",
+                                             json=data,
                                              timeout=5,
                                              headers={'Content-Type': 'application/json'})
-                
+
                 if local_response.status_code == 200:
                     local_result = local_response.json()
                     if local_result.get('status') == 'success':
                         print(f"[DEBUG] Local server registration successful")
-                        return {"success": True, "data": {"status": "success", "connection_id": session_id, "message": "Client registered to local server"}}
-                
+                        local_registered = True
+
             except Exception as e:
                 print(f"[DEBUG] Local server registration failed: {e}")
             
-            # Fallback ke API remote jika lokal gagal
+            # WAJIB: Registrasi ke API remote (production/database)
             try:
-                response = requests.post(f"{self.base_url}/client/register", 
-                                       json=data, 
+                response = requests.post(f"{self.base_url}/client/register",
+                                       json=data,
                                        timeout=self.timeout,
                                        headers={'Content-Type': 'application/json'})
-                
+
                 if response.status_code == 200:
                     result = response.json()
                     if result.get('status') == 'success':
-                        print(f"[DEBUG] Server registration successful")
-                        return {"success": True, "data": {"status": "success", "connection_id": session_id, "message": "Client registered to server"}}
+                        print(f"[DEBUG] Remote API registration successful")
+                        # PENTING: Ambil connection_id dari server response, bukan pakai UUID lokal
+                        server_connection_id = result.get('connection_id')
+                        if server_connection_id:
+                            self.connection_id = server_connection_id
+                            final_connection_id = server_connection_id
+                            remote_registered = True
+                            print(f"[DEBUG] Stored server connection_id: {server_connection_id}")
                     else:
-                        print(f"[DEBUG] Server registration failed: {result}")
-                        
+                        print(f"[DEBUG] Remote API registration failed: {result}")
+
             except Exception as e:
-                print(f"[DEBUG] Server registration error: {e}")
-            
-            # Jika registrasi server gagal, tetap lanjutkan dengan session lokal
-            print(f"[INFO] Using local session mode: {session_id}")
-            return {"success": True, "data": {"status": "success", "connection_id": session_id, "message": "Client connected with local session"}}
+                print(f"[DEBUG] Remote API registration error: {e}")
+
+            # Return hasil registrasi
+            if remote_registered:
+                # Sukses register ke remote API (database) - ini yang penting
+                return {"success": True, "data": {"status": "success", "connection_id": final_connection_id, "message": "Client registered to remote API"}}
+            elif local_registered:
+                # Hanya berhasil ke local server, tapi ini tidak cukup
+                print(f"[WARNING] Only registered to local server, not to remote API database")
+                return {"success": False, "data": "Failed to register to remote API - server control won't detect this client"}
+            else:
+                # Gagal semua
+                print(f"[ERROR] Failed to register to both local and remote server")
+                return {"success": False, "data": "Registration failed to all servers"}
             
         except Exception as e:
             print(f"[ERROR] Client registration failed: {e}")
@@ -164,10 +187,12 @@ class ApiClient:
     
     def disconnect_client(self):
         try:
-            if self.session_id:
+            # Gunakan connection_id dari server jika ada, fallback ke session_id
+            conn_id = self.connection_id if self.connection_id else self.session_id
+            if conn_id:
                 import datetime
                 data = {
-                    'connection_id': self.session_id,
+                    'connection_id': conn_id,
                     'client_ip': self.client_ip,
                     'hostname': self.client_hostname,
                     'disconnect_time': datetime.datetime.now().isoformat(),
@@ -175,23 +200,25 @@ class ApiClient:
                 }
                 # Coba disconnect dari server lokal dulu
                 try:
-                    local_response = requests.post("http://localhost:8080/client/disconnect", 
-                                                 json=data, 
+                    local_response = requests.post("http://localhost:8080/client/disconnect",
+                                                 json=data,
                                                  timeout=3,
                                                  headers={'Content-Type': 'application/json'})
                     if local_response.status_code == 200:
                         self.session_id = None
+                        self.connection_id = None
                         return {"success": True, "data": local_response.json()}
                 except:
                     pass  # Continue to remote
-                
+
                 # Fallback ke remote API
-                response = requests.post(f"{self.base_url}/client/disconnect", 
-                                       json=data, 
+                response = requests.post(f"{self.base_url}/client/disconnect",
+                                       json=data,
                                        timeout=self.timeout,
                                        headers={'Content-Type': 'application/json'})
                 response.raise_for_status()
                 self.session_id = None
+                self.connection_id = None
                 return {"success": True, "data": response.json()}
             return {"success": True, "data": "No active session"}
         except requests.exceptions.RequestException as e:
@@ -200,31 +227,33 @@ class ApiClient:
     def heartbeat(self):
         """Kirim heartbeat ke server untuk update status"""
         try:
-            if not self.session_id:
-                return {"success": False, "data": "No session ID"}
-                
+            # Gunakan connection_id dari server jika ada, fallback ke session_id
+            conn_id = self.connection_id if self.connection_id else self.session_id
+            if not conn_id:
+                return {"success": False, "data": "No connection ID or session ID"}
+
             import datetime
             data = {
-                'connection_id': self.session_id,
+                'connection_id': conn_id,
                 'client_ip': self.client_ip,
                 'hostname': self.client_hostname,
                 'last_activity': datetime.datetime.now().isoformat(),
                 'status': 'active',
                 'user_data': self.user_data if self.user_data else None
             }
-            
+
             # Coba kirim heartbeat ke server lokal terlebih dahulu
             try:
                 # Coba local server dulu
-                local_response = requests.post("http://localhost:8080/client/heartbeat", 
-                                             json=data, 
+                local_response = requests.post("http://localhost:8080/client/heartbeat",
+                                             json=data,
                                              timeout=3,
                                              headers={'Content-Type': 'application/json'})
-                
+
                 if local_response.status_code == 200:
                     local_result = local_response.json()
                     return {"success": True, "data": local_result}
-                    
+
             except Exception as e:
                 pass  # Continue to remote fallback
             
@@ -296,12 +325,21 @@ class ApiClient:
     
     def add_jemaat(self, jemaat_data):
         try:
+            # Ensure jemaat_data is not None/empty
+            if not jemaat_data:
+                return {"success": False, "data": "Data jemaat tidak boleh kosong"}
+
             data = jemaat_data.copy()
+
+            # Ensure user_id is present
             if self.user_data:
                 data['user_id'] = self.user_data.get('id_pengguna')
-            
-            response = requests.post(f"{self.base_url}/jemaat", 
-                                   json=data, 
+
+            if 'user_id' not in data or data['user_id'] is None:
+                return {"success": False, "data": "user_id is missing - user may not be logged in"}
+
+            response = requests.post(f"{self.base_url}/jemaat",
+                                   json=data,
                                    timeout=self.timeout,
                                    headers={'Content-Type': 'application/json'})
             response.raise_for_status()
@@ -495,6 +533,97 @@ class ApiClient:
         except requests.exceptions.RequestException as e:
             return {"success": False, "data": f"Gagal hapus kegiatan WR: {e}"}
 
+    # ========== PROGRAM KERJA WR METHODS ==========
+    def get_program_kerja_wr_list(self, search=None, wilayah_id=None):
+        """Get list of program kerja WR for current user"""
+        try:
+            params = {}
+            if self.user_data:
+                params['user_id'] = self.user_data.get('id_pengguna')
+            if search:
+                params['search'] = search
+            if wilayah_id:
+                params['wilayah_id'] = wilayah_id
+
+            response = requests.get(f"{self.base_url}/program-kerja-wr",
+                                  params=params,
+                                  timeout=self.timeout)
+            response.raise_for_status()
+            return {"success": True, "data": response.json()}
+        except requests.exceptions.RequestException as e:
+            return {"success": False, "data": f"Gagal mengambil data program kerja WR: {e}"}
+
+    def add_program_kerja_wr(self, data):
+        """Add new program kerja WR for current user"""
+        try:
+            # Add user_id to data
+            if self.user_data:
+                data['user_id'] = self.user_data.get('id_pengguna')
+
+            response = requests.post(f"{self.base_url}/program-kerja-wr",
+                                   json=data,
+                                   timeout=self.timeout,
+                                   headers={'Content-Type': 'application/json'})
+            response.raise_for_status()
+            return {"success": True, "data": response.json()}
+        except requests.exceptions.HTTPError as e:
+            error_msg = f"HTTP Error {e.response.status_code}"
+            try:
+                error_detail = e.response.json()
+                error_msg += f": {error_detail.get('data', e.response.text)}"
+            except:
+                error_msg += f": {e.response.text}"
+            return {"success": False, "data": error_msg}
+        except requests.exceptions.RequestException as e:
+            return {"success": False, "data": f"Gagal menambahkan program kerja WR: {e}"}
+
+    def update_program_kerja_wr(self, program_id, data):
+        """Update program kerja WR"""
+        try:
+            # Add user_id to data
+            if self.user_data:
+                data['user_id'] = self.user_data.get('id_pengguna')
+
+            response = requests.put(f"{self.base_url}/program-kerja-wr/{program_id}",
+                                  json=data,
+                                  timeout=self.timeout,
+                                  headers={'Content-Type': 'application/json'})
+            response.raise_for_status()
+            return {"success": True, "data": response.json()}
+        except requests.exceptions.HTTPError as e:
+            error_msg = f"HTTP Error {e.response.status_code}"
+            try:
+                error_detail = e.response.json()
+                error_msg += f": {error_detail.get('data', e.response.text)}"
+            except:
+                error_msg += f": {e.response.text}"
+            return {"success": False, "data": error_msg}
+        except requests.exceptions.RequestException as e:
+            return {"success": False, "data": f"Gagal update program kerja WR: {e}"}
+
+    def delete_program_kerja_wr(self, program_id):
+        """Delete program kerja WR"""
+        try:
+            params = {}
+            if self.user_data:
+                params['user_id'] = self.user_data.get('id_pengguna')
+
+            response = requests.delete(f"{self.base_url}/program-kerja-wr/{program_id}",
+                                     params=params,
+                                     timeout=self.timeout)
+            response.raise_for_status()
+            return {"success": True, "data": response.json()}
+        except requests.exceptions.HTTPError as e:
+            error_msg = f"HTTP Error {e.response.status_code}"
+            try:
+                error_detail = e.response.json()
+                error_msg += f": {error_detail.get('data', e.response.text)}"
+            except:
+                error_msg += f": {e.response.text}"
+            return {"success": False, "data": error_msg}
+        except requests.exceptions.RequestException as e:
+            return {"success": False, "data": f"Gagal hapus program kerja WR: {e}"}
+
     def get_pengumuman(self):
         try:
             response = requests.get(f"{self.base_url}/pengumuman?active_only=true", timeout=self.timeout)
@@ -549,9 +678,8 @@ class ApiClient:
                 'tanggal': keuangan_data.get('tanggal'),
                 'kategori': keuangan_data.get('jenis'),
                 'sub_kategori': keuangan_data.get('kategori'),
-                'deskripsi': keuangan_data.get('keterangan'),
-                'jumlah': keuangan_data.get('jumlah'),
-                'keterangan': keuangan_data.get('keterangan')
+                'keterangan': keuangan_data.get('keterangan'),  # Gunakan keterangan, BUKAN deskripsi
+                'jumlah': keuangan_data.get('jumlah')
             }
             if self.user_data:
                 data['user_id'] = self.user_data.get('id_pengguna')
@@ -606,7 +734,7 @@ class ApiClient:
     
     def get_files(self):
         try:
-            response = requests.get(f"{self.base_url}/files", timeout=self.timeout)
+            response = requests.get(f"{self.base_url}/dokumen/files", timeout=self.timeout)
             response.raise_for_status()
             return {"success": True, "data": response.json()}
         except requests.exceptions.RequestException as e:
@@ -614,7 +742,7 @@ class ApiClient:
     
     def download_file(self, file_id):
         try:
-            response = requests.get(f"{self.base_url}/files/{file_id}/download", 
+            response = requests.get(f"{self.base_url}/dokumen/files/{file_id}/download",
                                   timeout=self.timeout, stream=True)
             response.raise_for_status()
             return {"success": True, "data": response.content, "headers": response.headers}

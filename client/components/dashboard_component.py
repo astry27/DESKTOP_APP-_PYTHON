@@ -1874,7 +1874,7 @@ class DashboardComponent(QWidget):
             try:
                 from datetime import datetime
                 date_obj = datetime.strptime(tanggal, '%Y-%m-%d')
-                tanggal = date_obj.strftime('%d %b %Y')
+                tanggal = date_obj.strftime('%d/%m/%Y')
             except:
                 pass
         

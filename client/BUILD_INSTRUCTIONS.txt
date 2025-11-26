@@ -1,0 +1,98 @@
+═══════════════════════════════════════════════════════════════════════════
+  BUILD INSTRUCTIONS - Client Gereja Katolik
+═══════════════════════════════════════════════════════════════════════════
+
+LANGKAH 1: BUKA COMMAND PROMPT
+───────────────────────────────
+1. Tekan Windows Key + R
+2. Ketik: cmd
+3. Tekan Enter
+
+LANGKAH 2: NAVIGATE KE FOLDER CLIENT
+─────────────────────────────────────
+Copy-paste perintah ini ke Command Prompt:
+
+D:
+cd "I HAVE\My_Struggle\Client-Server\client"
+
+Harus muncul:
+D:\I HAVE\My_Struggle\Client-Server\client>
+
+LANGKAH 3: HAPUS BUILD LAMA
+──────────────────────────
+Copy-paste perintah ini:
+
+rmdir /s /q build
+rmdir /s /q dist
+del *.spec 2>nul
+
+(Confirm dengan Y jika ditanya)
+
+LANGKAH 4: BUILD DENGAN SPEC FILE
+─────────────────────────────────
+Copy-paste perintah ini:
+
+pyinstaller build.spec
+
+TUNGGU 5-15 MENIT!
+(Build akan menampilkan progress messages)
+
+JIKA TIDAK ADA OUTPUT:
+Tunggu 10-15 menit. PyInstaller sedang bekerja di background.
+
+SETELAH BUILD SELESAI:
+Akan muncul pesan: "Successfully built the executable"
+
+LANGKAH 5: VERIFIKASI FILE DIBUAT
+────────────────────────────────
+Copy-paste perintah ini:
+
+dir dist\main_client_api.exe
+
+Harus ada file ~500MB+
+
+LANGKAH 6: TEST .EXE
+───────────────────
+Copy-paste perintah ini:
+
+cd dist
+main_client_api.exe 2>&1
+
+TUNGGU 5-10 DETIK untuk aplikasi terbuka.
+
+JIKA BERHASIL:
+- Window aplikasi terbuka
+- Tidak ada error messages
+- Login screen muncul
+
+CATAT HASIL:
+- Apakah aplikasi terbuka? [Ya/Tidak]
+- Ada error messages? [Ya/Tidak]
+- Jika ada, apa error-nya?
+
+═══════════════════════════════════════════════════════════════════════════
+
+QUICK COPY-PASTE COMMANDS:
+
+1. Navigate ke folder:
+D: && cd "I HAVE\My_Struggle\Client-Server\client"
+
+2. Clean build:
+rmdir /s /q build && rmdir /s /q dist && del *.spec 2>nul
+
+3. Build dengan spec file:
+pyinstaller build.spec
+
+4. Test hasil:
+cd dist && main_client_api.exe 2>&1
+
+═══════════════════════════════════════════════════════════════════════════
+
+JIKA ADA ERROR:
+- Copy error message lengkapnya
+- Report kembali dengan format:
+  * Error message: [...]
+  * Kapan error terjadi: [saat buka? login?]
+  * Traceback (jika ada): [...]
+
+═══════════════════════════════════════════════════════════════════════════

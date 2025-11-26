@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir:*)",
+      "Bash(python -c:*)",
+      "Bash(curl -s \"https://enternal.my.id/flask/\")",
+      "Bash(curl:*)",
+      "Bash(powershell -Command \"$response = Invoke-RestMethod -Uri ''https://enternal.my.id/flask/tim-pembina'' -Method Get; Write-Output ($response | ConvertTo-Json -Depth 3)\")",
+      "Bash(python -m json.tool:*)",
+      "Bash(python check_production_status.py:*)",
+      "Bash(done)",
+      "Bash(timeout 15 python:*)",
+      "Bash(timeout 5 bash -c 'sleep 3 && curl -s \"\"http://localhost:5000/dokumen/files\"\" | head -100')",
+      "Bash(python:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

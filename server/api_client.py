@@ -289,7 +289,7 @@ class ApiClient:
     def get_files(self):
         return self._make_request('GET', f"{self.base_url}/files")
     
-    def upload_file(self, file_path, document_name=None, document_type=None, keterangan=None, kategori=None):
+    def upload_file(self, file_path, document_name=None, document_type=None, keterangan=None, bentuk=None):
         """Upload file with improved error handling"""
         for attempt in range(3):
             try:
@@ -308,11 +308,11 @@ class ApiClient:
                     else:
                         data['jenis_dokumen'] = 'Administrasi'  # Default
 
-                    # Kategori (required by API)
-                    if kategori:
-                        data['kategori'] = kategori
+                    # Bentuk dokumen (required by API)
+                    if bentuk:
+                        data['bentuk_dokumen'] = bentuk
                     else:
-                        data['kategori'] = 'Lainnya'
+                        data['bentuk_dokumen'] = 'Lainnya'
 
                     # Keterangan (optional)
                     if keterangan:
@@ -321,7 +321,7 @@ class ApiClient:
                         data['keterangan'] = ''
 
                     # Debug logging untuk upload
-                    print(f"Upload API - nama: {document_name}, jenis: {document_type}, kategori: {kategori or 'Lainnya'}, keterangan: {keterangan}")
+                    print(f"Upload API - nama: {document_name}, jenis: {document_type}, bentuk: {bentuk or 'Lainnya'}, keterangan: {keterangan}")
 
                     # Use longer timeout for file upload (up to 60 seconds for large files)
                     upload_timeout = 60
@@ -662,45 +662,44 @@ class ApiClient:
         """Delete buku kronik entry"""
         return self._make_request('DELETE', f"{self.base_url}/buku-kronik/{kronik_id}")
 
-    # Tim Pembina methods
-    def get_tim_pembina(self):
-        return self._make_request('GET', f"{self.base_url}/tim_pembina")
+    # ========== TIM PEMBINA METHODS ==========
+    def get_tim_pembina_list(self, search=None, tim_pembina=None, wilayah_rohani=None, jabatan=None, tahun=None):
+        """Get tim pembina list with optional filters"""
+        url = f"{self.base_url}/tim-pembina"
+        params = {}
+        if search:
+            params['search'] = search
+        if tim_pembina:
+            params['tim_pembina'] = tim_pembina
+        if wilayah_rohani:
+            params['wilayah_rohani'] = wilayah_rohani
+        if jabatan:
+            params['jabatan'] = jabatan
+        if tahun:
+            params['tahun'] = tahun
+        return self._make_request('GET', url, params=params)
 
     def add_tim_pembina(self, data):
-        return self._make_request('POST', f"{self.base_url}/tim_pembina", json=data,
-                                headers={'Content-Type': 'application/json'})
+        """Add new tim pembina peserta"""
+        return self._make_request('POST', f"{self.base_url}/tim-pembina",
+                               json=data,
+                               headers={'Content-Type': 'application/json'})
 
-    def update_tim_pembina(self, tim_id, data):
-        return self._make_request('PUT', f"{self.base_url}/tim_pembina/{tim_id}", json=data,
-                                headers={'Content-Type': 'application/json'})
+    def update_tim_pembina(self, tim_pembina_id, data):
+        """Update tim pembina peserta"""
+        return self._make_request('PUT', f"{self.base_url}/tim-pembina/{tim_pembina_id}",
+                              json=data,
+                              headers={'Content-Type': 'application/json'})
 
-    def delete_tim_pembina(self, tim_id):
-        return self._make_request('DELETE', f"{self.base_url}/tim_pembina/{tim_id}")
+    def delete_tim_pembina(self, tim_pembina_id):
+        """Delete tim pembina peserta"""
+        return self._make_request('DELETE', f"{self.base_url}/tim-pembina/{tim_pembina_id}")
 
-    def add_tim_pembina_peserta(self, tim_id, data):
-        return self._make_request('POST', f"{self.base_url}/tim_pembina/{tim_id}/peserta", json=data,
-                                headers={'Content-Type': 'application/json'})
-
-    def delete_tim_pembina_peserta(self, peserta_id):
-        return self._make_request('DELETE', f"{self.base_url}/tim_pembina/peserta/{peserta_id}")
-
-    def get_tim_pembina_peserta(self):
-        """Get all peserta from tim_pembina table (new single-table approach)"""
-        return self._make_request('GET', f"{self.base_url}/tim_pembina_peserta")
-
-    def add_tim_pembina_peserta_new(self, data):
-        """Add new peserta to tim_pembina table (new single-table approach)"""
-        return self._make_request('POST', f"{self.base_url}/tim_pembina_peserta", json=data,
-                                headers={'Content-Type': 'application/json'})
-
-    def update_tim_pembina_peserta(self, peserta_id, data):
-        """Update peserta in tim_pembina table (new single-table approach)"""
-        return self._make_request('PUT', f"{self.base_url}/tim_pembina_peserta/{peserta_id}", json=data,
-                                headers={'Content-Type': 'application/json'})
-
-    def delete_tim_pembina_peserta_new(self, peserta_id):
-        """Delete peserta from tim_pembina table (new single-table approach)"""
-        return self._make_request('DELETE', f"{self.base_url}/tim_pembina_peserta/{peserta_id}")
+    def search_jemaat_for_tim_pembina(self, search):
+        """Search jemaat for tim pembina nama peserta field"""
+        url = f"{self.base_url}/tim-pembina/search-jemaat"
+        params = {'search': search}
+        return self._make_request('GET', url, params=params)
 
     # ========== PROGRAM KERJA KATEGORIAL METHODS ==========
     def get_program_kerja_kategorial(self, search=None):

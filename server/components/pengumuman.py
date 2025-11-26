@@ -21,11 +21,16 @@ class PengumumanComponent(QWidget):
         super().__init__(parent)
         self.pengumuman_data = []
         self.db_manager = None
+        self.current_admin = None
         self.setup_ui()
     
     def set_database_manager(self, db_manager):
         """Set database manager"""
         self.db_manager = db_manager
+
+    def set_current_admin(self, admin_data):
+        """Set the current admin data."""
+        self.current_admin = admin_data
     
     def setup_ui(self):
         """Setup UI untuk halaman pengumuman"""

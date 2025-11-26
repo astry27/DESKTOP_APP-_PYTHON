@@ -15,8 +15,7 @@ try:
     from components.dashboard import DashboardComponent
     from components.struktur import StrukturComponent
     from components.jemaat import JemaatComponent
-    from components.program_kerja import ProgramKerjaComponent
-    from components.inventaris import InventarisComponent
+    from components.aset import AsetComponent
     from components.pengumuman import PengumumanComponent
     from components.pengaturan import PengaturanComponent
     from components.server_control import ServerControlComponent
@@ -24,10 +23,22 @@ try:
     from components.dokumen import DokumenComponent
     from components.pengguna import PenggunaComponent
     from components.keuangan import KeuanganComponent
+    from components.buku_kronik import BukuKronikComponent
+    from components.kegiatan_paroki_page import KegiatanParokiPageComponent
+    from components.kegiatan_wr_page import KegiatanWRPageComponent
+    from components.proker_dpp_page import ProkerDPPPageComponent
+    from components.proker_wr_page import ProkerWRPageComponent
+    from components.struktur_wr_page import StrukturWRPageComponent
+    from components.struktur_kategorial_page import StrukturKategorialPageComponent
+    from components.keuangan_wr_page import KeuanganWRPageComponent
+    from components.keuangan_kategorial_page import KeuanganKategorialPageComponent
+    from components.proker_kategorial_page import ProkerKategorialPageComponent
+    from components.tim_pembina import TimPembinaComponent
 except ImportError as e:
     print(f"Error importing components: {e}")
     app = QApplication(sys.argv)
-    QMessageBox.critical(None, "Import Error", f"Gagal memuat komponen aplikasi:\n{e}\n\nPastikan semua file komponen berada di direktori yang benar.")
+    temp_widget = QWidget()
+    QMessageBox.critical(temp_widget, "Import Error", f"Gagal memuat komponen aplikasi:\n{e}\n\nPastikan semua file komponen berada di direktori yang benar.")
     sys.exit(1)
 
 from database import DatabaseManager
@@ -47,8 +58,7 @@ class ServerMainWindow(QMainWindow):
         self.setup_client_server()
         
         # Show login dialog before main window
-        if not self.show_login():
-            sys.exit(1)
+        self.show_login()
         
         # Setup main window after successful login
         self.setup_main_window()
@@ -83,12 +93,9 @@ class ServerMainWindow(QMainWindow):
     def setup_database(self):
         try:
             self.db = DatabaseManager()
-            if not self.db.connection:
-                self.db = None 
-                print("Peringatan: Gagal terhubung ke API shared hosting saat inisialisasi.")
-                print("Aplikasi akan berjalan dalam mode offline terbatas.")
-            else:
-                print("Database Manager berhasil diinisialisasi dan terhubung ke API shared hosting.")
+            # DatabaseManager sekarang lazy-load connection test
+            # Actual connection status akan diketahui setelah login attempt
+            print("Database Manager berhasil diinisialisasi.")
         except Exception as e:
             self.db = None
             print(f"Error inisialisasi Database Manager: {str(e)}")
@@ -113,16 +120,7 @@ class ServerMainWindow(QMainWindow):
     def show_login(self):
         """Tampilkan dialog login dan return True jika berhasil"""
         if not self.db:
-            reply = QMessageBox.question(None, "Koneksi API Gagal", 
-                                       "Tidak dapat terhubung ke API shared hosting.\n\n"
-                                       "Aplikasi dapat dijalankan dalam mode offline terbatas, "
-                                       "tetapi fitur login dan akses data tidak akan tersedia.\n\n"
-                                       "Apakah Anda ingin melanjutkan?",
-                                       QMessageBox.Yes | QMessageBox.No,
-                                       QMessageBox.No)
-            if reply == QMessageBox.No:
-                return False
-            
+            print("Warning: Database Manager tidak tersedia")
             # Set dummy admin data untuk mode offline
             self.current_admin = {
                 'id_admin': 1,
@@ -131,12 +129,12 @@ class ServerMainWindow(QMainWindow):
                 'peran': 'administrator'
             }
             return True
-        
+
         login_dialog = LoginDialog(self.db)
         login_dialog.login_successful.connect(self.on_login_successful)
-        
+
         result = login_dialog.exec_()
-        
+
         if result == login_dialog.Accepted and self.current_admin:
             return True
         else:
@@ -193,6 +191,9 @@ class ServerMainWindow(QMainWindow):
         content_layout.setSpacing(0)
         
         self.server_control = ServerControlComponent()
+        # PENTING: Set database manager agar server control bisa fetch data client
+        if self.db:
+            self.server_control.set_database_manager(self.db)
         content_layout.addWidget(self.server_control)
         
         self.content_stack = QStackedWidget()
@@ -211,85 +212,169 @@ class ServerMainWindow(QMainWindow):
         # Index 0: Dashboard
         self.dashboard_component = DashboardComponent()
         self.content_stack.addWidget(self.dashboard_component)
-        
+
         # Index 1: Struktur DPP
         self.struktur_component = StrukturComponent()
         self.struktur_component.set_database_manager(self.db)
+        self.struktur_component.set_current_admin(self.current_admin)
         self.content_stack.addWidget(self.struktur_component)
-        
-        # Index 2: Program Kerja
-        self.program_kerja_component = ProgramKerjaComponent()
-        self.program_kerja_component.set_database_manager(self.db)
-        self.content_stack.addWidget(self.program_kerja_component)
-        
+
+        # Index 2: Program Kerja (moved to standalone pages, keeping slot for backward compatibility)
+        # NOTE: Program Kerja now uses standalone page components instead of tab interface
+        placeholder_widget = QWidget()  # Placeholder for index 2
+        self.content_stack.addWidget(placeholder_widget)
+
         # Index 3: Database Umat
         self.jemaat_component = JemaatComponent()
         self.jemaat_component.set_database_manager(self.db)
+        self.jemaat_component.set_current_admin(self.current_admin)
         self.content_stack.addWidget(self.jemaat_component)
-        
-        # Index 4: Inventaris
-        self.inventaris_component = InventarisComponent()
-        self.inventaris_component.set_database_manager(self.db)
-        self.content_stack.addWidget(self.inventaris_component)
-        
+
+        # Index 4: Aset (sebelumnya Inventaris)
+        self.aset_component = AsetComponent()
+        self.aset_component.set_database_manager(self.db)
+        self.aset_component.set_current_admin(self.current_admin)
+        self.content_stack.addWidget(self.aset_component)
+
         # Index 5: Pengumuman
         self.pengumuman_component = PengumumanComponent()
         self.pengumuman_component.set_database_manager(self.db)
+        self.pengumuman_component.set_current_admin(self.current_admin)
         self.content_stack.addWidget(self.pengumuman_component)
-        
-        # Index 6: Riwayat
+
+        # Index 6: Dokumen
+        self.dokumen_component = DokumenComponent()
+        self.dokumen_component.set_database_manager(self.db)
+        self.dokumen_component.set_current_admin(self.current_admin)
+        self.content_stack.addWidget(self.dokumen_component)
+
+        # Index 7: Keuangan
+        self.keuangan_component = KeuanganComponent(self.db)
+        self.keuangan_component.set_current_admin(self.current_admin)
+        self.content_stack.addWidget(self.keuangan_component)
+
+        # Index 8: Tim Pembina
+        self.tim_pembina_component = TimPembinaComponent()
+        self.tim_pembina_component.set_database_manager(self.db)
+        self.tim_pembina_component.set_current_admin(self.current_admin)
+        self.content_stack.addWidget(self.tim_pembina_component)
+
+        # Index 9: Riwayat
         self.riwayat_component = RiwayatComponent()
         self.riwayat_component.set_database_manager(self.db)
         self.content_stack.addWidget(self.riwayat_component)
-        
-        # Index 7: Dokumen
-        self.dokumen_component = DokumenComponent()
-        self.dokumen_component.set_database_manager(self.db)
-        self.content_stack.addWidget(self.dokumen_component)
-        
-        # Index 8: Keuangan
-        self.keuangan_component = KeuanganComponent(self.db)
-        self.content_stack.addWidget(self.keuangan_component)
-        
-        # Index 9: Manajemen Pengguna
-        self.pengguna_component = PenggunaComponent()
-        self.content_stack.addWidget(self.pengguna_component)
-        
-        # Index 10: Pengaturan Sistem
+
+        # Index 10: Pengaturan Sistem (termasuk Manajemen Pengguna)
         self.pengaturan_component = PengaturanComponent()
         self.pengaturan_component.set_database_manager(self.db)
         self.content_stack.addWidget(self.pengaturan_component)
-        
+
+        # Index 11: Buku Kronik
+        self.buku_kronik_component = BukuKronikComponent()
+        self.buku_kronik_component.set_database_manager(self.db)
+        self.buku_kronik_component.set_current_admin(self.current_admin)
+        self.content_stack.addWidget(self.buku_kronik_component)
+
+        # Index 12: Kegiatan Paroki (standalone page)
+        self.kegiatan_paroki_page = KegiatanParokiPageComponent()
+        self.kegiatan_paroki_page.set_database_manager(self.db)
+        self.kegiatan_paroki_page.set_current_admin(self.current_admin)
+        self.content_stack.addWidget(self.kegiatan_paroki_page)
+
+        # Index 13: Kegiatan WR (standalone page)
+        self.kegiatan_wr_page = KegiatanWRPageComponent()
+        self.kegiatan_wr_page.set_database_manager(self.db)
+        self.kegiatan_wr_page.set_current_admin(self.current_admin)
+        self.content_stack.addWidget(self.kegiatan_wr_page)
+
+        # Index 14: Program Kerja DPP (standalone page)
+        self.proker_dpp_page = ProkerDPPPageComponent()
+        self.proker_dpp_page.set_database_manager(self.db)
+        self.proker_dpp_page.set_current_admin(self.current_admin)
+        self.content_stack.addWidget(self.proker_dpp_page)
+
+        # Index 15: Program Kerja WR (standalone page)
+        self.proker_wr_page = ProkerWRPageComponent()
+        self.proker_wr_page.set_database_manager(self.db)
+        self.proker_wr_page.set_current_admin(self.current_admin)
+        self.content_stack.addWidget(self.proker_wr_page)
+
+        # Index 16: Struktur WR (standalone page)
+        self.struktur_wr_page = StrukturWRPageComponent()
+        self.struktur_wr_page.set_database_manager(self.db)
+        self.struktur_wr_page.set_current_admin(self.current_admin)
+        self.content_stack.addWidget(self.struktur_wr_page)
+
+        # Index 17: Struktur K. Kategorial (standalone page)
+        self.struktur_kategorial_page = StrukturKategorialPageComponent()
+        self.struktur_kategorial_page.set_database_manager(self.db)
+        self.struktur_kategorial_page.set_current_admin(self.current_admin)
+        self.content_stack.addWidget(self.struktur_kategorial_page)
+
+        # Index 18: Keuangan WR (standalone page)
+        self.keuangan_wr_page = KeuanganWRPageComponent()
+        self.keuangan_wr_page.set_database_manager(self.db)
+        self.keuangan_wr_page.set_current_admin(self.current_admin)
+        self.content_stack.addWidget(self.keuangan_wr_page)
+
+        # Index 19: Keuangan K. Kategorial (standalone page)
+        self.keuangan_kategorial_page = KeuanganKategorialPageComponent()
+        self.keuangan_kategorial_page.set_database_manager(self.db)
+        self.keuangan_kategorial_page.set_current_admin(self.current_admin)
+        admin_id = self.current_admin.get('id_admin')
+        if admin_id:
+            self.keuangan_kategorial_page.set_admin_id(admin_id)
+        self.content_stack.addWidget(self.keuangan_kategorial_page)
+
+        # Index 20: Program Kerja K. Kategorial (standalone page)
+        self.proker_kategorial_page = ProkerKategorialPageComponent()
+        self.proker_kategorial_page.set_database_manager(self.db)
+        self.proker_kategorial_page.set_current_admin(self.current_admin)
+        self.content_stack.addWidget(self.proker_kategorial_page)
+
+        # Note: PenggunaComponent bisa diakses melalui PengaturanComponent
+
         self.server_control.set_database_manager(self.db)
     
     def setup_connections(self):
+        # Main menu connections
         self.sidebar.menu_dashboard.clicked.connect(lambda: self.show_page(0))
-        self.sidebar.menu_struktur.clicked.connect(lambda: self.show_page(1))
-        self.sidebar.menu_program_kerja.clicked.connect(lambda: self.show_page(2))
-        self.sidebar.menu_jemaat.clicked.connect(lambda: self.show_page(3))
-        self.sidebar.menu_inventaris.clicked.connect(lambda: self.show_page(4))
-        self.sidebar.menu_pengumuman.clicked.connect(lambda: self.show_page(5))
-        self.sidebar.menu_riwayat.clicked.connect(lambda: self.show_page(6))
-        self.sidebar.menu_dokumen.clicked.connect(lambda: self.show_page(7))
-        self.sidebar.menu_keuangan.clicked.connect(lambda: self.show_page(8))
-        self.sidebar.menu_pengguna.clicked.connect(lambda: self.show_page(9))
+        self.sidebar.menu_buku_kronik.clicked.connect(lambda: self.show_page(11))
+        self.sidebar.menu_riwayat.clicked.connect(lambda: self.show_page(9))
         self.sidebar.menu_pengaturan.clicked.connect(lambda: self.show_page(10))
-        
+
+        # Submenu Pusat Paroki connections
+        self.sidebar.submenu_pusat_paroki.menu_clicked.connect(self.on_pusat_paroki_menu_selected)
+
+        # Submenu Wilayah Rohani connections
+        self.sidebar.submenu_wilayah_rohani.menu_clicked.connect(self.on_wilayah_rohani_menu_selected)
+
+        # Submenu Kelompok Kategorial connections
+        self.sidebar.submenu_kelompok_kategorial.menu_clicked.connect(self.on_kelompok_kategorial_menu_selected)
+
         self.server_control.log_message.connect(self.server_control.add_log_message)
-        
+
         components = [
             self.struktur_component,
-            self.program_kerja_component,
             self.jemaat_component,
-            self.inventaris_component,
+            self.aset_component,
             self.pengumuman_component,
-            self.riwayat_component,
             self.dokumen_component,
             self.keuangan_component,
-            self.pengguna_component,
-            self.pengaturan_component
+            self.riwayat_component,
+            self.pengaturan_component,
+            self.buku_kronik_component,
+            self.kegiatan_paroki_page,
+            self.kegiatan_wr_page,
+            self.proker_dpp_page,
+            self.proker_wr_page,
+            self.struktur_wr_page,
+            self.struktur_kategorial_page,
+            self.keuangan_wr_page,
+            self.keuangan_kategorial_page,
+            self.proker_kategorial_page
         ]
-        
+
         for component in components:
             if hasattr(component, 'log_message'):
                 component.log_message.connect(self.server_control.add_log_message)
@@ -394,48 +479,156 @@ class ServerMainWindow(QMainWindow):
             except Exception as e:
                 print(f"Error logging admin activity: {e}")
     
-    def show_page(self, index):
+    def on_pusat_paroki_menu_selected(self, menu_id):
+        """Handle Pusat Paroki submenu selection"""
+        menu_map = {
+            "struktur_dpp": (1, 0),          # Struktur Organisasi (Tab 0 - menampilkan DPP dan K. Binaan tabs)
+            "proker_dpp": (14, None),        # Program Kerja DPP (standalone page - no tabs)
+            "kegiatan_paroki": (12, None),   # Kegiatan Paroki (standalone page - no tabs)
+            "database_umat": (3, None),      # Database Umat (no tabs)
+            "aset": (4, None),               # Aset (no tabs)
+            "dokumen": (6, None),            # Dokumen (no tabs)
+            "pengumuman": (5, None),         # Pengumuman (no tabs)
+            "tim_pembina": (8, None),        # Tim Pembina (no tabs)
+        }
+        if menu_id in menu_map:
+            page_index, tab_index = menu_map[menu_id]
+            self.show_page(page_index, tab_index)
+
+    def on_wilayah_rohani_menu_selected(self, menu_id):
+        """Handle Wilayah Rohani submenu selection"""
+        menu_map = {
+            "struktur_wr": (16, None),       # Struktur WR (standalone page - no tabs)
+            "keuangan_wr": (18, None),       # Keuangan WR (standalone page - no tabs)
+            "proker_wr": (15, None),         # Program Kerja WR (standalone page - no tabs)
+            "kegiatan_wr": (13, None),       # Kegiatan WR (standalone page - no tabs)
+        }
+        if menu_id in menu_map:
+            page_index, tab_index = menu_map[menu_id]
+            self.show_page(page_index, tab_index)
+
+    def on_kelompok_kategorial_menu_selected(self, menu_id):
+        """Handle Kelompok Kategorial submenu selection"""
+        menu_map = {
+            "struktur_kategorial": (17, None),      # Struktur K. Kategorial (standalone page - no tabs)
+            "keuangan_kategorial": (19, None),      # Keuangan K. Kategorial (standalone page - no tabs)
+            "proker_kategorial": (20, None),        # Program Kerja K. Kategorial (standalone page - no tabs)
+        }
+        if menu_id in menu_map:
+            page_index, tab_index = menu_map[menu_id]
+            self.show_page(page_index, tab_index)
+
+    def show_page(self, index, tab_index=None):
+        """
+        Show page dan optional tab index
+
+        Args:
+            index: Page index dalam content_stack
+            tab_index: Tab index untuk component yang memiliki tabs (opsional)
+        """
         self.sidebar.reset_menu_selection()
-        
+
         if index == 0:
             self.sidebar.menu_dashboard.setChecked(True)
             self.update_dashboard_data()
         elif index == 1:
-            self.sidebar.menu_struktur.setChecked(True)
+            self.sidebar.menu_pusat_paroki.setChecked(True)
+            self.sidebar.submenu_pusat_paroki.show_submenu()
             self.struktur_component.load_data()
         elif index == 2:
-            self.sidebar.menu_program_kerja.setChecked(True)
-            self.program_kerja_component.kalender_widget.load_data()
+            # Index 2 is now a placeholder - Program Kerja uses individual page components
+            # Redirect to ProkerDPPPageComponent (index 14) as default
+            self.sidebar.menu_pusat_paroki.setChecked(True)
+            self.sidebar.submenu_pusat_paroki.show_submenu()
+            self.show_page(14)  # Show ProkerDPPPageComponent instead
         elif index == 3:
-            self.sidebar.menu_jemaat.setChecked(True)
+            self.sidebar.menu_pusat_paroki.setChecked(True)
+            self.sidebar.submenu_pusat_paroki.show_submenu()
             self.jemaat_component.load_data()
         elif index == 4:
-            self.sidebar.menu_inventaris.setChecked(True)
-            self.inventaris_component.load_data()
+            self.sidebar.menu_pusat_paroki.setChecked(True)
+            self.sidebar.submenu_pusat_paroki.show_submenu()
+            self.aset_component.load_data()
         elif index == 5:
-            self.sidebar.menu_pengumuman.setChecked(True)
+            self.sidebar.menu_pusat_paroki.setChecked(True)
+            self.sidebar.submenu_pusat_paroki.show_submenu()
             self.pengumuman_component.load_data()
         elif index == 6:
+            self.sidebar.menu_pusat_paroki.setChecked(True)
+            self.sidebar.submenu_pusat_paroki.show_submenu()
+            self.dokumen_component.load_data()
+        elif index == 7:
+            self.sidebar.menu_wilayah_rohani.setChecked(True)
+            self.sidebar.submenu_wilayah_rohani.show_submenu()
+            self.keuangan_component.load_data()
+        elif index == 8:
+            # Index 8 is now a placeholder (Tim Pembina removed)
+            # Redirect to dashboard
+            self.show_page(0)
+        elif index == 9:
             self.sidebar.menu_riwayat.setChecked(True)
             self.riwayat_component.load_data()
-        elif index == 7:
-            self.sidebar.menu_dokumen.setChecked(True)
-            self.dokumen_component.load_data()
-        elif index == 8:
-            self.sidebar.menu_keuangan.setChecked(True)
-            self.keuangan_component.load_data()
-        elif index == 9:
-            self.sidebar.menu_pengguna.setChecked(True)
         elif index == 10:
             self.sidebar.menu_pengaturan.setChecked(True)
-        
+        elif index == 11:
+            self.sidebar.menu_buku_kronik.setChecked(True)
+            self.buku_kronik_component.load_data()
+        elif index == 12:
+            self.sidebar.menu_pusat_paroki.setChecked(True)
+            self.sidebar.submenu_pusat_paroki.show_submenu()
+            self.kegiatan_paroki_page.load_data()
+        elif index == 13:
+            self.sidebar.menu_wilayah_rohani.setChecked(True)
+            self.sidebar.submenu_wilayah_rohani.show_submenu()
+            self.kegiatan_wr_page.load_data()
+        elif index == 14:
+            self.sidebar.menu_pusat_paroki.setChecked(True)
+            self.sidebar.submenu_pusat_paroki.show_submenu()
+            self.proker_dpp_page.load_data()
+        elif index == 15:
+            self.sidebar.menu_wilayah_rohani.setChecked(True)
+            self.sidebar.submenu_wilayah_rohani.show_submenu()
+            self.proker_wr_page.load_data()
+        elif index == 16:
+            self.sidebar.menu_wilayah_rohani.setChecked(True)
+            self.sidebar.submenu_wilayah_rohani.show_submenu()
+            self.struktur_wr_page.load_data()
+        elif index == 17:
+            self.sidebar.menu_kelompok_kategorial.setChecked(True)
+            self.sidebar.submenu_kelompok_kategorial.show_submenu()
+            self.struktur_kategorial_page.load_data()
+
+        elif index == 18:  # Keuangan WR
+            self.sidebar.menu_wilayah_rohani.setChecked(True)
+            self.sidebar.submenu_wilayah_rohani.show_submenu()
+            self.keuangan_wr_page.load_data()
+
+        elif index == 19:  # Keuangan K. Kategorial
+            self.sidebar.menu_kelompok_kategorial.setChecked(True)
+            self.sidebar.submenu_kelompok_kategorial.show_submenu()
+            self.keuangan_kategorial_page.load_data()
+
+        elif index == 20:  # Program Kerja K. Kategorial
+            self.sidebar.menu_kelompok_kategorial.setChecked(True)
+            self.sidebar.submenu_kelompok_kategorial.show_submenu()
+            self.proker_kategorial_page.load_data()
+
         self.content_stack.setCurrentIndex(index)
-        
+
+        # Handle tab switching jika tab_index diberikan
+        if tab_index is not None:
+            self._switch_component_tab(index, tab_index)
+
         # Update status bar dengan info halaman saat ini
         page_names = [
-            "Dashboard", "Database Jemaat", "Jadwal Kegiatan", 
-            "Manajemen Keuangan", "Pengumuman", "Riwayat", 
-            "Dokumen", "Pengaturan Sistem"
+            "Dashboard", "Struktur Organisasi", "Program Kerja",
+            "Database Jemaat", "Aset", "Pengumuman",
+            "Dokumen", "Keuangan", "Placeholder",
+            "Riwayat", "Pengaturan Sistem", "Buku Kronik",
+            "Kegiatan Paroki", "Kegiatan WR",
+            "Program Kerja DPP", "Program Kerja WR",
+            "Struktur WR", "Struktur K. Kategorial", "Keuangan WR", "Keuangan K. Kategorial",
+            "Program Kerja K. Kategorial"
         ]
         if 0 <= index < len(page_names):
             if self.db and self.db.connection:
@@ -443,6 +636,31 @@ class ServerMainWindow(QMainWindow):
             else:
                 self.statusBar().showMessage(f"Offline Mode - {page_names[index]} (Limited)")
     
+    def _switch_component_tab(self, page_index, tab_index):
+        """
+        Switch tab dalam component yang memiliki tabs
+
+        Args:
+            page_index: Index halaman dalam content_stack
+            tab_index: Index tab yang ingin ditampilkan
+        """
+        try:
+            if page_index == 1:  # Struktur Component
+                if hasattr(self.struktur_component, 'tab_widget'):
+                    self.struktur_component.tab_widget.setCurrentIndex(tab_index)
+            elif page_index == 7:  # Keuangan Component
+                if hasattr(self.keuangan_component, 'tab_widget'):
+                    self.keuangan_component.tab_widget.setCurrentIndex(tab_index)
+            elif page_index == 9:  # Riwayat Component
+                if hasattr(self.riwayat_component, 'tab_widget'):
+                    self.riwayat_component.tab_widget.setCurrentIndex(tab_index)
+            elif page_index == 10:  # Pengaturan Component
+                if hasattr(self.pengaturan_component, 'tab_widget'):
+                    self.pengaturan_component.tab_widget.setCurrentIndex(tab_index)
+            # Note: Program Kerja pages (index 14, 15) don't have tabs anymore
+        except Exception as e:
+            print(f"Error switching tab: {e}")
+
     def load_all_data(self):
         if not self.db:
             self.server_control.add_log_message("Tidak bisa memuat data, API shared hosting tidak terhubung.")
@@ -450,17 +668,45 @@ class ServerMainWindow(QMainWindow):
 
         self.struktur_component.load_data()
         self.jemaat_component.load_data()
-        self.program_kerja_component.kalender_widget.load_data()
+
+        # Load program kerja pages (DPP, WR) and kegiatan pages (Paroki, WR)
+        self.proker_dpp_page.load_data()
+        self.proker_wr_page.load_data()
+        self.kegiatan_paroki_page.load_data()
+        self.kegiatan_wr_page.load_data()
+
         self.pengumuman_component.load_data()
-        self.inventaris_component.load_data()
-        self.riwayat_component.load_data()
+        self.aset_component.load_data()
         self.dokumen_component.load_data()
+        self.keuangan_component.load_data()
+        self.riwayat_component.load_data()
+        self.buku_kronik_component.load_data()
+
+        # Load standalone kegiatan pages
+        self.kegiatan_paroki_page.load_data()
+        self.kegiatan_wr_page.load_data()
+
+        # Load standalone program kerja pages
+        self.proker_dpp_page.load_data()
+        self.proker_wr_page.load_data()
+
+        # Load standalone struktur pages
+        self.struktur_wr_page.load_data()
+        self.struktur_kategorial_page.load_data()
+
+        # Load standalone keuangan pages
+        self.keuangan_wr_page.load_data()
+        self.keuangan_kategorial_page.load_data()
+
+        # Load standalone proker kategorial page
+        self.proker_kategorial_page.load_data()
+
         self.update_dashboard_data()
-        
+
         # Update sidebar status setelah load data
         if hasattr(self.sidebar, 'update_api_status'):
             self.sidebar.update_api_status()
-        
+
         self.server_control.add_log_message("Semua data berhasil dimuat ulang dari API shared hosting.")
     
     def update_dashboard_data(self):
@@ -468,13 +714,16 @@ class ServerMainWindow(QMainWindow):
             return
 
         jemaat_data = self.jemaat_component.get_data()
-        kegiatan_data = self.program_kerja_component.get_data()
+        # Get kegiatan data from individual page components
+        kegiatan_paroki_data = self.kegiatan_paroki_page.get_data() if hasattr(self.kegiatan_paroki_page, 'get_data') else []
+        kegiatan_wr_data = self.kegiatan_wr_page.get_data() if hasattr(self.kegiatan_wr_page, 'get_data') else []
+        kegiatan_data = kegiatan_paroki_data + kegiatan_wr_data
         pengumuman_data = self.pengumuman_component.get_data()
-        
+
         self.dashboard_component.update_statistics(
-            jemaat_data, 
-            kegiatan_data, 
-            pengumuman_data, 
+            jemaat_data,
+            kegiatan_data,
+            pengumuman_data,
             self.db
         )
     
@@ -498,8 +747,9 @@ class ServerMainWindow(QMainWindow):
                          f"- Kontrol API Server\n"
                          f"- Broadcast Message ke Client\n"
                          f"- Sistem Login Admin\n\n"
-                         f"Database: API Mode via Shared Hosting\n"
-                         f"API Endpoint: https://enternal.my.id/flask\n\n"
+                         # DEVELOPMENT: Changed from Shared Hosting to localhost
+                         f"Database: API Mode (Local Development)\n"
+                         f"API Endpoint: http://localhost:5000\n\n"
                          f"Dibuat dengan PyQt5 dan Flask API")
     
     def show_help(self):

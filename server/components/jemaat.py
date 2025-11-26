@@ -4,11 +4,79 @@ from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                             QPushButton, QLineEdit, QTableWidget, QTableWidgetItem,
                             QHeaderView, QMessageBox, QFileDialog, QAbstractItemView, QFrame,
                             QScrollArea, QSplitter)
-from PyQt5.QtCore import QObject, pyqtSignal, Qt, QSize
-from PyQt5.QtGui import QFont, QPalette, QColor, QIcon
+from PyQt5.QtCore import QObject, pyqtSignal, Qt, QSize, QRect, QTimer
+from PyQt5.QtGui import QFont, QPalette, QColor, QIcon, QPainter
 
 # Import dialog secara langsung untuk menghindari circular import
 from .dialogs import JemaatDialog
+
+class WordWrapHeaderView(QHeaderView):
+    """Custom header view with word wrap and center alignment support"""
+    def __init__(self, orientation, parent=None):
+        super().__init__(orientation, parent)
+        self.setDefaultAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+        self.setSectionsClickable(True)
+        self.setHighlightSections(True)
+
+    def sectionSizeFromContents(self, logicalIndex):
+        """Calculate section size based on wrapped text"""
+        if self.model():
+            # Get header text
+            text = self.model().headerData(logicalIndex, self.orientation(), Qt.DisplayRole)
+            if text:
+                # Get current section width
+                width = self.sectionSize(logicalIndex)
+                if width <= 0:
+                    width = self.defaultSectionSize()
+
+                # Create font metrics
+                font = self.font()
+                font.setBold(True)
+                fm = self.fontMetrics()
+
+                # Calculate text rect with word wrap
+                rect = fm.boundingRect(0, 0, width - 8, 1000,
+                                      Qt.AlignCenter | Qt.TextWordWrap, str(text))
+
+                # Return size with padding
+                return QSize(width, max(rect.height() + 12, 25))
+
+        return super().sectionSizeFromContents(logicalIndex)
+
+    def paintSection(self, painter, rect, logicalIndex):
+        """Paint section with word wrap and center alignment"""
+        painter.save()
+
+        # Draw background with consistent color
+        bg_color = QColor(242, 242, 242)  # #f2f2f2
+        painter.fillRect(rect, bg_color)
+
+        # Draw borders
+        border_color = QColor(212, 212, 212)  # #d4d4d4
+        painter.setPen(border_color)
+        # Right border
+        painter.drawLine(rect.topRight(), rect.bottomRight())
+        # Bottom border
+        painter.drawLine(rect.bottomLeft(), rect.bottomRight())
+
+        # Get header text
+        if self.model():
+            text = self.model().headerData(logicalIndex, self.orientation(), Qt.DisplayRole)
+            if text:
+                # Setup font
+                font = self.font()
+                font.setBold(True)
+                painter.setFont(font)
+
+                # Text color
+                text_color = QColor(51, 51, 51)  # #333333
+                painter.setPen(text_color)
+
+                # Draw text with word wrap and center alignment
+                text_rect = rect.adjusted(4, 4, -4, -4)
+                painter.drawText(text_rect, Qt.AlignCenter | Qt.TextWordWrap, str(text))
+
+        painter.restore()
 
 class JemaatComponent(QWidget):
     """Komponen untuk manajemen data jemaat"""
@@ -20,8 +88,15 @@ class JemaatComponent(QWidget):
         super().__init__(parent)
         self.jemaat_data = []
         self.db_manager = None
+        self.current_admin = None  # Tambahkan ini
+        self._pengguna_lookup = {}
+        self._pengguna_lookup_attempted = False
         self.setup_ui()
-    
+
+    def set_current_admin(self, admin_data):
+        """Set the current admin data."""
+        self.current_admin = admin_data
+
     def set_database_manager(self, db_manager):
         """Set database manager"""
         self.db_manager = db_manager
@@ -80,42 +155,93 @@ class JemaatComponent(QWidget):
         header = QWidget()
         header_layout = QHBoxLayout(header)
         header_layout.setContentsMargins(0, 0, 10, 0)  # Add right margin for spacing
-        
-        header_layout.addStretch()
-        
+
+        # Search functionality dengan label
+        header_layout.addWidget(QLabel("Cari:"))
+
         self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Cari jemaat...")
-        self.search_input.setFixedWidth(250)
-        self.search_input.returnPressed.connect(self.search_jemaat)
+        self.search_input.setPlaceholderText("Cari umat...")
+        self.search_input.setFixedWidth(300)
+        # Gunakan textChanged untuk real-time search seperti di struktur
+        self.search_input.textChanged.connect(self.filter_data)
         header_layout.addWidget(self.search_input)
-        
-        search_button = self.create_button("Cari", "#3498db", self.search_jemaat)
-        header_layout.addWidget(search_button)
-        
+
+        # Filter Wilayah Rohani menggunakan QComboBox
+        header_layout.addWidget(QLabel("Filter Wilayah:"))
+
+        from PyQt5.QtWidgets import QComboBox
+        self.filter_wilayah = QComboBox()
+        wilayah_list = [
+            "Semua",
+            "ST. YOHANES BAPTISTA DE LA SALLE",
+            "ST. ALOYSIUS GONZAGA",
+            "ST. GREGORIUS AGUNG",
+            "ST. DOMINICO SAVIO",
+            "ST. THOMAS AQUINAS",
+            "ST. ALBERTUS AGUNG",
+            "ST. BONAVENTURA",
+            "STA. KATARINA DARI SIENA",
+            "STA. SISILIA",
+            "ST. BLASIUS",
+            "ST. CAROLUS BORROMEUS",
+            "ST. BONIFASIUS",
+            "ST. CORNELIUS",
+            "STA. BRIGITTA",
+            "ST. IGNASIUS DARI LOYOLA",
+            "ST. PIUS X",
+            "STA. AGNES",
+            "ST. AGUSTINUS",
+            "STA. FAUSTINA",
+            "ST. YOHANES MARIA VIANNEY",
+            "STA. MARIA GORETTI",
+            "STA. PERPETUA",
+            "ST. LUKAS",
+            "STA. SKOLASTIKA",
+            "STA. THERESIA DARI AVILLA",
+            "ST. VINCENTIUS A PAULO"
+        ]
+        self.filter_wilayah.addItems(wilayah_list)
+        self.filter_wilayah.setFixedWidth(200)
+        self.filter_wilayah.currentTextChanged.connect(self.filter_data)
+        header_layout.addWidget(self.filter_wilayah)
+
+        # Filter Kategori menggunakan QComboBox
+        header_layout.addWidget(QLabel("Filter Kategori:"))
+
+        self.filter_kategori = QComboBox()
+        kategori_list = ["Semua", "Balita", "Anak-anak", "Remaja", "OMK", "KBK", "KIK", "Lansia"]
+        self.filter_kategori.addItems(kategori_list)
+        self.filter_kategori.setFixedWidth(150)
+        self.filter_kategori.currentTextChanged.connect(self.filter_data)
+        header_layout.addWidget(self.filter_kategori)
+
+        header_layout.addStretch()
+
         add_button = self.create_button("Tambah Umat", "#27ae60", self.add_jemaat, "server/assets/tambah.png")
         header_layout.addWidget(add_button)
-        
+
         return header
     
     def create_action_buttons(self):
         """Buat tombol-tombol aksi"""
         action_layout = QHBoxLayout()
         action_layout.addStretch()
-        
+
         edit_button = self.create_button("Edit Terpilih", "#f39c12", self.edit_jemaat, "server/assets/edit.png")
         action_layout.addWidget(edit_button)
-        
+
         delete_button = self.create_button("Hapus Terpilih", "#c0392b", self.delete_jemaat, "server/assets/hapus.png")
         action_layout.addWidget(delete_button)
-        
+
         export_button = self.create_button("Export Data", "#16a085", self.export_jemaat, "server/assets/export.png")
         action_layout.addWidget(export_button)
-        
+
         broadcast_button = self.create_button("Broadcast ke Client", "#8e44ad", self.broadcast_jemaat, "server/assets/tambah.png")
         action_layout.addWidget(broadcast_button)
-        
+
         return action_layout
-    
+
+
     def create_button(self, text, color, slot, icon_path=None):
         """Buat button dengan style konsisten dan optional icon"""
         button = QPushButton(text)
@@ -163,41 +289,71 @@ class JemaatComponent(QWidget):
         if not self.db_manager:
             self.log_message.emit("Database tidak tersedia")
             return
-        
+
         try:
-            search = self.search_input.text().strip() if hasattr(self, 'search_input') else None
-            success, result = self.db_manager.get_jemaat_list(limit=1000, search=search)
-            
+            # Load semua data tanpa search filter untuk caching
+            success, result = self.db_manager.get_jemaat_list(limit=1000, search=None)
+
             if success:
-                self.jemaat_data = result
+                # Simpan ke all_jemaat_data untuk filtering
+                self.all_jemaat_data = result.copy() if result else []
+                self.jemaat_data = result if result else []
+
+                # Reset filter dropdowns ke "Semua"
+                if hasattr(self, 'filter_wilayah'):
+                    self.filter_wilayah.blockSignals(True)
+                    self.filter_wilayah.setCurrentText("Semua")
+                    self.filter_wilayah.blockSignals(False)
+
+                if hasattr(self, 'filter_kategori'):
+                    self.filter_kategori.blockSignals(True)
+                    self.filter_kategori.setCurrentText("Semua")
+                    self.filter_kategori.blockSignals(False)
+
                 self.populate_table()
-                self.log_message.emit(f"Data jemaat berhasil dimuat: {len(result)} record")
+                self.log_message.emit(f"Data jemaat berhasil dimuat: {len(self.jemaat_data)} record")
                 self.data_updated.emit()
             else:
+                self.all_jemaat_data = []
+                self.jemaat_data = []
                 self.log_message.emit(f"Error loading jemaat data: {result}")
                 QMessageBox.warning(self, "Error", f"Gagal memuat data jemaat: {result}")
         except Exception as e:
+            self.all_jemaat_data = []
+            self.jemaat_data = []
             self.log_message.emit(f"Exception loading jemaat data: {str(e)}")
             QMessageBox.critical(self, "Error", f"Error loading jemaat data: {str(e)}")
     
     def create_spreadsheet_grid(self, layout):
-        """Create table with proper header format using table rows"""
-        # Create table with 35 columns, start with 2 header rows + 0 data rows
-        self.jemaat_table = QTableWidget(2, 35)
+        """Create table with custom header view for proper word wrap"""
+        # Create table with 38 columns (without No column) - added No. KK and NIK, start with 0 data rows
+        self.jemaat_table = QTableWidget(0, 38)
 
-        # Hide horizontal header since we will use table cells as headers
-        self.jemaat_table.horizontalHeader().setVisible(False)
-        self.jemaat_table.verticalHeader().setVisible(True)  # Show row numbers like Excel
+        # Set custom header with word wrap and center alignment
+        custom_header = WordWrapHeaderView(Qt.Horizontal, self.jemaat_table)
+        self.jemaat_table.setHorizontalHeader(custom_header)
 
-        # Set up two-level headers using table cells with colspan - IMPROVED STYLING
-        self.setup_two_level_headers_with_improved_styling()
+        # Show row numbers like Excel
+        self.jemaat_table.verticalHeader().setVisible(True)
+
+        # Set up single-row headers (resizable)
+        self.setup_table_headers()
 
         # Configure table styling
         self.apply_professional_table_style(self.jemaat_table)
 
-        # CRITICAL: Re-apply header styling SETELAH stylesheet diterapkan
-        # Karena stylesheet akan override background colors
-        self.reapply_header_styling()
+        # Setup column widths
+        self.setup_column_widths()
+
+        # Enable header features for resizing
+        header = self.jemaat_table.horizontalHeader()
+        header.setVisible(True)
+        header.setSectionResizeMode(QHeaderView.Interactive)  # Enable drag to resize
+        header.setStretchLastSection(True)  # Stretch last column
+        header.setSectionsMovable(False)  # Disable column reordering
+
+        # Update header height when column is resized
+        header.sectionResized.connect(self.update_header_height)
 
         # Enable context menu
         self.jemaat_table.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -219,150 +375,45 @@ class JemaatComponent(QWidget):
         table_layout.addWidget(self.jemaat_table)
         layout.addWidget(table_container)
 
-    def setup_two_level_headers_with_improved_styling(self):
-        """Setup table dengan 2-level headers dan styling seperti vertical header"""
+        # Initial header height calculation (delayed to ensure proper rendering)
+        QTimer.singleShot(100, lambda: self.update_header_height(0, 0, 0))
 
-        # ROW 0: Main category headers
-        main_categories = [
-            (0, "no", 1),
-            (1, "DATA PRIBADI", 15),
-            (16, "SAKRAMEN BABTIS", 4),
-            (20, "SAKRAMEN EKARISTI", 3),
-            (23, "SAKRAMEN KRISMA", 3),
-            (26, "SAKRAMEN PERKAWINAN", 6),
-            (32, "STATUS", 3)
-        ]
+    def update_header_height(self, logicalIndex, oldSize, newSize):
+        """Update header height when column is resized"""
+        if hasattr(self, 'jemaat_table'):
+            header = self.jemaat_table.horizontalHeader()
+            # Force header to recalculate height
+            header.setMinimumHeight(25)
+            max_height = 25
 
-        # ROW 1: Sub-headers
-        column_headers = [
-            "",  # Column 0 - empty under "no"
-            "Wilayah Rohani", "Nama Keluarga", "Nama Lengkap", "Tempat Lahir",
-            "Tanggal Lahir", "Umur", "Kategori", "J. Kelamin",
-            "Hubungan Keluarga", "Pend. Terakhir", "Status Menikah", "Status Pekerjaan",
-            "Detail Pekerjaan", "Alamat", "Email/No.Hp",
-            "Status", "Tempat Babtis", "Tanggal Babtis", "Nama Babtis",
-            "Status", "Tempat Komuni", "Tanggal Komuni",
-            "Status", "Tempat Krisma", "Tanggal Krisma",
-            "Status", "Keuskupan", "Paroki", "Kota", "Tanggal Perkawinan", "Status Perkawinan",
-            "Status Keanggotaan", "WR Tujuan", "Paroki Tujuan"
-        ]
+            # Calculate required height for each section
+            for i in range(header.count()):
+                size = header.sectionSizeFromContents(i)
+                max_height = max(max_height, size.height())
 
-        # Style yang sama dengan vertical header (row number di kiri)
-        header_style_bg = QColor("#747171")
-        header_style_fg = QColor("#333333")
-
-        # Create ROW 0: Main headers - SAMA dengan inventaris header style
-        for col_start, category_name, span in main_categories:
-            item = QTableWidgetItem(category_name)
-            item.setTextAlignment(Qt.AlignCenter | Qt.AlignVCenter)
-
-            # Styling SAMA dengan inventaris header: #f2f2f2
-            item.setBackground(QColor("#f2f2f2"))
-            item.setForeground(QColor("#333333"))
-
-            font = QFont()
-            font.setBold(False)  # Normal weight seperti inventaris
-            font.setPointSize(9)
-            item.setFont(font)
-
-            item.setFlags(Qt.ItemIsEnabled)
-            self.jemaat_table.setItem(0, col_start, item)
-
-            if span > 1:
-                self.jemaat_table.setSpan(0, col_start, 1, span)
-
-        # Create ROW 1: Sub-headers - LEBIH TERANG dari main header
-        for col, column_header in enumerate(column_headers):
-            item = QTableWidgetItem(column_header)
-            item.setTextAlignment(Qt.AlignCenter | Qt.AlignVCenter)
-
-            # Sub-header styling: lebih terang (#fafafa)
-            item.setBackground(QColor("#fafafa"))
-            item.setForeground(QColor("#555555"))
-
-            font = QFont()
-            font.setBold(False)
-            font.setPointSize(9)
-            item.setFont(font)
-
-            item.setFlags(Qt.ItemIsEnabled)
-            self.jemaat_table.setItem(1, col, item)
-
-        # Set row heights - lebih tinggi untuk visibility
-        self.jemaat_table.setRowHeight(0, 30)  # Main header - lebih tinggi
-        self.jemaat_table.setRowHeight(1, 28)  # Sub-header
-
-        # KEMBALIKAN nomor 1, 2, 3, 4 dst di vertical header
-        # TIDAK override vertical header items, biarkan default (1, 2, 3, dst)
-
-        # Set column widths
-        self.setup_column_widths()
-
-        # PENTING: Simpan reference untuk re-apply styling nanti
-        self._header_cells_styling_data = []
-
-        # Force semua header cells non-editable dengan styling khusus
-        for row in range(2):
-            for col in range(35):
-                item = self.jemaat_table.item(row, col)
-                if item:
-                    # Non-editable
-                    item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)
-
-                    # Styling berbeda untuk main header vs sub-header
-                    if row == 0:
-                        # ROW 0: Main header - SAMA dengan inventaris header
-                        bg_color = QColor("#f2f2f2")
-                        fg_color = QColor("#333333")
-                    else:
-                        # ROW 1: Sub-header - LEBIH TERANG dari main header
-                        bg_color = QColor("#fafafa")
-                        fg_color = QColor("#555555")
-
-                    item.setBackground(bg_color)
-                    item.setForeground(fg_color)
-
-                    font = QFont()
-                    font.setBold(False)
-                    font.setPointSize(9)
-                    item.setFont(font)
-
-                    # Simpan data untuk re-apply
-                    self._header_cells_styling_data.append((row, col, bg_color, fg_color))
-
-    def reapply_header_styling(self):
-        """Re-apply header styling setelah stylesheet diterapkan"""
-        if hasattr(self, '_header_cells_styling_data'):
-            for row, col, bg_color, fg_color in self._header_cells_styling_data:
-                item = self.jemaat_table.item(row, col)
-                if item:
-                    item.setBackground(bg_color)
-                    item.setForeground(fg_color)
-                    font = QFont()
-                    font.setBold(False)
-                    font.setPointSize(9)
-                    item.setFont(font)
+            # Set header height to accommodate tallest section
+            header.setFixedHeight(max_height)
 
     def setup_table_headers(self):
         """Set up table headers like struktur.py with proper column names"""
-        # Define all column headers in order
+        # Define all column headers in order (without No column - 38 columns total)
+        # Added No. KK after Nama Keluarga dan NIK after Nama Lengkap
         column_headers = [
-            "No",  # Column 0
-            # DATA PRIBADI (columns 1-15)
-            "Wilayah Rohani", "Nama Keluarga", "Nama Lengkap", "Tempat Lahir",
-            "Tanggal Lahir", "Umur", "Kategori", "J. Kelamin",
+            # DATA PRIBADI (columns 0-17)
+            "Wilayah Rohani", "Nama Keluarga", "No. KK", "Nama Lengkap", "NIK", "Tempat Lahir",
+            "Tanggal Lahir", "Umur", "Status Kekatolikan", "Kategori", "J. Kelamin",
             "Hubungan Keluarga", "Pend. Terakhir", "Status Menikah", "Status Pekerjaan",
             "Detail Pekerjaan", "Alamat", "Email/No.Hp",
-            # SAKRAMEN BABTIS (columns 16-19)
+            # SAKRAMEN BABTIS (columns 18-21)
             "Status Babtis", "Tempat Babtis", "Tanggal Babtis", "Nama Babtis",
-            # SAKRAMEN EKARISTI (columns 20-22)
+            # SAKRAMEN EKARISTI (columns 22-24)
             "Status Ekaristi", "Tempat Komuni", "Tanggal Komuni",
-            # SAKRAMEN KRISMA (columns 23-25)
+            # SAKRAMEN KRISMA (columns 25-27)
             "Status Krisma", "Tempat Krisma", "Tanggal Krisma",
-            # SAKRAMEN PERKAWINAN (columns 26-31)
-            "Status Perkawinan", "Keuskupan", "Paroki", "Kota", "Tanggal Perkawinan", "Status Perkawinan",
-            # STATUS (columns 32-34)
-            "Status Keanggotaan", "WR Tujuan", "Paroki Tujuan"
+            # SAKRAMEN PERKAWINAN (columns 28-33)
+            "Status Perkawinan", "Keuskupan", "Paroki", "Kota", "Tanggal Perkawinan", "Status Perkawinan Detail",
+            # STATUS (columns 34-37) - TOTAL 38 COLUMNS
+            "Status Keanggotaan", "WR Tujuan", "Paroki Tujuan", "Created By Pengguna"
         ]
 
         # Set column headers
@@ -372,14 +423,14 @@ class JemaatComponent(QWidget):
         self.setup_column_widths()
 
     def apply_professional_table_style(self, table):
-        """Apply Excel-style table styling exactly like struktur.py"""
-        # Header styling - Excel-like headers (same as struktur.py)
+        """Apply Excel-like table styling with thin grid lines and minimal borders."""
+        # Header styling - Bold headers with center alignment
         header_font = QFont()
-        header_font.setBold(False)  # Remove bold from headers
+        header_font.setBold(True)  # Make headers bold
         header_font.setPointSize(9)
         table.horizontalHeader().setFont(header_font)
 
-        # Excel-style header styling (exact copy from struktur.py)
+        # Header with bold text, center alignment, and word wrap
         table.horizontalHeader().setStyleSheet("""
             QHeaderView::section {
                 background-color: #f2f2f2;
@@ -387,13 +438,20 @@ class JemaatComponent(QWidget):
                 border-bottom: 1px solid #d4d4d4;
                 border-right: 1px solid #d4d4d4;
                 padding: 6px 4px;
-                font-weight: normal;
+                font-weight: bold;
                 color: #333333;
-                text-align: left;
             }
         """)
 
-        # Excel-style table body styling dengan HEADER ROW STYLING
+        # Configure header behavior
+        header = table.horizontalHeader()
+        header.setDefaultAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+        header.setSectionsClickable(True)
+        header.setMinimumHeight(25)
+        header.setMinimumSectionSize(50)
+        header.setMaximumSectionSize(500)
+
+        # Excel-style table body styling
         table.setStyleSheet("""
             QTableWidget {
                 gridline-color: #d4d4d4;
@@ -419,279 +477,12 @@ class JemaatComponent(QWidget):
             }
         """)
 
-        # IMPORTANT: Force update header cells styling AFTER stylesheet
-        # Stylesheet akan override background, jadi kita perlu re-apply
-        table.viewport().update()
-
-        # Excel-style table settings (exact copy from struktur.py)
+        # Excel-style table settings - header configuration
         header = table.horizontalHeader()
-        header.setSectionResizeMode(QHeaderView.Interactive)  # All columns resizable
-        header.setStretchLastSection(True)  # Last column stretches to fill space
-        header.setMinimumSectionSize(50)
+        # Header height will adjust based on content wrapping
         header.setDefaultSectionSize(80)
 
-        # Enable scrolling (exact copy from struktur.py)
-        table.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        table.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        table.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
-        table.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
-
-        # Excel-style row settings (exact copy from struktur.py)
-        table.verticalHeader().setDefaultSectionSize(20)  # Thin rows like Excel
-        table.setSelectionBehavior(QAbstractItemView.SelectItems)  # Select individual cells
-        table.setAlternatingRowColors(False)
-        table.verticalHeader().setVisible(True)  # Show row numbers like Excel
-        table.verticalHeader().setStyleSheet("""
-            QHeaderView::section {
-                background-color: #f2f2f2;
-                border: none;
-                border-bottom: 1px solid #d4d4d4;
-                border-right: 1px solid #d4d4d4;
-                padding: 2px;
-                font-weight: normal;
-                color: #333333;
-                text-align: center;
-                width: 30px;
-            }
-        """)
-
-        # Enable grid display with thin lines (exact copy from struktur.py)
-        table.setShowGrid(True)
-        table.setGridStyle(Qt.SolidLine)
-
-        # Excel-style editing and selection (exact copy from struktur.py)
-        table.setEditTriggers(QAbstractItemView.DoubleClicked | QAbstractItemView.EditKeyPressed)
-        table.setSelectionMode(QAbstractItemView.ExtendedSelection)
-
-        # Set compact size for Excel look (exact copy from struktur.py)
-        table.setMinimumHeight(150)
-        table.setSizeAdjustPolicy(QAbstractItemView.AdjustToContents)
-
-    # OLD METHOD - NO LONGER USED (replaced by setup_two_level_headers_with_improved_styling)
-    # def setup_three_level_headers_with_colspan(self):
-        """Setup table with proper two-level headers matching inventaris style"""
-
-        # Hide horizontal header since we'll use table cells as headers, but keep vertical header like struktur.py
-        self.jemaat_table.horizontalHeader().setVisible(False)
-        self.jemaat_table.verticalHeader().setVisible(True)  # Show row numbers like Excel/struktur.py
-
-        # ROW 0: Main category headers - "no" as single cell, then category headers with colspan
-        # Structure matching image 2: "no" (col 0) | "DATA PRIBADI" (cols 1-15) | "SAKRAMEN BABTIS" | etc.
-        main_categories = [
-            (0, "no", 1),  # Column 0: single cell with lowercase "no"
-            (1, "DATA PRIBADI", 15),  # Columns 1-15: spans 15 columns
-            (16, "SAKRAMEN BABTIS", 4),  # Columns 16-19: spans 4 columns
-            (20, "SAKRAMEN EKARISTI", 3),  # Columns 20-22: spans 3 columns
-            (23, "SAKRAMEN KRISMA", 3),  # Columns 23-25: spans 3 columns
-            (26, "SAKRAMEN PERKAWINAN", 6),  # Columns 26-31: spans 6 columns
-            (32, "STATUS", 3)  # Columns 32-34: spans 3 columns
-        ]
-
-        # ROW 1: Individual column headers (sub-headers)
-        # Column 0 is EMPTY (blank cell below "no"), then sub-headers start from column 1
-        column_headers = [
-            "",  # Column 0 - EMPTY/BLANK cell below "no"
-            # DATA PRIBADI (15 columns: 1-15)
-            "Wilayah Rohani", "Nama Keluarga", "Nama Lengkap", "Tempat Lahir",
-            "Tanggal Lahir", "Umur", "Kategori", "J. Kelamin",
-            "Hubungan Keluarga", "Pend. Terakhir", "Status Menikah", "Status Pekerjaan",
-            "Detail Pekerjaan", "Alamat", "Email/No.Hp",
-            # SAKRAMEN BABTIS (4 columns: 16-19)
-            "Status", "Tempat Babtis", "Tanggal Babtis", "Nama Babtis",
-            # SAKRAMEN EKARISTI (3 columns: 20-22)
-            "Status", "Tempat Komuni", "Tanggal Komuni",
-            # SAKRAMEN KRISMA (3 columns: 23-25)
-            "Status", "Tempat Krisma", "Tanggal Krisma",
-            # SAKRAMEN PERKAWINAN (6 columns: 26-31)
-            "Status", "Keuskupan", "Paroki", "Kota", "Tanggal Perkawinan", "Status Perkawinan",
-            # STATUS (3 columns: 32-34)
-            "Status Keanggotaan", "WR Tujuan", "Paroki Tujuan"
-        ]
-
-        # Create ROW 0: Main category headers with colspan
-        for col_start, category_name, span in main_categories:
-            item = QTableWidgetItem(category_name)
-            item.setTextAlignment(Qt.AlignCenter | Qt.AlignVCenter)
-
-            # Apply Excel-style header background
-            item.setBackground(QColor("#f2f2f2"))
-            item.setForeground(QColor("#333333"))
-
-            # Font styling
-            font = QFont()
-            font.setBold(False)
-            font.setPointSize(9)
-            item.setFont(font)
-
-            # Make header cells non-editable
-            item.setFlags(Qt.ItemIsEnabled)
-
-            self.jemaat_table.setItem(0, col_start, item)
-
-            # Apply colspan for categories that span multiple columns
-            if span > 1:
-                self.jemaat_table.setSpan(0, col_start, 1, span)
-
-        # Create ROW 1: Individual column headers (sub-headers)
-        for col, column_header in enumerate(column_headers):
-            item = QTableWidgetItem(column_header)
-            item.setTextAlignment(Qt.AlignCenter | Qt.AlignVCenter)
-            item.setBackground(QColor("#f2f2f2"))
-            item.setForeground(QColor("#333333"))
-
-            # Font styling
-            font = QFont()
-            font.setBold(False)
-            font.setPointSize(9)
-            item.setFont(font)
-
-            # Make header cells non-editable
-            item.setFlags(Qt.ItemIsEnabled)
-
-            self.jemaat_table.setItem(1, col, item)
-
-        # Set row heights for headers (matching inventaris style)
-        self.jemaat_table.setRowHeight(0, 30)  # Main category row
-        self.jemaat_table.setRowHeight(1, 25)  # Sub-header column row
-
-        # Set column widths
-        self.setup_column_widths()
-
-        # Make header rows non-editable and force refresh display
-        for row in range(2):
-            for col in range(35):
-                item = self.jemaat_table.item(row, col)
-                if item:
-                    item.setFlags(item.flags() & ~Qt.ItemIsEditable)
-
-        # Ensure text is visible in spanned cells by explicitly setting text again
-        self.ensure_spanned_text_visible()
-
-        # Final step: ensure all styling is applied correctly
-        self.apply_final_header_styling()
-
-        # Force table to refresh and display all text properly
-        self.jemaat_table.viewport().update()
-        self.jemaat_table.repaint()
-
-    def ensure_spanned_text_visible(self):
-        """Ensure text in spanned cells is visible by explicitly setting text and styling again"""
-        # Re-apply text and styling for "no" header cell in row 0 only
-        no_item = self.jemaat_table.item(0, 0)
-        if no_item:
-            no_item.setText("no")
-            no_item.setTextAlignment(Qt.AlignCenter | Qt.AlignVCenter)
-            # Apply Excel-style header styling
-            no_item.setBackground(QColor("#f2f2f2"))
-            no_item.setForeground(QColor("#333333"))
-            font = QFont()
-            font.setBold(False)
-            font.setPointSize(9)
-            no_item.setFont(font)
-
-        # Ensure row 1 col 0 is EMPTY (no text)
-        empty_item = self.jemaat_table.item(1, 0)
-        if empty_item:
-            empty_item.setText("")  # Keep it blank
-            empty_item.setBackground(QColor("#f2f2f2"))
-            empty_item.setForeground(QColor("#333333"))
-
-        # Re-apply text and styling for colspan cells in first row
-        sub_categories = [
-            (1, "DATA PRIBADI"),
-            (16, "SAKRAMEN BABTIS"),
-            (20, "SAKRAMEN EKARISTI"),
-            (23, "SAKRAMEN KRISMA"),
-            (26, "SAKRAMEN PERKAWINAN"),
-            (32, "STATUS")
-        ]
-
-        for col, text in sub_categories:
-            item = self.jemaat_table.item(0, col)
-            if item:
-                item.setText(text)
-                item.setTextAlignment(Qt.AlignCenter | Qt.AlignVCenter)
-                # Apply struktur.py styling
-                item.setBackground(QColor("#f2f2f2"))
-                item.setForeground(QColor("#333333"))
-                font = QFont()
-                font.setBold(False)
-                font.setPointSize(9)
-                item.setFont(font)
-
-    def apply_final_header_styling(self):
-        """Apply final header styling to ensure inventaris/struktur.py consistency"""
-        # Apply styling to all header cells in rows 0 and 1
-        for row in range(2):  # Header rows
-            for col in range(35):  # All columns (0-34)
-                item = self.jemaat_table.item(row, col)
-                if item and item.text():  # Only apply to non-empty cells
-                    # Apply struktur.py header styling
-                    item.setBackground(QColor("#f2f2f2"))
-                    item.setForeground(QColor("#333333"))
-                    font = QFont()
-                    font.setBold(False)
-                    font.setPointSize(9)
-                    item.setFont(font)
-                    item.setTextAlignment(Qt.AlignCenter | Qt.AlignVCenter)
-
-    def setup_column_widths(self):
-        """Set up column widths for better display"""
-        self.jemaat_table.setColumnWidth(0, 50)   # No. column
-        # Make important columns wider
-        self.jemaat_table.setColumnWidth(3, 150)  # Nama Lengkap - wider
-        self.jemaat_table.setColumnWidth(14, 180)  # Alamat - wider
-        self.jemaat_table.setColumnWidth(15, 140)  # Kontak - wider
-
-        # Set standard width for other columns
-        for i in [1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]:  # DATA columns
-            self.jemaat_table.setColumnWidth(i, 110)
-        for i in range(16, 34):  # Sakramen and Status columns (updated to 34)
-            self.jemaat_table.setColumnWidth(i, 100)
-    
-    
-    def configure_simple_style(self, table):
-        """Configure table with Excel-like styling and thin grid lines."""
-        # Excel-style table styling
-        header_font = QFont()
-        header_font.setBold(False)  # Remove bold from headers
-        header_font.setPointSize(9)
-        table.horizontalHeader().setFont(header_font)
-
-        # Excel-style professional styling matching struktur.py exactly
-        table.setStyleSheet("""
-            QTableWidget {
-                gridline-color: #d4d4d4;
-                background-color: white;
-                border: 1px solid #d4d4d4;
-                selection-background-color: #cce7ff;
-                font-family: 'Calibri', 'Segoe UI', Arial, sans-serif;
-                font-size: 9pt;
-                outline: none;
-            }
-            QTableWidget::item {
-                border: none;
-                padding: 4px 6px;
-                min-height: 18px;
-            }
-            QTableWidget::item:selected {
-                background-color: #cce7ff;
-                color: black;
-            }
-            QTableWidget::item:focus {
-                border: 2px solid #0078d4;
-                background-color: white;
-            }
-        """)
-
-        # Excel-style table settings with proper sizing (matching struktur.py)
-        header = table.horizontalHeader()
-        header.setSectionResizeMode(QHeaderView.Interactive)  # All columns resizable like struktur.py
-        header.setStretchLastSection(True)  # Last column stretches to fill space like struktur.py
-        header.setMinimumSectionSize(50)
-        header.setDefaultSectionSize(80)
-
-        # Enable proper scrolling
+        # Enable scrolling
         table.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         table.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         table.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
@@ -715,8 +506,10 @@ class JemaatComponent(QWidget):
                 width: 30px;
             }
         """)
-        table.setGridStyle(Qt.SolidLine)
+
+        # Enable grid display with thin lines
         table.setShowGrid(True)
+        table.setGridStyle(Qt.SolidLine)
 
         # Excel-style editing and selection
         table.setEditTriggers(QAbstractItemView.DoubleClicked | QAbstractItemView.EditKeyPressed)
@@ -725,95 +518,144 @@ class JemaatComponent(QWidget):
         # Set compact size for Excel look
         table.setMinimumHeight(150)
         table.setSizeAdjustPolicy(QAbstractItemView.AdjustToContents)
-        
-        # Configure horizontal header (hidden since we use table cells)
-        horizontal_header = table.horizontalHeader()
-        horizontal_header.setSectionResizeMode(QHeaderView.Interactive)  # Allow drag resizing
-        horizontal_header.setMinimumSectionSize(80)
-        horizontal_header.setDefaultSectionSize(110)
 
-        # Enable horizontal and vertical scrollbars
-        table.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        table.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        table.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
-        table.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
-    
-    
+    def setup_column_widths(self):
+        """Set up column widths for better display (38 columns total with No. KK and NIK)"""
+        # Make important columns wider (adjusted indices for new columns)
+        self.jemaat_table.setColumnWidth(1, 120)  # Nama Keluarga
+        self.jemaat_table.setColumnWidth(2, 110)  # No. KK
+        self.jemaat_table.setColumnWidth(3, 150)  # Nama Lengkap - wider
+        self.jemaat_table.setColumnWidth(4, 110)  # NIK
+        self.jemaat_table.setColumnWidth(16, 180)  # Alamat - wider
+        self.jemaat_table.setColumnWidth(17, 140)  # Kontak - wider
+
+        # Set standard width for other columns
+        for i in [0, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]:  # DATA columns
+            self.jemaat_table.setColumnWidth(i, 110)
+        for i in range(18, 38):  # Sakramen and Status columns
+            self.jemaat_table.setColumnWidth(i, 100)
+
+        # Make creator column slightly wider for names
+        self.jemaat_table.setColumnWidth(37, 160)
+
     def populate_table(self):
-        """Populate table with data rows (header ada di row 0 dan 1)"""
-        # Set row count: 2 header rows + data rows
-        self.jemaat_table.setRowCount(2 + len(self.jemaat_data))
+        """Populate table with data rows (using normal headers)"""
+        # Set row count: only data rows (headers are in QHeaderView)
+        self.jemaat_table.setRowCount(len(self.jemaat_data))
 
-        # Populate data starting from row 2 (after headers)
+        # Populate data starting from row 0
         for index, row_data in enumerate(self.jemaat_data):
-            row_pos = 2 + index  # Start from row 2
+            row_pos = index  # Start from row 0
 
-            # Column 0: Row number (starting from 1)
-            no_item = QTableWidgetItem(str(index + 1))
-            no_item.setTextAlignment(Qt.AlignCenter)
-            self.jemaat_table.setItem(row_pos, 0, no_item)
-            
-            # All data columns (1-34)
+            # All data columns (0-37, tanpa kolom No) - TOTAL 38 COLUMNS with No. KK and NIK
             data_items = [
-                # DATA PRIBADI (columns 1-15)
-                str(row_data.get('wilayah_rohani', '')),
-                str(row_data.get('nama_keluarga', '')),
-                str(row_data.get('nama_lengkap', '')),
-                str(row_data.get('tempat_lahir', '')),
+                # DATA PRIBADI (columns 0-17) - added No. KK and NIK
+                self.format_display(row_data.get('wilayah_rohani')),  # Column 0: Wilayah Rohani (from dropdown)
+                self.format_display(row_data.get('nama_keluarga')),  # Column 1: Nama Keluarga
+                self.format_numeric(row_data.get('no_kk')),  # Column 2: No. KK (numeric only)
+                self.format_display(row_data.get('nama_lengkap')),  # Column 3: Nama Lengkap
+                self.format_numeric(row_data.get('nik')),  # Column 4: NIK (numeric only)
+                self.format_display(row_data.get('tempat_lahir')),
                 self.format_date(row_data.get('tanggal_lahir')),
-                str(row_data.get('umur', '')),
-                str(row_data.get('kategori', '')),
-                self.format_gender(row_data.get('jenis_kelamin', '')),
-                str(row_data.get('hubungan_keluarga', '')),
-                str(row_data.get('pendidikan_terakhir', '')),
-                str(row_data.get('status_menikah', '')),
-                str(row_data.get('jenis_pekerjaan', '')),
-                str(row_data.get('detail_pekerjaan', '')),
-                str(row_data.get('alamat', '')),
-                str(row_data.get('email', '')),
-                # SAKRAMEN BABTIS (columns 16-19)
-                str(row_data.get('status_babtis', '')),
-                str(row_data.get('tempat_babtis', '')),
+                self.format_display(row_data.get('umur')),
+                self.format_display(row_data.get('status_kekatolikan')),
+                self.format_display(row_data.get('kategori')),
+                self.format_gender(row_data.get('jenis_kelamin')),
+                self.format_display(row_data.get('hubungan_keluarga')),
+                self.format_display(row_data.get('pendidikan_terakhir')),
+                self.format_display(row_data.get('status_pernikahan')),  # Fixed: use database column name
+                self.format_display(row_data.get('jenis_pekerjaan')),
+                self.format_display(row_data.get('detail_pekerjaan')),
+                self.format_display(row_data.get('alamat')),
+                self.format_display(row_data.get('email')),
+                # SAKRAMEN BABTIS (columns 18-21)
+                self.format_display(row_data.get('status_babtis')),
+                self.format_display(row_data.get('tempat_babtis')),
                 self.format_date(row_data.get('tanggal_babtis')),
-                str(row_data.get('nama_babtis', '')),
-                # SAKRAMEN EKARISTI (columns 20-22)
-                str(row_data.get('status_ekaristi', '')),
-                str(row_data.get('tempat_komuni', '')),
+                self.format_display(row_data.get('nama_babtis')),
+                # SAKRAMEN EKARISTI (columns 22-24)
+                self.format_display(row_data.get('status_ekaristi')),
+                self.format_display(row_data.get('tempat_komuni')),
                 self.format_date(row_data.get('tanggal_komuni')),
-                # SAKRAMEN KRISMA (columns 23-25)
-                str(row_data.get('status_krisma', '')),
-                str(row_data.get('tempat_krisma', '')),
+                # SAKRAMEN KRISMA (columns 25-27)
+                self.format_display(row_data.get('status_krisma')),
+                self.format_display(row_data.get('tempat_krisma')),
                 self.format_date(row_data.get('tanggal_krisma')),
-                # SAKRAMEN PERKAWINAN (columns 26-31)
-                str(row_data.get('status_perkawinan', '')),
-                str(row_data.get('keuskupan', '')),
-                str(row_data.get('paroki', '')),
-                str(row_data.get('kota_perkawinan', '')),
+                # SAKRAMEN PERKAWINAN (columns 28-33)
+                self.format_display(row_data.get('status_perkawinan')),
+                self.format_display(row_data.get('keuskupan')),
+                self.format_display(row_data.get('paroki')),
+                self.format_display(row_data.get('kota_perkawinan')),
                 self.format_date(row_data.get('tanggal_perkawinan')),
-                str(row_data.get('status_perkawinan_detail', '')),
-                # STATUS (columns 32-34) - as per user specification
-                str(row_data.get('status_keanggotaan', 'Aktif')),
-                str(row_data.get('wr_tujuan', '')),
-                str(row_data.get('paroki_tujuan', ''))
+                self.format_display(row_data.get('status_perkawinan_detail')),
+                # STATUS (columns 34-37) - TOTAL 38 COLUMNS
+                self.format_display(row_data.get('status_keanggotaan', 'Aktif')),
+                self.format_display(row_data.get('wr_tujuan')),
+                self.format_display(row_data.get('paroki_tujuan')),
+                self.get_creator_display(row_data)
             ]
-            
-            # Add data to columns 1-33 (total 34 columns including No. column)
-            for col, item_text in enumerate(data_items, 1):
+
+            # Add data to columns 0-37 (total 38 columns tanpa kolom No)
+            for col, item_text in enumerate(data_items):
                 item = QTableWidgetItem(item_text)
                 # Center align certain columns for better readability
-                if col in [0, 6, 7, 8, 16, 17, 20, 21, 23, 24, 26, 32]:  # Status and categorical columns
+                if col in [7, 8, 9, 10, 18, 19, 22, 23, 25, 26, 28, 34]:  # Status and categorical columns
                     item.setTextAlignment(Qt.AlignCenter)
                 else:
                     item.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
                 self.jemaat_table.setItem(row_pos, col, item)
     
+    def format_numeric(self, value, default='-'):
+        """Format numeric value (NIK, NO_KK) untuk display, hanya menampilkan angka saja"""
+        if value is None:
+            return default
+
+        if isinstance(value, str):
+            text = value.strip()
+            if not text or text.lower() in ('none', 'null', 'nan', ''):
+                return default
+            # Ambil hanya karakter numerik
+            numeric_text = ''.join(c for c in text if c.isdigit())
+            return numeric_text if numeric_text else default
+
+        if isinstance(value, (int, float)):
+            return str(int(value))
+
+        text = str(value).strip()
+        if not text or text.lower() in ('none', 'null', 'nan'):
+            return default
+        # Ambil hanya karakter numerik
+        numeric_text = ''.join(c for c in text if c.isdigit())
+        return numeric_text if numeric_text else default
+
+    def format_display(self, value, default='-'):
+        """Format generic value for display, replacing kosong/None with '-'."""
+        if value is None:
+            return default
+
+        if isinstance(value, str):
+            text = value.strip()
+            if not text or text.lower() in ('none', 'null', 'nan'):
+                return default
+            return text
+
+        text = str(value).strip()
+        if not text or text.lower() in ('none', 'null', 'nan'):
+            return default
+        return text
+
     def format_date(self, date_value):
         """Format date for display in spreadsheet"""
         if not date_value:
-            return ''
+            return '-'
         if hasattr(date_value, 'strftime'):
             return date_value.strftime('%d/%m/%Y')
-        return str(date_value)
+        if isinstance(date_value, str):
+            text = date_value.strip()
+            if not text or text.lower() in ('none', 'null', 'nan'):
+                return '-'
+            return text
+        return self.format_display(date_value)
     
     def format_gender(self, gender):
         """Format gender for display"""
@@ -821,64 +663,292 @@ class JemaatComponent(QWidget):
             return 'L'
         elif gender == 'Perempuan':
             return 'P'
-        return str(gender)
+        return self.format_display(gender)
+
+    def get_creator_display(self, row_data):
+        """Resolve nama pembuat data jemaat untuk tampilan tabel."""
+        if not row_data:
+            return 'System'
+
+        possible_keys = [
+            'created_by_name',
+            'created_by_pengguna_name',
+            'created_by_pengguna_fullname',
+            'created_by_username',
+            'created_by',
+            'dibuat_oleh',
+            'dibuat_oleh_nama',
+            'nama_pembuat',
+            'nama_user',
+            'creator_name'
+        ]
+
+        for key in possible_keys:
+            value = row_data.get(key)
+            display_value = self.format_display(value, default='')
+            if display_value:
+                return display_value
+
+        creator_info = row_data.get('created_by_pengguna')
+        if isinstance(creator_info, dict):
+            for sub_key in ['nama_lengkap', 'full_name', 'name', 'username']:
+                value = creator_info.get(sub_key)
+                display_value = self.format_display(value, default='')
+                if display_value:
+                    return display_value
+            return '-'
+
+        if creator_info in (None, '', 'None'):
+            return '-'
+
+        if isinstance(creator_info, str) and not creator_info.isdigit():
+            return self.format_display(creator_info)
+
+        name = self.lookup_pengguna_name(creator_info)
+        if name:
+            return self.format_display(name)
+
+        if creator_info not in (None, '', 'None'):
+            try:
+                numeric_id = int(creator_info)
+                return f"User #{numeric_id}"
+            except (TypeError, ValueError):
+                return self.format_display(creator_info)
+
+        return '-'
+
+    def lookup_pengguna_name(self, pengguna_id):
+        """Cari nama lengkap pengguna berdasarkan ID menggunakan cache lokal."""
+        if pengguna_id in (None, '', 'None'):
+            return ''
+
+        try:
+            pengguna_key = int(pengguna_id)
+        except (TypeError, ValueError):
+            return str(pengguna_id) if pengguna_id is not None else ''
+
+        if pengguna_key in self._pengguna_lookup:
+            return self._pengguna_lookup[pengguna_key]
+
+        self.load_pengguna_lookup()
+        return self._pengguna_lookup.get(pengguna_key, '')
+
+    def load_pengguna_lookup(self):
+        """Load data pengguna sekali untuk mapping ID -> nama pembuat."""
+        if self._pengguna_lookup_attempted:
+            return
+
+        self._pengguna_lookup_attempted = True
+        try:
+            from API.config import ServerConfig
+            import requests
+
+            response = requests.get(
+                f"{ServerConfig.API_BASE_URL}/pengguna",
+                timeout=10
+            )
+
+            if response.status_code != 200:
+                self._safe_log(f"Gagal memuat daftar pengguna: HTTP {response.status_code}")
+                return
+
+            payload = response.json() if response.text else {}
+            users = payload.get('data', []) if isinstance(payload, dict) else []
+
+            for user in users:
+                try:
+                    user_id = user.get('id_pengguna')
+                    if user_id is None:
+                        continue
+                    name = user.get('nama_lengkap') or user.get('username')
+                    if name:
+                        self._pengguna_lookup[int(user_id)] = str(name)
+                except Exception:
+                    continue
+        except Exception as exc:
+            self._safe_log(f"Error memuat data pengguna: {exc}")
+
+    def _safe_log(self, message):
+        """Kirim log message jika signal tersedia, abaikan jika gagal."""
+        try:
+            self.log_message.emit(message)
+        except Exception:
+            pass
     
     
     def add_jemaat(self):
         """Tambah jemaat baru"""
         dialog = JemaatDialog(self)
-        if dialog.exec_() == dialog.Accepted:
+
+        # Keep dialog open until valid data is entered
+        while True:
+            result = dialog.exec_()
+
+            if result != dialog.Accepted:
+                # User clicked Cancel - exit without saving
+                return
+
             data = dialog.get_data()
-            
-            # Validasi
-            if not data['nama_lengkap']:
-                QMessageBox.warning(self, "Error", "Nama lengkap harus diisi")
-                return
-            
-            if not data['jenis_kelamin']:
-                QMessageBox.warning(self, "Error", "Jenis kelamin harus dipilih")
-                return
-            
+
+            # ===== VALIDATION CHECKS =====
+            # Check Nama Lengkap
+            if not data['nama_lengkap'] or data['nama_lengkap'].strip() == '':
+                QMessageBox.warning(dialog, "Data Tidak Lengkap",
+                    "❌ Nama lengkap harus diisi!\n\nSilakan isikan nama lengkap dan coba lagi.")
+                # Dialog stays open - user can correct and re-submit
+                continue
+
+            # Check Jenis Kelamin
+            if not data['jenis_kelamin'] or data['jenis_kelamin'] == '':
+                QMessageBox.warning(dialog, "Data Tidak Lengkap",
+                    "❌ Jenis kelamin harus dipilih!\n\nSilakan pilih jenis kelamin dan coba lagi.")
+                # Dialog stays open - user can correct and re-submit
+                continue
+
+            # Check Database Manager
             if not self.db_manager:
-                QMessageBox.warning(self, "Error", "Database tidak tersedia")
+                QMessageBox.critical(dialog, "Error",
+                    "❌ Database tidak tersedia!\n\nTidak dapat menambahkan data jemaat.")
+                # Dialog stays open - system error, might be resolvable
+                continue
+
+            if not self.current_admin:
+                QMessageBox.critical(dialog, "Error", "Data admin tidak ditemukan. Silakan login ulang.")
                 return
-            
-            try:
-                # Filter data untuk compatibility dengan API yang ada
-                # Hanya kirim field yang sudah ada di database lama
-                filtered_data = {
-                    'nama_lengkap': data.get('nama_lengkap', ''),
-                    'alamat': data.get('alamat', ''),
-                    'email': data.get('email', ''),
-                    'tanggal_lahir': data.get('tanggal_lahir', ''),
-                    'jenis_kelamin': 'Laki-laki' if data.get('jenis_kelamin') == 'L' else 'Perempuan'
-                }
-                
-                success, result = self.db_manager.add_jemaat(filtered_data)
-                
-                if success:
-                    QMessageBox.information(self, "Sukses", "Data jemaat berhasil ditambahkan")
-                    self.load_data()
-                    self.log_message.emit(f"Jemaat baru ditambahkan: {data['nama_lengkap']}")
-                    
-                    # Inform user about enhanced features
-                    QMessageBox.information(self, "Info", 
-                        "Data berhasil disimpan! Catatan: Fitur lengkap seperti sakramen dan wilayah rohani "
-                        "akan tersedia setelah database server diupdate dengan schema terbaru.")
+
+            # All validations passed - break loop and proceed to submit
+            break
+
+        # ===== SUBMIT DATA =====
+        try:
+            # Prepare data for API - INCLUDE user_id (required by API)
+            # Helper function to extract only numeric characters
+            def get_numeric_only(value):
+                if not value:
+                    return ''
+                numeric_text = ''.join(c for c in str(value) if c.isdigit())
+                return numeric_text
+
+            admin_id = self.current_admin.get('id_admin')
+            if not admin_id:
+                QMessageBox.critical(self, "Error", "ID Admin tidak valid. Tidak bisa menambahkan data.")
+                return
+
+            jenis_kelamin_short = data.get('jenis_kelamin')
+            if jenis_kelamin_short == 'L':
+                jenis_kelamin_full = 'Laki-laki'
+            elif jenis_kelamin_short == 'P':
+                jenis_kelamin_full = 'Perempuan'
+            else:
+                jenis_kelamin_full = ''
+
+            filtered_data = {
+                'user_id': admin_id,
+                'wilayah_rohani': data.get('wilayah_rohani', ''),
+                'nama_keluarga': data.get('nama_keluarga', ''),
+                'no_kk': get_numeric_only(data.get('no_kk', '')),  # Only numeric characters
+                'nama_lengkap': data.get('nama_lengkap', ''),
+                'nik': get_numeric_only(data.get('nik', '')),  # Only numeric characters
+                'tempat_lahir': data.get('tempat_lahir', ''),
+                'tanggal_lahir': data.get('tanggal_lahir', ''),
+                'umur': data.get('umur', ''),  # Include umur field
+                'status_kekatolikan': data.get('status_kekatolikan', ''),
+                'kategori': data.get('kategori', ''),
+                'jenis_kelamin': jenis_kelamin_full,
+                'hubungan_keluarga': data.get('hubungan_keluarga', ''),
+                'pendidikan_terakhir': data.get('pendidikan_terakhir', ''),
+                'status_menikah': data.get('status_menikah', ''),  # API maps to status_pernikahan
+                'jenis_pekerjaan': data.get('jenis_pekerjaan', ''),
+                'detail_pekerjaan': data.get('detail_pekerjaan', ''),
+                'alamat': data.get('alamat', ''),
+                'email': data.get('email', ''),
+                'status_babtis': data.get('status_babtis', ''),
+                'tempat_babtis': data.get('tempat_babtis', ''),
+                'tanggal_babtis': data.get('tanggal_babtis', ''),
+                'nama_babtis': data.get('nama_babtis', ''),
+                'status_ekaristi': data.get('status_ekaristi', ''),
+                'tempat_komuni': data.get('tempat_komuni', ''),
+                'tanggal_komuni': data.get('tanggal_komuni', ''),
+                'status_krisma': data.get('status_krisma', ''),
+                'tempat_krisma': data.get('tempat_krisma', ''),
+                'tanggal_krisma': data.get('tanggal_krisma', ''),
+                'status_perkawinan': data.get('status_perkawinan', ''),
+                'keuskupan': data.get('keuskupan', ''),
+                'paroki': data.get('paroki', ''),
+                'kota_perkawinan': data.get('kota_perkawinan', ''),
+                'tanggal_perkawinan': data.get('tanggal_perkawinan', ''),
+                'status_perkawinan_detail': data.get('status_perkawinan_detail', ''),
+                'status_keanggotaan': data.get('status_keanggotaan', ''),
+                'wr_tujuan': data.get('wilayah_rohani_pindah', ''),
+                'paroki_tujuan': data.get('paroki_pindah', '')
+            }
+
+            success, result = self.db_manager.add_jemaat(filtered_data)
+
+            if success:
+                # Success - close dialog and show confirmation
+                dialog.close()
+                QMessageBox.information(self, "Sukses",
+                    "✅ Data jemaat berhasil ditambahkan!\n\n" +
+                    f"Nama: {data['nama_lengkap']}\n" +
+                    f"Jenis Kelamin: {'Laki-laki' if data.get('jenis_kelamin') == 'L' else 'Perempuan'}\n" +
+                    f"Data lengkap termasuk sakramen dan wilayah rohani telah disimpan.")
+                self.load_data()
+                self.log_message.emit(f"Jemaat baru ditambahkan: {data['nama_lengkap']}")
+            else:
+                # API Error - keep dialog open for user to fix
+                error_msg = str(result)
+
+                # Extract error details from response
+                if isinstance(result, dict):
+                    error_detail = result.get('data', error_msg)
                 else:
-                    QMessageBox.warning(self, "Error", f"Gagal menambahkan jemaat: {result}")
-                    self.log_message.emit(f"Error adding jemaat: {result}")
-            except Exception as e:
-                QMessageBox.critical(self, "Error", f"Error menambahkan jemaat: {str(e)}")
-                self.log_message.emit(f"Exception adding jemaat: {str(e)}")
+                    error_detail = error_msg
+
+                # Provide user-friendly error message based on error type
+                if "Unknown column" in error_detail or "does not exist" in error_detail:
+                    QMessageBox.critical(dialog, "Database Error",
+                        "❌ Gagal menambahkan jemaat - Database schema error!\n\n" +
+                        f"Detail: {error_detail}\n\n" +
+                        "Hubungi administrator untuk menjalankan database migration.")
+                elif "Duplicate" in error_detail:
+                    QMessageBox.warning(dialog, "Data Duplikat",
+                        "❌ Data jemaat dengan informasi ini sudah ada di database!\n\n" +
+                        "Silakan periksa data dan coba lagi dengan data yang berbeda.")
+                elif "400" in str(error_msg) or "user_id" in error_detail:
+                    QMessageBox.warning(dialog, "Validation Error",
+                        "❌ Gagal menambahkan jemaat - Data tidak lengkap!\n\n" +
+                        f"Error: {error_detail}\n\n" +
+                        "Silakan periksa semua field yang wajib diisi.")
+                elif "500" in str(error_msg):
+                    QMessageBox.critical(dialog, "Server Error",
+                        "❌ Gagal menambahkan jemaat - Server error!\n\n" +
+                        f"Error: {error_detail}\n\n" +
+                        "Silakan coba lagi. Jika error berlanjut, hubungi administrator.")
+                else:
+                    QMessageBox.warning(dialog, "Error",
+                        f"❌ Gagal menambahkan jemaat:\n\n{error_detail}\n\n" +
+                        "Silakan coba lagi atau hubungi administrator.")
+
+                self.log_message.emit(f"Error adding jemaat: {result}")
+                # Dialog stays open - user can retry
+                return
+
+        except Exception as e:
+            error_str = str(e)
+            dialog.close()
+            QMessageBox.critical(self, "Exception Error",
+                f"❌ Terjadi kesalahan saat menambahkan jemaat:\n\n{error_str}\n\n" +
+                "Silakan hubungi administrator jika error berlanjut.")
+            self.log_message.emit(f"Exception adding jemaat: {error_str}")
     
     def get_selected_row(self):
-        """Get currently selected row index (adjusted for header rows)"""
+        """Get currently selected row index"""
         current_row = self.jemaat_table.currentRow()
-        # Subtract 2 to account for header rows (rows 0 and 1)
-        if current_row >= 2:
-            return current_row - 2
-        return -1  # Invalid selection (header row selected)
+        # No adjustment needed with normal headers
+        if current_row >= 0:
+            return current_row
+        return -1  # Invalid selection
     
     def edit_jemaat(self):
         """Edit jemaat terpilih"""
@@ -909,18 +979,74 @@ class JemaatComponent(QWidget):
             if not self.db_manager:
                 QMessageBox.warning(self, "Error", "Database tidak tersedia")
                 return
+
+            if not self.current_admin:
+                QMessageBox.critical(self, "Error", "Data admin tidak ditemukan. Silakan login ulang.")
+                return
             
             try:
-                # Filter data untuk compatibility dengan API yang ada
-                # Hanya kirim field yang sudah ada di database lama
+                # Helper function to extract only numeric characters
+                def get_numeric_only(value):
+                    if not value:
+                        return ''
+                    numeric_text = ''.join(c for c in str(value) if c.isdigit())
+                    return numeric_text
+
+                admin_id = self.current_admin.get('id_admin')
+                if not admin_id:
+                    QMessageBox.critical(self, "Error", "ID Admin tidak valid. Tidak bisa mengupdate data.")
+                    return
+
+                jenis_kelamin_short = data.get('jenis_kelamin')
+                if jenis_kelamin_short == 'L':
+                    jenis_kelamin_full = 'Laki-laki'
+                elif jenis_kelamin_short == 'P':
+                    jenis_kelamin_full = 'Perempuan'
+                else:
+                    jenis_kelamin_full = ''
+
+                # Send all data including no_kk and nik to API
                 filtered_data = {
+                    'user_id': admin_id,
+                    'wilayah_rohani': data.get('wilayah_rohani', ''),
+                    'nama_keluarga': data.get('nama_keluarga', ''),
+                    'no_kk': get_numeric_only(data.get('no_kk', '')),  # Only numeric characters
                     'nama_lengkap': data.get('nama_lengkap', ''),
+                    'nik': get_numeric_only(data.get('nik', '')),  # Only numeric characters
+                    'tempat_lahir': data.get('tempat_lahir', ''),
+                    'tanggal_lahir': data.get('tanggal_lahir', ''),
+                    'umur': data.get('umur', ''),  # Include umur field
+                    'status_kekatolikan': data.get('status_kekatolikan', ''),
+                    'kategori': data.get('kategori', ''),
+                    'jenis_kelamin': jenis_kelamin_full,
+                    'hubungan_keluarga': data.get('hubungan_keluarga', ''),
+                    'pendidikan_terakhir': data.get('pendidikan_terakhir', ''),
+                    'status_menikah': data.get('status_menikah', ''),  # API maps to status_pernikahan
+                    'jenis_pekerjaan': data.get('jenis_pekerjaan', ''),
+                    'detail_pekerjaan': data.get('detail_pekerjaan', ''),
                     'alamat': data.get('alamat', ''),
                     'email': data.get('email', ''),
-                    'tanggal_lahir': data.get('tanggal_lahir', ''),
-                    'jenis_kelamin': 'Laki-laki' if data.get('jenis_kelamin') == 'L' else 'Perempuan'
+                    'status_babtis': data.get('status_babtis', ''),
+                    'tempat_babtis': data.get('tempat_babtis', ''),
+                    'tanggal_babtis': data.get('tanggal_babtis', ''),
+                    'nama_babtis': data.get('nama_babtis', ''),
+                    'status_ekaristi': data.get('status_ekaristi', ''),
+                    'tempat_komuni': data.get('tempat_komuni', ''),
+                    'tanggal_komuni': data.get('tanggal_komuni', ''),
+                    'status_krisma': data.get('status_krisma', ''),
+                    'tempat_krisma': data.get('tempat_krisma', ''),
+                    'tanggal_krisma': data.get('tanggal_krisma', ''),
+                    'status_perkawinan': data.get('status_perkawinan', ''),
+                    'keuskupan': data.get('keuskupan', ''),
+                    'paroki': data.get('paroki', ''),
+                    'kota_perkawinan': data.get('kota_perkawinan', ''),
+                    'tanggal_perkawinan': data.get('tanggal_perkawinan', ''),
+                    'status_perkawinan_detail': data.get('status_perkawinan_detail', ''),
+                    'status_keanggotaan': data.get('status_keanggotaan', ''),
+                    'wr_tujuan': data.get('wilayah_rohani_pindah', ''),
+                    'paroki_tujuan': data.get('paroki_pindah', '')
                 }
-                
+
                 id_jemaat = jemaat_data['id_jemaat']
                 success, result = self.db_manager.update_jemaat(id_jemaat, filtered_data)
                 
@@ -978,9 +1104,66 @@ class JemaatComponent(QWidget):
                 QMessageBox.critical(self, "Error", f"Error menghapus jemaat: {str(e)}")
                 self.log_message.emit(f"Exception deleting jemaat: {str(e)}")
     
-    def search_jemaat(self):
-        """Cari jemaat berdasarkan keyword"""
-        self.load_data()
+    def filter_data(self):
+        """Filter data jemaat berdasarkan keyword pencarian dan dropdown filters"""
+        search_text = self.search_input.text().lower().strip()
+
+        # Get selected filter values from comboboxes
+        filter_wilayah = self.filter_wilayah.currentText() if hasattr(self, 'filter_wilayah') else "Semua"
+        filter_kategori = self.filter_kategori.currentText() if hasattr(self, 'filter_kategori') else "Semua"
+
+        # Simpan data asli jika belum disimpan
+        if not hasattr(self, 'all_jemaat_data') or not self.all_jemaat_data:
+            self.all_jemaat_data = self.jemaat_data.copy() if self.jemaat_data else []
+
+        # Mulai dengan semua data
+        filtered_data = self.all_jemaat_data.copy()
+
+        # Filter berdasarkan Wilayah Rohani jika dipilih
+        if filter_wilayah != "Semua":
+            filtered_data = [data for data in filtered_data
+                           if (data.get('wilayah_rohani') or '').strip() == filter_wilayah]
+
+        # Filter berdasarkan Kategori jika dipilih
+        if filter_kategori != "Semua":
+            filtered_data = [data for data in filtered_data
+                           if (data.get('kategori') or '').strip() == filter_kategori]
+
+        # Filter berdasarkan keyword pencarian jika ada
+        if search_text:
+            search_filtered = []
+            for data in filtered_data:
+                # Cari di berbagai field - handle None values
+                nama_lengkap = (data.get('nama_lengkap') or '').lower()
+                wilayah_rohani = (data.get('wilayah_rohani') or '').lower()
+                nama_keluarga = (data.get('nama_keluarga') or '').lower()
+                tempat_lahir = (data.get('tempat_lahir') or '').lower()
+                kategori = (data.get('kategori') or '').lower()
+                jenis_kelamin = (data.get('jenis_kelamin') or '').lower()
+                hubungan_keluarga = (data.get('hubungan_keluarga') or '').lower()
+                alamat = (data.get('alamat') or '').lower()
+                email = (data.get('email') or '').lower()
+                status_keanggotaan = (data.get('status_keanggotaan') or '').lower()
+
+                # Search di semua field yang relevan
+                if (search_text in nama_lengkap or
+                    search_text in wilayah_rohani or
+                    search_text in nama_keluarga or
+                    search_text in tempat_lahir or
+                    search_text in kategori or
+                    search_text in jenis_kelamin or
+                    search_text in hubungan_keluarga or
+                    search_text in alamat or
+                    search_text in email or
+                    search_text in status_keanggotaan):
+                    search_filtered.append(data)
+
+            filtered_data = search_filtered
+
+        # Update display dengan data yang difilter
+        self.jemaat_data = filtered_data
+        self.populate_table()
+
     
     def export_jemaat(self):
         """Export data jemaat ke file CSV"""
@@ -998,50 +1181,54 @@ class JemaatComponent(QWidget):
             if filename:
                 with open(filename, 'w', newline='', encoding='utf-8') as csvfile:
                     fieldnames = [
-                        'Nama Lengkap', 'Wilayah Rohani', 'Nama Keluarga', 'Tempat Lahir', 
-                        'Tanggal Lahir', 'Jenis Kelamin', 'Hubungan Keluarga', 'Pendidikan Terakhir',
+                        'Nama Lengkap', 'Wilayah Rohani', 'Nama Keluarga', 'Tempat Lahir',
+                        'Tanggal Lahir', 'Umur', 'Status Kekatolikan', 'Jenis Kelamin', 'Hubungan Keluarga', 'Pendidikan Terakhir',
                         'Jenis Pekerjaan', 'Detail Pekerjaan', 'Status Menikah', 'Alamat', 'Email',
                         'Status Babtis', 'Tempat Babtis', 'Tanggal Babtis', 'Nama Babtis',
                         'Status Ekaristi', 'Tempat Komuni', 'Tanggal Komuni',
                         'Status Krisma', 'Tempat Krisma', 'Tanggal Krisma',
-                        'Status Perkawinan', 'Keuskupan', 'Paroki', 'Kota Perkawinan', 
-                        'Tanggal Perkawinan', 'Status Perkawinan Detail', 'Status Keanggotaan'
+                        'Status Perkawinan', 'Keuskupan', 'Paroki', 'Kota Perkawinan',
+                        'Tanggal Perkawinan', 'Status Perkawinan Detail', 'Status Keanggotaan',
+                        'Created By Pengguna'
                     ]
                     writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                     
                     writer.writeheader()
                     for data in self.jemaat_data:
                         writer.writerow({
-                            'Nama Lengkap': data.get('nama_lengkap', ''),
-                            'Wilayah Rohani': data.get('wilayah_rohani', ''),
-                            'Nama Keluarga': data.get('nama_keluarga', ''),
-                            'Tempat Lahir': data.get('tempat_lahir', ''),
-                            'Tanggal Lahir': str(data.get('tanggal_lahir', '')),
-                            'Jenis Kelamin': data.get('jenis_kelamin', ''),
-                            'Hubungan Keluarga': data.get('hubungan_keluarga', ''),
-                            'Pendidikan Terakhir': data.get('pendidikan_terakhir', ''),
-                            'Jenis Pekerjaan': data.get('jenis_pekerjaan', ''),
-                            'Detail Pekerjaan': data.get('detail_pekerjaan', ''),
-                            'Status Menikah': data.get('status_menikah', ''),
-                            'Alamat': data.get('alamat', ''),
-                            'Email': data.get('email', ''),
-                            'Status Babtis': data.get('status_babtis', ''),
-                            'Tempat Babtis': data.get('tempat_babtis', ''),
-                            'Tanggal Babtis': str(data.get('tanggal_babtis', '')),
-                            'Nama Babtis': data.get('nama_babtis', ''),
-                            'Status Ekaristi': data.get('status_ekaristi', ''),
-                            'Tempat Komuni': data.get('tempat_komuni', ''),
-                            'Tanggal Komuni': str(data.get('tanggal_komuni', '')),
-                            'Status Krisma': data.get('status_krisma', ''),
-                            'Tempat Krisma': data.get('tempat_krisma', ''),
-                            'Tanggal Krisma': str(data.get('tanggal_krisma', '')),
-                            'Status Perkawinan': data.get('status_perkawinan', ''),
-                            'Keuskupan': data.get('keuskupan', ''),
-                            'Paroki': data.get('paroki', ''),
-                            'Kota Perkawinan': data.get('kota_perkawinan', ''),
-                            'Tanggal Perkawinan': str(data.get('tanggal_perkawinan', '')),
-                            'Status Perkawinan Detail': data.get('status_perkawinan_detail', ''),
-                            'Status Keanggotaan': data.get('status_keanggotaan', '')
+                            'Nama Lengkap': self.format_display(data.get('nama_lengkap')),
+                            'Wilayah Rohani': self.format_display(data.get('wilayah_rohani')),
+                            'Nama Keluarga': self.format_display(data.get('nama_keluarga')),
+                            'Tempat Lahir': self.format_display(data.get('tempat_lahir')),
+                            'Tanggal Lahir': self.format_date(data.get('tanggal_lahir')),
+                            'Umur': self.format_display(data.get('umur')),
+                            'Status Kekatolikan': self.format_display(data.get('status_kekatolikan')),
+                            'Jenis Kelamin': self.format_gender(data.get('jenis_kelamin')),
+                            'Hubungan Keluarga': self.format_display(data.get('hubungan_keluarga')),
+                            'Pendidikan Terakhir': self.format_display(data.get('pendidikan_terakhir')),
+                            'Jenis Pekerjaan': self.format_display(data.get('jenis_pekerjaan')),
+                            'Detail Pekerjaan': self.format_display(data.get('detail_pekerjaan')),
+                            'Status Menikah': self.format_display(data.get('status_pernikahan')),  # Fixed: use database column name
+                            'Alamat': self.format_display(data.get('alamat')),
+                            'Email': self.format_display(data.get('email')),
+                            'Status Babtis': self.format_display(data.get('status_babtis')),
+                            'Tempat Babtis': self.format_display(data.get('tempat_babtis')),
+                            'Tanggal Babtis': self.format_date(data.get('tanggal_babtis')),
+                            'Nama Babtis': self.format_display(data.get('nama_babtis')),
+                            'Status Ekaristi': self.format_display(data.get('status_ekaristi')),
+                            'Tempat Komuni': self.format_display(data.get('tempat_komuni')),
+                            'Tanggal Komuni': self.format_date(data.get('tanggal_komuni')),
+                            'Status Krisma': self.format_display(data.get('status_krisma')),
+                            'Tempat Krisma': self.format_display(data.get('tempat_krisma')),
+                            'Tanggal Krisma': self.format_date(data.get('tanggal_krisma')),
+                            'Status Perkawinan': self.format_display(data.get('status_perkawinan')),
+                            'Keuskupan': self.format_display(data.get('keuskupan')),
+                            'Paroki': self.format_display(data.get('paroki')),
+                            'Kota Perkawinan': self.format_display(data.get('kota_perkawinan')),
+                            'Tanggal Perkawinan': self.format_date(data.get('tanggal_perkawinan')),
+                            'Status Perkawinan Detail': self.format_display(data.get('status_perkawinan_detail')),
+                            'Status Keanggotaan': self.format_display(data.get('status_keanggotaan')),
+                            'Created By Pengguna': self.get_creator_display(data)
                         })
                 
                 QMessageBox.information(self, "Sukses", f"Data berhasil diekspor ke {filename}")
@@ -1064,7 +1251,7 @@ class JemaatComponent(QWidget):
         if reply == QMessageBox.Yes:
             try:
                 import requests
-                from config import ServerConfig
+                from API.config import ServerConfig
                 
                 data = {
                     'admin_id': 1,
@@ -1122,46 +1309,51 @@ class JemaatComponent(QWidget):
         text_edit.setReadOnly(True)
         
         # Format all data nicely
+        def display(key):
+            return self.format_display(jemaat_data.get(key))
+
         details = f"""
 <h2>DETAIL JEMAAT</h2>
 <h3>DATA DIRI</h3>
 <table border="1" cellpadding="5" style="border-collapse: collapse; width: 100%;">
-<tr><td><b>Nama Lengkap:</b></td><td>{jemaat_data.get('nama_lengkap', '')}</td></tr>
-<tr><td><b>Wilayah Rohani:</b></td><td>{jemaat_data.get('wilayah_rohani', '')}</td></tr>
-<tr><td><b>Nama Keluarga:</b></td><td>{jemaat_data.get('nama_keluarga', '')}</td></tr>
-<tr><td><b>Tempat Lahir:</b></td><td>{jemaat_data.get('tempat_lahir', '')}</td></tr>
+<tr><td><b>Nama Lengkap:</b></td><td>{display('nama_lengkap')}</td></tr>
+<tr><td><b>Wilayah Rohani:</b></td><td>{display('wilayah_rohani')}</td></tr>
+<tr><td><b>Nama Keluarga:</b></td><td>{display('nama_keluarga')}</td></tr>
+<tr><td><b>Tempat Lahir:</b></td><td>{display('tempat_lahir')}</td></tr>
 <tr><td><b>Tanggal Lahir:</b></td><td>{self.format_date(jemaat_data.get('tanggal_lahir'))}</td></tr>
-<tr><td><b>Umur:</b></td><td>{jemaat_data.get('umur', '')}</td></tr>
-<tr><td><b>Kategori:</b></td><td>{jemaat_data.get('kategori', '')}</td></tr>
-<tr><td><b>Jenis Kelamin:</b></td><td>{jemaat_data.get('jenis_kelamin', '')}</td></tr>
-<tr><td><b>Hubungan Keluarga:</b></td><td>{jemaat_data.get('hubungan_keluarga', '')}</td></tr>
-<tr><td><b>Pendidikan Terakhir:</b></td><td>{jemaat_data.get('pendidikan_terakhir', '')}</td></tr>
-<tr><td><b>Status Menikah:</b></td><td>{jemaat_data.get('status_menikah', '')}</td></tr>
-<tr><td><b>Status Pekerjaan:</b></td><td>{jemaat_data.get('jenis_pekerjaan', '')}</td></tr>
+<tr><td><b>Umur:</b></td><td>{display('umur')}</td></tr>
+<tr><td><b>Kategori:</b></td><td>{display('kategori')}</td></tr>
+<tr><td><b>Jenis Kelamin:</b></td><td>{self.format_gender(jemaat_data.get('jenis_kelamin'))}</td></tr>
+<tr><td><b>Hubungan Keluarga:</b></td><td>{display('hubungan_keluarga')}</td></tr>
+<tr><td><b>Pendidikan Terakhir:</b></td><td>{display('pendidikan_terakhir')}</td></tr>
+<tr><td><b>Status Menikah:</b></td><td>{display('status_pernikahan')}</td></tr>
+<tr><td><b>Status Pekerjaan:</b></td><td>{display('jenis_pekerjaan')}</td></tr>
+<tr><td><b>Detail Pekerjaan:</b></td><td>{display('detail_pekerjaan')}</td></tr>
 </table>
 
 <h3>SAKRAMEN</h3>
 <table border="1" cellpadding="5" style="border-collapse: collapse; width: 100%;">
-<tr><td><b>Status Babtis:</b></td><td>{jemaat_data.get('status_babtis', '')}</td></tr>
-<tr><td><b>Tempat Babtis:</b></td><td>{jemaat_data.get('tempat_babtis', '')}</td></tr>
+<tr><td><b>Status Babtis:</b></td><td>{display('status_babtis')}</td></tr>
+<tr><td><b>Tempat Babtis:</b></td><td>{display('tempat_babtis')}</td></tr>
 <tr><td><b>Tanggal Babtis:</b></td><td>{self.format_date(jemaat_data.get('tanggal_babtis'))}</td></tr>
-<tr><td><b>Status Ekaristi:</b></td><td>{jemaat_data.get('status_ekaristi', '')}</td></tr>
-<tr><td><b>Tempat Komuni:</b></td><td>{jemaat_data.get('tempat_komuni', '')}</td></tr>
+<tr><td><b>Status Ekaristi:</b></td><td>{display('status_ekaristi')}</td></tr>
+<tr><td><b>Tempat Komuni:</b></td><td>{display('tempat_komuni')}</td></tr>
 <tr><td><b>Tanggal Komuni:</b></td><td>{self.format_date(jemaat_data.get('tanggal_komuni'))}</td></tr>
-<tr><td><b>Status Krisma:</b></td><td>{jemaat_data.get('status_krisma', '')}</td></tr>
-<tr><td><b>Tempat Krisma:</b></td><td>{jemaat_data.get('tempat_krisma', '')}</td></tr>
+<tr><td><b>Status Krisma:</b></td><td>{display('status_krisma')}</td></tr>
+<tr><td><b>Tempat Krisma:</b></td><td>{display('tempat_krisma')}</td></tr>
 <tr><td><b>Tanggal Krisma:</b></td><td>{self.format_date(jemaat_data.get('tanggal_krisma'))}</td></tr>
 </table>
 
 <h3>KONTAK & ALAMAT</h3>
 <table border="1" cellpadding="5" style="border-collapse: collapse; width: 100%;">
-<tr><td><b>Email:</b></td><td>{jemaat_data.get('email', '')}</td></tr>
-<tr><td><b>Alamat:</b></td><td>{jemaat_data.get('alamat', '')}</td></tr>
+<tr><td><b>Email:</b></td><td>{display('email')}</td></tr>
+<tr><td><b>Alamat:</b></td><td>{display('alamat')}</td></tr>
 </table>
 
 <h3>STATUS</h3>
 <table border="1" cellpadding="5" style="border-collapse: collapse; width: 100%;">
-<tr><td><b>Status Keanggotaan:</b></td><td>{jemaat_data.get('status_keanggotaan', '')}</td></tr>
+<tr><td><b>Status Keanggotaan:</b></td><td>{display('status_keanggotaan')}</td></tr>
+<tr><td><b>Created By:</b></td><td>{self.get_creator_display(jemaat_data)}</td></tr>
 </table>
         """
         

@@ -74,20 +74,20 @@ def get_buku_kronik_list():
         kronik_list = []
         for row in rows:
             # Convert datetime objects to ISO format strings
-            if row['tanggal']:
-                row['tanggal'] = row['tanggal'].isoformat()
-            if row['created_at']:
-                row['created_at'] = row['created_at'].isoformat()
-            if row['updated_at']:
-                row['updated_at'] = row['updated_at'].isoformat()
+            if row['tanggal']:  # type: ignore
+                row['tanggal'] = row['tanggal'].isoformat()  # type: ignore
+            if row['created_at']:  # type: ignore
+                row['created_at'] = row['created_at'].isoformat()  # type: ignore
+            if row['updated_at']:  # type: ignore
+                row['updated_at'] = row['updated_at'].isoformat()  # type: ignore
             kronik = {
-                'id_kronik': row['id_kronik'],
-                'tanggal': row['tanggal'],
-                'peristiwa': row['peristiwa'],
-                'keterangan': row['keterangan'],
-                'created_by': row['created_by'],
-                'created_at': row['created_at'],
-                'updated_at': row['updated_at']
+                'id_kronik': row['id_kronik'],  # type: ignore
+                'tanggal': row['tanggal'],  # type: ignore
+                'peristiwa': row['peristiwa'],  # type: ignore
+                'keterangan': row['keterangan'],  # type: ignore
+                'created_by': row['created_by'],  # type: ignore
+                'created_at': row['created_at'],  # type: ignore
+                'updated_at': row['updated_at']  # type: ignore
             }
             kronik_list.append(kronik)
 
@@ -304,13 +304,13 @@ def search_peristiwa():
         kronik_list = []
         for row in rows:
             kronik = {
-                'id_kronik': row[0],
-                'tanggal': row[1].isoformat() if row[1] else None,
-                'peristiwa': row[2],
-                'keterangan': row[3],
-                'created_by': row[4],
-                'created_at': row[5].isoformat() if row[5] else None,
-                'updated_at': row[6].isoformat() if row[6] else None
+                'id_kronik': row[0],  # type: ignore
+                'tanggal': row[1].isoformat() if row[1] else None,  # type: ignore
+                'peristiwa': row[2],  # type: ignore
+                'keterangan': row[3],  # type: ignore
+                'created_by': row[4],  # type: ignore
+                'created_at': row[5].isoformat() if row[5] else None,  # type: ignore
+                'updated_at': row[6].isoformat() if row[6] else None  # type: ignore
             }
             kronik_list.append(kronik)
 

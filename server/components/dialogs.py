@@ -3,7 +3,7 @@
 from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QFormLayout,
                             QLineEdit, QTextEdit, QDateEdit, QTimeEdit, QComboBox, QGroupBox,
                             QDialogButtonBox, QPushButton, QLabel, QDoubleSpinBox, QWidget, QScrollArea,
-                            QMessageBox)
+                            QMessageBox, QListWidget, QListWidgetItem)
 from PyQt5.QtCore import QDate, QTime, QLocale, Qt
 from PyQt5.QtGui import QFont, QStandardItemModel, QStandardItem, QColor
 
@@ -15,7 +15,10 @@ class JemaatDialog(QDialog):
         self.setWindowTitle("Tambah Jemaat" if not jemaat_data else "Edit Jemaat")
         self.setModal(True)
         self.setFixedSize(600, 700)
-        
+
+        # Dictionary to track label-field pairs for conditional visibility
+        self.field_pairs = {}  # Maps field name to (label, input_widget)
+
         # Setup UI
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
@@ -101,6 +104,12 @@ class JemaatDialog(QDialog):
         self.no_kk_input = QLineEdit()
         self.no_kk_input.setMinimumWidth(300)
         self.no_kk_input.setPlaceholderText("Nomor Kartu Keluarga")
+        # Add numeric-only validator for NO_KK
+        from PyQt5.QtGui import QRegExpValidator
+        from PyQt5.QtCore import QRegExp
+        numeric_regex = QRegExp("^[0-9]*$")
+        numeric_validator = QRegExpValidator(numeric_regex)
+        self.no_kk_input.setValidator(numeric_validator)
 
         self.nama_lengkap_input = QLineEdit()
         self.nama_lengkap_input.setMinimumWidth(300)
@@ -108,6 +117,8 @@ class JemaatDialog(QDialog):
         self.nik_input = QLineEdit()
         self.nik_input.setMinimumWidth(300)
         self.nik_input.setPlaceholderText("Nomor Identitas Kependudukan")
+        # Add numeric-only validator for NIK
+        self.nik_input.setValidator(numeric_validator)
         self.tempat_lahir_input = QLineEdit()
         self.tempat_lahir_input.setMinimumWidth(300)
         
@@ -194,19 +205,23 @@ class JemaatDialog(QDialog):
         data_diri_layout.addRow("Status Kekatolikan:", self.status_kekatolikan_input)
         self.status_kekatolikan_lainnya_label = QLabel("Status Kekatolikan (Lainnya):")
         data_diri_layout.addRow(self.status_kekatolikan_lainnya_label, self.status_kekatolikan_lainnya_input)
+        # Register in field_pairs for conditional visibility
+        self.field_pairs['status_kekatolikan_lainnya'] = (self.status_kekatolikan_lainnya_label, self.status_kekatolikan_lainnya_input)
+        self.set_field_visibility(['status_kekatolikan_lainnya'], False)
+
         data_diri_layout.addRow("Kategori:", self.kategori_input)
         data_diri_layout.addRow("Jenis Kelamin:", self.jenis_kelamin_input)
         data_diri_layout.addRow("Hubungan Keluarga:", self.hubungan_keluarga_input)
         data_diri_layout.addRow("Pendidikan Terakhir:", self.pendidikan_terakhir_input)
         data_diri_layout.addRow("Status Menikah:", self.status_menikah_input)
         data_diri_layout.addRow("Status Pekerjaan:", self.jenis_pekerjaan_input)
-        
+
         # Store reference to detail pekerjaan label and field
         self.detail_pekerjaan_label = QLabel("Detail Pekerjaan:")
         data_diri_layout.addRow(self.detail_pekerjaan_label, self.detail_pekerjaan_input)
-        # Initially hide both label and input
-        self.detail_pekerjaan_label.setVisible(False)
-        self.detail_pekerjaan_input.setVisible(False)
+        # Register in field_pairs for conditional visibility
+        self.field_pairs['detail_pekerjaan'] = (self.detail_pekerjaan_label, self.detail_pekerjaan_input)
+        self.set_field_visibility(['detail_pekerjaan'], False)
         
         # Trigger initial state for detail pekerjaan (should be hidden by default)
         self.on_jenis_pekerjaan_changed(self.jenis_pekerjaan_input.currentText())
@@ -228,14 +243,14 @@ class JemaatDialog(QDialog):
         """Setup section Sakramen Babtis"""
         babtis_group = QGroupBox("2. SAKRAMEN BABTIS")
         babtis_layout = QFormLayout(babtis_group)
-        
+
         self.status_babtis_input = QComboBox()
         self.status_babtis_input.addItems(["Pilih status", "Belum", "Sudah"])
         self.status_babtis_input.setCurrentIndex(0)
         self.status_babtis_input.setMinimumWidth(300)
         self.setup_placeholder_style(self.status_babtis_input)
         self.status_babtis_input.currentTextChanged.connect(self.on_babtis_status_changed)
-        
+
         self.tempat_babtis_input = QLineEdit()
         self.tempat_babtis_input.setMinimumWidth(300)
         self.tanggal_babtis_input = QDateEdit()
@@ -244,16 +259,24 @@ class JemaatDialog(QDialog):
         self.tanggal_babtis_input.setMinimumWidth(300)
         self.nama_babtis_input = QLineEdit()
         self.nama_babtis_input.setMinimumWidth(300)
-        
-        # Initially hide babtis fields
-        self.tempat_babtis_input.setVisible(False)
-        self.tanggal_babtis_input.setVisible(False)
-        self.nama_babtis_input.setVisible(False)
-        
+
         babtis_layout.addRow("Status:", self.status_babtis_input)
-        babtis_layout.addRow("Tempat Babtis:", self.tempat_babtis_input)
-        babtis_layout.addRow("Tanggal Babtis:", self.tanggal_babtis_input)
-        babtis_layout.addRow("Nama Babtis:", self.nama_babtis_input)
+
+        # Create label widgets and register label-input pairs for conditional visibility
+        tempat_babtis_label = QLabel("Tempat Babtis:")
+        tanggal_babtis_label = QLabel("Tanggal Babtis:")
+        nama_babtis_label = QLabel("Nama Babtis:")
+
+        self.field_pairs['tempat_babtis'] = (tempat_babtis_label, self.tempat_babtis_input)
+        self.field_pairs['tanggal_babtis'] = (tanggal_babtis_label, self.tanggal_babtis_input)
+        self.field_pairs['nama_babtis'] = (nama_babtis_label, self.nama_babtis_input)
+
+        # Initially hide babtis fields (both label and input)
+        babtis_layout.addRow(tempat_babtis_label, self.tempat_babtis_input)
+        babtis_layout.addRow(tanggal_babtis_label, self.tanggal_babtis_input)
+        babtis_layout.addRow(nama_babtis_label, self.nama_babtis_input)
+
+        self.set_field_visibility(['tempat_babtis', 'tanggal_babtis', 'nama_babtis'], False)
         
         # Set consistent spacing and alignment
         babtis_layout.setVerticalSpacing(5)
@@ -269,28 +292,34 @@ class JemaatDialog(QDialog):
         """Setup section Sakramen Ekaristi"""
         ekaristi_group = QGroupBox("3. SAKRAMEN EKARISTI")
         ekaristi_layout = QFormLayout(ekaristi_group)
-        
+
         self.status_ekaristi_input = QComboBox()
         self.status_ekaristi_input.addItems(["Pilih status", "Belum", "Sudah"])
         self.status_ekaristi_input.setCurrentIndex(0)
         self.status_ekaristi_input.setMinimumWidth(300)
         self.setup_placeholder_style(self.status_ekaristi_input)
         self.status_ekaristi_input.currentTextChanged.connect(self.on_ekaristi_status_changed)
-        
+
         self.tempat_komuni_input = QLineEdit()
         self.tempat_komuni_input.setMinimumWidth(300)
         self.tanggal_komuni_input = QDateEdit()
         self.tanggal_komuni_input.setCalendarPopup(True)
         self.tanggal_komuni_input.setDate(QDate.currentDate())
         self.tanggal_komuni_input.setMinimumWidth(300)
-        
-        # Initially hide ekaristi fields
-        self.tempat_komuni_input.setVisible(False)
-        self.tanggal_komuni_input.setVisible(False)
-        
+
         ekaristi_layout.addRow("Status:", self.status_ekaristi_input)
-        ekaristi_layout.addRow("Tempat Komuni:", self.tempat_komuni_input)
-        ekaristi_layout.addRow("Tanggal Komuni:", self.tanggal_komuni_input)
+
+        # Create label widgets and register label-input pairs for conditional visibility
+        tempat_komuni_label = QLabel("Tempat Komuni:")
+        tanggal_komuni_label = QLabel("Tanggal Komuni:")
+
+        self.field_pairs['tempat_komuni'] = (tempat_komuni_label, self.tempat_komuni_input)
+        self.field_pairs['tanggal_komuni'] = (tanggal_komuni_label, self.tanggal_komuni_input)
+
+        ekaristi_layout.addRow(tempat_komuni_label, self.tempat_komuni_input)
+        ekaristi_layout.addRow(tanggal_komuni_label, self.tanggal_komuni_input)
+
+        self.set_field_visibility(['tempat_komuni', 'tanggal_komuni'], False)
         
         # Set consistent spacing and alignment
         ekaristi_layout.setVerticalSpacing(5)
@@ -306,29 +335,36 @@ class JemaatDialog(QDialog):
         """Setup section Sakramen Krisma"""
         krisma_group = QGroupBox("4. SAKRAMEN KRISMA")
         krisma_layout = QFormLayout(krisma_group)
-        
+
         self.status_krisma_input = QComboBox()
         self.status_krisma_input.addItems(["Pilih status", "Belum", "Sudah"])
         self.status_krisma_input.setCurrentIndex(0)
         self.status_krisma_input.setMinimumWidth(300)
         self.setup_placeholder_style(self.status_krisma_input)
         self.status_krisma_input.currentTextChanged.connect(self.on_krisma_status_changed)
-        
+
         self.tempat_krisma_input = QLineEdit()
         self.tempat_krisma_input.setMinimumWidth(300)
         self.tanggal_krisma_input = QDateEdit()
         self.tanggal_krisma_input.setCalendarPopup(True)
         self.tanggal_krisma_input.setDate(QDate.currentDate())
         self.tanggal_krisma_input.setMinimumWidth(300)
-        
-        # Initially hide perkawinan fields
-        self.tempat_krisma_input.setVisible(False)
-        self.tanggal_krisma_input.setVisible(False)
-        
+
         krisma_layout.addRow("Status:", self.status_krisma_input)
-        krisma_layout.addRow("Tempat Krisma:", self.tempat_krisma_input)
-        krisma_layout.addRow("Tanggal:", self.tanggal_krisma_input)
-        
+
+        # Create label widgets and register label-input pairs
+        tempat_krisma_label = QLabel("Tempat Krisma:")
+        tanggal_krisma_label = QLabel("Tanggal:")
+
+        self.field_pairs['tempat_krisma'] = (tempat_krisma_label, self.tempat_krisma_input)
+        self.field_pairs['tanggal_krisma'] = (tanggal_krisma_label, self.tanggal_krisma_input)
+
+        krisma_layout.addRow(tempat_krisma_label, self.tempat_krisma_input)
+        krisma_layout.addRow(tanggal_krisma_label, self.tanggal_krisma_input)
+
+        # Initially hide krisma fields
+        self.set_field_visibility(['tempat_krisma', 'tanggal_krisma'], False)
+
         # Set consistent spacing and alignment
         krisma_layout.setVerticalSpacing(5)
         krisma_layout.setHorizontalSpacing(10)
@@ -336,21 +372,21 @@ class JemaatDialog(QDialog):
         krisma_layout.setLabelAlignment(Qt.AlignLeft)
         krisma_layout.setRowWrapPolicy(krisma_layout.DontWrapRows)
         krisma_layout.setFormAlignment(Qt.AlignLeft | Qt.AlignTop)
-        
+
         layout.addWidget(krisma_group)
     
     def setup_sakramen_perkawinan(self, layout):
         """Setup section Sakramen Perkawinan"""
         perkawinan_group = QGroupBox("5. SAKRAMEN PERKAWINAN")
         perkawinan_layout = QFormLayout(perkawinan_group)
-        
+
         self.status_perkawinan_input = QComboBox()
         self.status_perkawinan_input.addItems(["Pilih status", "Belum", "Sudah"])
         self.status_perkawinan_input.setCurrentIndex(0)
         self.status_perkawinan_input.setMinimumWidth(300)
         self.setup_placeholder_style(self.status_perkawinan_input)
         self.status_perkawinan_input.currentTextChanged.connect(self.on_perkawinan_status_changed)
-        
+
         self.keuskupan_input = QLineEdit()
         self.keuskupan_input.setMinimumWidth(300)
         self.paroki_input = QLineEdit()
@@ -366,21 +402,31 @@ class JemaatDialog(QDialog):
         self.status_perkawinan_detail_input.setCurrentIndex(0)
         self.status_perkawinan_detail_input.setMinimumWidth(300)
         self.setup_placeholder_style(self.status_perkawinan_detail_input)
-        
-        # Initially hide perkawinan fields
-        self.keuskupan_input.setVisible(False)
-        self.paroki_input.setVisible(False)
-        self.kota_perkawinan_input.setVisible(False)
-        self.tanggal_perkawinan_input.setVisible(False)
-        self.status_perkawinan_detail_input.setVisible(False)
-        
+
         perkawinan_layout.addRow("Status:", self.status_perkawinan_input)
-        perkawinan_layout.addRow("Keuskupan:", self.keuskupan_input)
-        perkawinan_layout.addRow("Paroki:", self.paroki_input)
-        perkawinan_layout.addRow("Kota:", self.kota_perkawinan_input)
-        perkawinan_layout.addRow("Tanggal:", self.tanggal_perkawinan_input)
-        perkawinan_layout.addRow("Status Perkawinan:", self.status_perkawinan_detail_input)
-        
+
+        # Create label widgets and register label-input pairs
+        keuskupan_label = QLabel("Keuskupan:")
+        paroki_label = QLabel("Paroki:")
+        kota_label = QLabel("Kota:")
+        tanggal_label = QLabel("Tanggal:")
+        status_detail_label = QLabel("Status Perkawinan:")
+
+        self.field_pairs['keuskupan'] = (keuskupan_label, self.keuskupan_input)
+        self.field_pairs['paroki'] = (paroki_label, self.paroki_input)
+        self.field_pairs['kota_perkawinan'] = (kota_label, self.kota_perkawinan_input)
+        self.field_pairs['tanggal_perkawinan'] = (tanggal_label, self.tanggal_perkawinan_input)
+        self.field_pairs['status_perkawinan_detail'] = (status_detail_label, self.status_perkawinan_detail_input)
+
+        perkawinan_layout.addRow(keuskupan_label, self.keuskupan_input)
+        perkawinan_layout.addRow(paroki_label, self.paroki_input)
+        perkawinan_layout.addRow(kota_label, self.kota_perkawinan_input)
+        perkawinan_layout.addRow(tanggal_label, self.tanggal_perkawinan_input)
+        perkawinan_layout.addRow(status_detail_label, self.status_perkawinan_detail_input)
+
+        # Initially hide perkawinan fields
+        self.set_field_visibility(['keuskupan', 'paroki', 'kota_perkawinan', 'tanggal_perkawinan', 'status_perkawinan_detail'], False)
+
         # Set consistent spacing and alignment
         perkawinan_layout.setVerticalSpacing(5)
         perkawinan_layout.setHorizontalSpacing(10)
@@ -388,38 +434,48 @@ class JemaatDialog(QDialog):
         perkawinan_layout.setLabelAlignment(Qt.AlignLeft)
         perkawinan_layout.setRowWrapPolicy(perkawinan_layout.DontWrapRows)
         perkawinan_layout.setFormAlignment(Qt.AlignLeft | Qt.AlignTop)
-        
+
         layout.addWidget(perkawinan_group)
     
     def setup_status(self, layout):
         """Setup section Status"""
         status_group = QGroupBox("6. STATUS")
         status_layout = QFormLayout(status_group)
-        
+
         self.status_keanggotaan_input = QComboBox()
         self.status_keanggotaan_input.addItems(["Pilih Status", "Menetap", "Pindah", "Meninggal Dunia"])
         self.status_keanggotaan_input.setCurrentIndex(0)
         self.status_keanggotaan_input.setMinimumWidth(300)
         self.setup_placeholder_style(self.status_keanggotaan_input)
         self.status_keanggotaan_input.currentTextChanged.connect(self.on_status_keanggotaan_changed)
-        
+
         # Conditional fields for Pindah status
         self.wilayah_rohani_pindah_input = QLineEdit()
         self.wilayah_rohani_pindah_input.setMinimumWidth(300)
-        self.wilayah_rohani_pindah_input.setVisible(False)
-        
+
         self.paroki_pindah_input = QLineEdit()
         self.paroki_pindah_input.setMinimumWidth(300)
-        self.paroki_pindah_input.setVisible(False)
-        
+
         self.keuskupan_pindah_input = QLineEdit()
         self.keuskupan_pindah_input.setMinimumWidth(300)
-        self.keuskupan_pindah_input.setVisible(False)
-        
+
         status_layout.addRow("Status Keanggotaan:", self.status_keanggotaan_input)
-        status_layout.addRow("Wilayah Rohani Tujuan:", self.wilayah_rohani_pindah_input)
-        status_layout.addRow("Paroki Tujuan:", self.paroki_pindah_input)
-        status_layout.addRow("Keuskupan Tujuan:", self.keuskupan_pindah_input)
+
+        # Create label widgets and register label-input pairs for conditional fields
+        wilayah_label = QLabel("Wilayah Rohani Tujuan:")
+        paroki_pindah_label = QLabel("Paroki Tujuan:")
+        keuskupan_pindah_label = QLabel("Keuskupan Tujuan:")
+
+        self.field_pairs['wilayah_rohani_pindah'] = (wilayah_label, self.wilayah_rohani_pindah_input)
+        self.field_pairs['paroki_pindah'] = (paroki_pindah_label, self.paroki_pindah_input)
+        self.field_pairs['keuskupan_pindah'] = (keuskupan_pindah_label, self.keuskupan_pindah_input)
+
+        status_layout.addRow(wilayah_label, self.wilayah_rohani_pindah_input)
+        status_layout.addRow(paroki_pindah_label, self.paroki_pindah_input)
+        status_layout.addRow(keuskupan_pindah_label, self.keuskupan_pindah_input)
+
+        # Initially hide pindah fields
+        self.set_field_visibility(['wilayah_rohani_pindah', 'paroki_pindah', 'keuskupan_pindah'], False)
         
         # Set consistent spacing and alignment
         status_layout.setVerticalSpacing(5)
@@ -542,22 +598,8 @@ class JemaatDialog(QDialog):
                 age -= 1
             
             self.umur_input.setText(f"{age} tahun")
-            
-            # Auto-set kategori based on age
-            if age < 2:
-                self.kategori_input.setCurrentText("Balita")
-            elif age < 12:
-                self.kategori_input.setCurrentText("Anak-anak")
-            elif age < 18:
-                self.kategori_input.setCurrentText("Remaja")
-            elif age < 30:
-                self.kategori_input.setCurrentText("OMK")
-            elif age < 50:
-                self.kategori_input.setCurrentText("KBK")
-            elif age < 60:
-                self.kategori_input.setCurrentText("KIK")
-            else:
-                self.kategori_input.setCurrentText("Lansia")
+
+            # Kategori tidak lagi di-set otomatis, user harus memilih manual
                 
         except Exception as e:
             self.umur_input.setText("")
@@ -565,50 +607,49 @@ class JemaatDialog(QDialog):
     def on_status_keanggotaan_changed(self, text):
         """Handle perubahan status keanggotaan"""
         visible = (text == "Pindah")
-        self.wilayah_rohani_pindah_input.setVisible(visible)
-        self.paroki_pindah_input.setVisible(visible)
-        self.keuskupan_pindah_input.setVisible(visible)
+        self.set_field_visibility(['wilayah_rohani_pindah', 'paroki_pindah', 'keuskupan_pindah'], visible)
     
     def on_jenis_pekerjaan_changed(self, text):
         """Handle perubahan status pekerjaan"""
         # Detail pekerjaan hanya muncul saat pilih "Bekerja"
         visible = (text == "Bekerja")
-        self.detail_pekerjaan_label.setVisible(visible)
-        self.detail_pekerjaan_input.setVisible(visible)
+        self.set_field_visibility(['detail_pekerjaan'], visible)
     
+    def set_field_visibility(self, field_names, visible):
+        """Set visibility untuk field dan label secara bersamaan"""
+        if not isinstance(field_names, list):
+            field_names = [field_names]
+
+        for field_name in field_names:
+            if field_name in self.field_pairs:
+                label_widget, input_widget = self.field_pairs[field_name]
+                label_widget.setVisible(visible)
+                input_widget.setVisible(visible)
+
     def on_babtis_status_changed(self, text):
         """Handle perubahan status babtis"""
         visible = (text == "Sudah")
-        self.tempat_babtis_input.setVisible(visible)
-        self.tanggal_babtis_input.setVisible(visible)
-        self.nama_babtis_input.setVisible(visible)
-    
+        self.set_field_visibility(['tempat_babtis', 'tanggal_babtis', 'nama_babtis'], visible)
+
     def on_ekaristi_status_changed(self, text):
         """Handle perubahan status ekaristi"""
         visible = (text == "Sudah")
-        self.tempat_komuni_input.setVisible(visible)
-        self.tanggal_komuni_input.setVisible(visible)
-    
+        self.set_field_visibility(['tempat_komuni', 'tanggal_komuni'], visible)
+
     def on_krisma_status_changed(self, text):
         """Handle perubahan status krisma"""
         visible = (text == "Sudah")
-        self.tempat_krisma_input.setVisible(visible)
-        self.tanggal_krisma_input.setVisible(visible)
-    
+        self.set_field_visibility(['tempat_krisma', 'tanggal_krisma'], visible)
+
     def on_perkawinan_status_changed(self, text):
         """Handle perubahan status perkawinan"""
         visible = (text == "Sudah")
-        self.keuskupan_input.setVisible(visible)
-        self.paroki_input.setVisible(visible)
-        self.kota_perkawinan_input.setVisible(visible)
-        self.tanggal_perkawinan_input.setVisible(visible)
-        self.status_perkawinan_detail_input.setVisible(visible)
+        self.set_field_visibility(['keuskupan', 'paroki', 'kota_perkawinan', 'tanggal_perkawinan', 'status_perkawinan_detail'], visible)
 
     def on_status_kekatolikan_changed(self, text):
         """Handle perubahan status kekatolikan"""
         visible = (text == "Lainnya")
-        self.status_kekatolikan_lainnya_input.setVisible(visible)
-        self.status_kekatolikan_lainnya_label.setVisible(visible)
+        self.set_field_visibility(['status_kekatolikan_lainnya'], visible)
 
     def load_data(self):
         """Load data untuk edit"""
@@ -2743,8 +2784,158 @@ class ProgramKerjaKategorialDialog(QDialog):
         }
 
 
+class PilihJemaatDialog(QDialog):
+    """Dialog untuk memilih jemaat dari daftar"""
+    def __init__(self, parent=None, db_manager=None):
+        super().__init__(parent)
+        self.db_manager = db_manager
+        self.selected_jemaat = None
+        self.all_jemaat = []  # Initialize to avoid AttributeError
+        self.setWindowTitle("Pilih Jemaat")
+        self.setModal(True)
+        self.setFixedSize(500, 400)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(10)
+
+        # Search box
+        search_layout = QHBoxLayout()
+        search_label = QLabel("Cari:")
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("Ketik nama untuk mencari...")
+        self.search_input.textChanged.connect(self.filter_jemaat_list)
+        search_layout.addWidget(search_label)
+        search_layout.addWidget(self.search_input)
+        layout.addLayout(search_layout)
+
+        # Jemaat list
+        self.jemaat_list_widget = QListWidget()
+        self.jemaat_list_widget.itemDoubleClicked.connect(self.accept)
+        layout.addWidget(self.jemaat_list_widget)
+
+        # Status label for loading
+        self.status_label = QLabel("Memuat data jemaat...")
+        self.status_label.setStyleSheet("color: #7f8c8d; font-style: italic;")
+        layout.addWidget(self.status_label)
+
+        # Buttons
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+
+        cancel_button = QPushButton("Batal")
+        cancel_button.clicked.connect(self.reject)
+        cancel_button.setFixedWidth(75)
+        cancel_button.setStyleSheet("""
+            QPushButton {
+                background-color: #95a5a6;
+                color: white;
+                border: none;
+                border-radius: 3px;
+                padding: 5px;
+            }
+            QPushButton:hover {
+                background-color: #7f8c8d;
+            }
+        """)
+
+        select_button = QPushButton("Pilih")
+        select_button.clicked.connect(self.accept)
+        select_button.setFixedWidth(75)
+        select_button.setStyleSheet("""
+            QPushButton {
+                background-color: #27ae60;
+                color: white;
+                border: none;
+                border-radius: 3px;
+                padding: 5px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #229954;
+            }
+        """)
+
+        button_layout.addWidget(cancel_button)
+        button_layout.addWidget(select_button)
+        layout.addLayout(button_layout)
+
+        # Load jemaat list
+        self.load_jemaat_list()
+
+    def load_jemaat_list(self):
+        """Load all jemaat from database"""
+        if not self.db_manager:
+            self.status_label.setText("❌ Database manager tidak tersedia")
+            return
+
+        try:
+            success, result = self.db_manager.get_jemaat_list(limit=1000, offset=0)
+            if success:
+                # Result can be either a list directly or a dict with 'data' key
+                if isinstance(result, list):
+                    self.all_jemaat = result
+                elif isinstance(result, dict) and result.get('success'):
+                    self.all_jemaat = result.get('data', [])
+                elif isinstance(result, dict) and 'data' in result:
+                    self.all_jemaat = result.get('data', [])
+                else:
+                    self.all_jemaat = []
+
+                self.display_jemaat_list(self.all_jemaat)
+                # Update status label
+                if self.all_jemaat:
+                    self.status_label.setText(f"Total: {len(self.all_jemaat)} jemaat ditemukan")
+                else:
+                    self.status_label.setText("Tidak ada data jemaat")
+            else:
+                self.status_label.setText("❌ Gagal memuat data jemaat")
+                print(f"[PilihJemaatDialog] Error: {result}")
+        except Exception as e:
+            self.status_label.setText(f"❌ Error: {str(e)}")
+            print(f"[PilihJemaatDialog] Exception loading jemaat list: {str(e)}")
+
+    def display_jemaat_list(self, jemaat_list):
+        """Display jemaat list in widget"""
+        self.jemaat_list_widget.clear()
+        count = 0
+        for jemaat in jemaat_list:
+            nama = jemaat.get('nama_lengkap', '')
+            if nama:
+                item = QListWidgetItem(nama)
+                item.setData(Qt.UserRole, jemaat)
+                self.jemaat_list_widget.addItem(item)
+                count += 1
+
+        # Select first item by default
+        if count > 0:
+            self.jemaat_list_widget.setCurrentRow(0)
+
+    def filter_jemaat_list(self, text):
+        """Filter jemaat list based on search text"""
+        if hasattr(self, 'all_jemaat'):
+            if len(text.strip()) == 0:
+                self.display_jemaat_list(self.all_jemaat)
+                if self.all_jemaat:
+                    self.status_label.setText(f"Total: {len(self.all_jemaat)} jemaat ditemukan")
+            else:
+                filtered = [j for j in self.all_jemaat if text.lower() in j.get('nama_lengkap', '').lower()]
+                self.display_jemaat_list(filtered)
+                if filtered:
+                    self.status_label.setText(f"Hasil pencarian: {len(filtered)} jemaat")
+                else:
+                    self.status_label.setText("Tidak ada hasil yang sesuai")
+
+    def get_selected_jemaat(self):
+        """Get selected jemaat"""
+        current_item = self.jemaat_list_widget.currentItem()
+        if current_item:
+            return current_item.data(Qt.UserRole)
+        return None
+
+
 class TimPesertaDialog(QDialog):
-    """Dialog untuk menambah/edit peserta Tim Pembina (simplified single-table approach)"""
+    """Dialog untuk menambah/edit peserta Tim Pembina"""
     def __init__(self, parent=None, peserta_data=None, db_manager=None):
         super().__init__(parent)
         self.peserta_data = peserta_data
@@ -2752,30 +2943,67 @@ class TimPesertaDialog(QDialog):
         self.selected_jemaat = None
         self.setWindowTitle("Tambah Peserta Tim" if not peserta_data else "Edit Peserta Tim")
         self.setModal(True)
-        self.setFixedSize(550, 450)
+        self.setFixedSize(540, 330)
 
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(10)
 
         form_layout = QFormLayout()
-        form_layout.setSpacing(12)
+        form_layout.setLabelAlignment(Qt.AlignLeft)
+        form_layout.setFormAlignment(Qt.AlignLeft | Qt.AlignTop)
+        form_layout.setVerticalSpacing(6)
+        form_layout.setHorizontalSpacing(10)
 
-        # Nama Peserta (searchable from jemaat)
+        # Nama Peserta (editable dengan button Cari Umat)
+        nama_label = QLabel("Nama Peserta:")
+        nama_label.setMinimumWidth(110)
+
+        # Container untuk Nama Peserta + button
+        nama_container = QHBoxLayout()
+
         self.nama_peserta_input = QLineEdit()
-        self.nama_peserta_input.setPlaceholderText("Ketik nama untuk mencari umat...")
-        self.nama_peserta_input.setMinimumWidth(350)
-        self.nama_peserta_input.textChanged.connect(self.on_search_jemaat)
-        form_layout.addRow("Nama Peserta:", self.nama_peserta_input)
+        self.nama_peserta_input.setPlaceholderText("Ketik nama peserta atau klik 'Cari Umat'...")
+        self.nama_peserta_input.setMinimumWidth(240)
+
+        cari_umat_button = QPushButton("Cari Umat")
+        cari_umat_button.setFixedWidth(80)
+        cari_umat_button.clicked.connect(self.on_cari_umat_clicked)
+        cari_umat_button.setStyleSheet("""
+            QPushButton {
+                background-color: #3498db;
+                color: white;
+                border: none;
+                border-radius: 3px;
+                padding: 5px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #2980b9;
+            }
+        """)
+
+        nama_container.addWidget(self.nama_peserta_input)
+        nama_container.addWidget(cari_umat_button)
+        nama_container.setSpacing(6)
+
+        form_layout.addRow(nama_label, nama_container)
 
         # Wilayah Rohani (dropdown)
+        wilayah_label = QLabel("Wilayah Rohani:")
+        wilayah_label.setMinimumWidth(110)
         self.wilayah_rohani_input = QComboBox()
-        self.wilayah_rohani_input.setMinimumWidth(350)
+        self.wilayah_rohani_input.setMinimumWidth(300)
         self.wilayah_rohani_input.addItem("Pilih Wilayah Rohani")
-        self.load_wilayah_list()  # Load immediately
-        form_layout.addRow("Wilayah Rohani:", self.wilayah_rohani_input)
+        self.apply_combobox_style(self.wilayah_rohani_input)
+        self.load_wilayah_list()
+        form_layout.addRow(wilayah_label, self.wilayah_rohani_input)
 
         # Jabatan (dropdown with fixed options)
+        jabatan_label = QLabel("Jabatan:")
+        jabatan_label.setMinimumWidth(110)
         self.jabatan_input = QComboBox()
-        self.jabatan_input.setMinimumWidth(350)
+        self.jabatan_input.setMinimumWidth(300)
         self.jabatan_input.addItems([
             "Pilih Jabatan",
             "Pembina",
@@ -2786,120 +3014,203 @@ class TimPesertaDialog(QDialog):
             "Anggota Sie",
             "Anggota Biasa"
         ])
-        form_layout.addRow("Jabatan:", self.jabatan_input)
+        self.apply_combobox_style(self.jabatan_input)
+        form_layout.addRow(jabatan_label, self.jabatan_input)
 
-        # Tim Pembina (dropdown)
+        # Tim Pembina (fixed list: Liturgi, Katekese, Perkawinan, Keluarga, Konsultasi, Lainnya)
+        tim_label = QLabel("Tim Pembina:")
+        tim_label.setMinimumWidth(110)
         self.nama_tim_input = QComboBox()
-        self.nama_tim_input.setMinimumWidth(350)
-        self.nama_tim_input.addItem("Pilih Tim")
-        self.load_tim_list()
-        form_layout.addRow("Tim Pembina:", self.nama_tim_input)
+        self.nama_tim_input.setMinimumWidth(300)
+        self.nama_tim_input.addItems([
+            "Pilih Tim",
+            "Liturgi",
+            "Katekese",
+            "Perkawinan",
+            "Keluarga",
+            "Konsultasi",
+            "Lainnya"
+        ])
+        self.nama_tim_input.currentTextChanged.connect(self.on_tim_changed)
+        self.apply_combobox_style(self.nama_tim_input)
+        form_layout.addRow(tim_label, self.nama_tim_input)
+
+        # Tim Lainnya (conditional field - shown only when "Lainnya" is selected)
+        tim_lainnya_label = QLabel("Tim Lainnya:")
+        tim_lainnya_label.setMinimumWidth(110)
+        self.tim_lainnya_input = QLineEdit()
+        self.tim_lainnya_input.setPlaceholderText("Masukkan nama tim pembina yang lain...")
+        self.tim_lainnya_input.setMinimumWidth(300)
+        tim_lainnya_label.hide()
+        self.tim_lainnya_input.hide()
+        form_layout.addRow(tim_lainnya_label, self.tim_lainnya_input)
+        self.tim_lainnya_label = tim_lainnya_label
 
         # Tahun (dropdown with realtime years starting from 2025)
+        tahun_label = QLabel("Tahun:")
+        tahun_label.setMinimumWidth(110)
         self.tahun_input = QComboBox()
-        self.tahun_input.setMinimumWidth(350)
+        self.tahun_input.setMinimumWidth(300)
         self.tahun_input.addItem("Pilih Tahun")
+        self.apply_combobox_style(self.tahun_input)
         current_year = QDate.currentDate().year()
         for year in range(2025, current_year + 5):
             self.tahun_input.addItem(str(year))
-        form_layout.addRow("Tahun:", self.tahun_input)
+        form_layout.addRow(tahun_label, self.tahun_input)
 
         layout.addLayout(form_layout)
 
         # Buttons
-        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        button_box.accepted.connect(self.accept)
-        button_box.rejected.connect(self.reject)
-        layout.addWidget(button_box)
+        button_layout = QHBoxLayout()
+        button_layout.setSpacing(6)
+        button_layout.addStretch()
+
+        cancel_button = QPushButton("Batal")
+        cancel_button.clicked.connect(self.reject)
+        cancel_button.setFixedWidth(75)
+        cancel_button.setStyleSheet("""
+            QPushButton {
+                background-color: #95a5a6;
+                color: white;
+                border: none;
+                border-radius: 3px;
+                padding: 5px;
+            }
+            QPushButton:hover {
+                background-color: #7f8c8d;
+            }
+        """)
+
+        ok_button = QPushButton("OK")
+        ok_button.clicked.connect(self.accept)
+        ok_button.setFixedWidth(75)
+        ok_button.setStyleSheet("""
+            QPushButton {
+                background-color: #27ae60;
+                color: white;
+                border: none;
+                border-radius: 3px;
+                padding: 5px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #229954;
+            }
+        """)
+
+        button_layout.addWidget(cancel_button)
+        button_layout.addWidget(ok_button)
+        layout.addLayout(button_layout)
 
         # Load data if editing
         if peserta_data:
             self.load_data()
 
-    def load_tim_list(self):
-        """Load tim pembina list from database"""
+    def apply_combobox_style(self, combo):
+        """Apply consistent styling to combobox with proper text visibility"""
+        combo.setStyleSheet("""
+            QComboBox {
+                border: 1px solid #bdc3c7;
+                border-radius: 3px;
+                padding: 5px;
+                background-color: white;
+                color: #2c3e50;
+            }
+            QComboBox:hover {
+                border: 1px solid #95a5a6;
+            }
+            QComboBox::drop-down {
+                width: 20px;
+            }
+            QComboBox::down-arrow {
+                width: 12px;
+                height: 8px;
+            }
+            QListView {
+                background-color: white;
+                color: #2c3e50;
+                selection-background-color: #3498db;
+                selection-color: white;
+            }
+            QListView::item:hover {
+                background-color: #ecf0f1;
+            }
+            QListView::item:selected {
+                background-color: #3498db;
+            }
+        """)
+
+    def on_cari_umat_clicked(self):
+        """Handle Cari Umat button click - show dialog with list of jemaat"""
         if not self.db_manager:
             return
 
-        try:
-            success, result = self.db_manager.get_tim_pembina()
-            if success and isinstance(result, dict) and result.get('success'):
-                tim_list = result.get('data', [])
-                for tim in tim_list:
-                    tim_name = tim.get('nama_tim', tim.get('tim_pembina', ''))
-                    if tim_name:
-                        self.nama_tim_input.addItem(tim_name)
-        except Exception as e:
-            print(f"[TimPesertaDialog] Error loading tim list: {str(e)}")
+        # Create and show jemaat list selection dialog
+        dialog = PilihJemaatDialog(self, db_manager=self.db_manager)
+        if dialog.exec_() == QDialog.Accepted:
+            jemaat = dialog.get_selected_jemaat()
+            if jemaat:
+                self.selected_jemaat = jemaat
+
+                # Auto-fill nama peserta
+                nama = jemaat.get('nama_lengkap', '')
+                self.nama_peserta_input.setText(nama)
+
+                # Auto-fill wilayah rohani
+                wilayah = jemaat.get('wilayah_rohani', '')
+                if wilayah:
+                    index = self.wilayah_rohani_input.findText(wilayah)
+                    if index >= 0:
+                        self.wilayah_rohani_input.setCurrentIndex(index)
+
+    def on_tim_changed(self, text):
+        """Handle tim pembina selection - show/hide custom input for 'Lainnya'"""
+        if text == "Lainnya":
+            self.tim_lainnya_input.show()
+            self.tim_lainnya_label.show()
+        else:
+            self.tim_lainnya_input.hide()
+            self.tim_lainnya_label.hide()
+            self.tim_lainnya_input.clear()
 
     def load_wilayah_list(self):
-        """Load wilayah rohani list from jemaat database"""
-        if not self.db_manager:
-            return
+        """Load wilayah rohani list - fixed 26 saint names"""
+        # Fixed list of 26 saint names for wilayah rohani
+        wilayah_list = [
+            "ST. YOHANES BAPTISTA DE LA SALLE",
+            "ST. ALOYSIUS GONZAGA",
+            "ST. GREGORIUS AGUNG",
+            "ST. DOMINICO SAVIO",
+            "ST. THOMAS AQUINAS",
+            "ST. ALBERTUS AGUNG",
+            "ST. BONAVENTURA",
+            "STA. KATARINA DARI SIENA",
+            "STA. SISILIA",
+            "ST. BLASIUS",
+            "ST. CAROLUS BORROMEUS",
+            "ST. BONIFASIUS",
+            "ST. CORNELIUS",
+            "STA. BRIGITTA",
+            "ST. IGNASIUS DARI LOYOLA",
+            "ST. PIUS X",
+            "STA. AGNES",
+            "ST. AGUSTINUS",
+            "STA. FAUSTINA",
+            "ST. YOHANES MARIA VIANNEY",
+            "STA. MARIA GORETTI",
+            "STA. PERPETUA",
+            "ST. LUKAS",
+            "STA. SKOLASTIKA",
+            "STA. THERESIA DARI AVILLA",
+            "ST. VINCENTIUS A PAULO"
+        ]
 
-        try:
-            # Get unique wilayah rohani from jemaat
-            success, result = self.db_manager.get_jemaat_list()
-            if success and isinstance(result, dict) and result.get('success'):
-                jemaat_list = result.get('data', [])
-                wilayah_set = set()
-                for jemaat in jemaat_list:
-                    wr = jemaat.get('wilayah_rohani', '')
-                    if wr:
-                        wilayah_set.add(wr)
+        self.wilayah_rohani_input.blockSignals(True)
+        self.wilayah_rohani_input.clear()
+        self.wilayah_rohani_input.addItem("Pilih Wilayah Rohani")
+        self.wilayah_rohani_input.addItems(wilayah_list)
+        self.wilayah_rohani_input.blockSignals(False)
 
-                self.wilayah_rohani_input.blockSignals(True)
-                self.wilayah_rohani_input.clear()
-                self.wilayah_rohani_input.addItem("Pilih Wilayah Rohani")
-                for wr in sorted(wilayah_set):
-                    self.wilayah_rohani_input.addItem(wr)
-                self.wilayah_rohani_input.blockSignals(False)
-        except Exception as e:
-            print(f"[TimPesertaDialog] Error loading wilayah list: {str(e)}")
-
-    def on_search_jemaat(self, keyword):
-        """Search umat dalam database jemaat"""
-        if not self.db_manager:
-            return
-
-        if len(keyword) < 2:
-            self.selected_jemaat = None
-            self.wilayah_rohani_input.setCurrentIndex(0)
-            return
-
-        try:
-            result = self.db_manager.search_jemaat_by_nama(keyword)
-            if isinstance(result, dict) and result.get('success'):
-                jemaat_list = result.get('data', [])
-                if jemaat_list:
-                    # Auto-select if only one match
-                    if len(jemaat_list) == 1:
-                        self.selected_jemaat = jemaat_list[0]
-                        self.nama_peserta_input.setText(self.selected_jemaat.get('nama_lengkap', ''))
-                        wilayah = self.selected_jemaat.get('wilayah_rohani', '')
-                        if wilayah:
-                            index = self.wilayah_rohani_input.findText(wilayah)
-                            if index >= 0:
-                                self.wilayah_rohani_input.setCurrentIndex(index)
-                    else:
-                        # Multiple matches - store for later selection
-                        self.jemaat_list = jemaat_list
-                        # Auto-select first if multiple
-                        self.selected_jemaat = jemaat_list[0]
-                        self.nama_peserta_input.setText(self.selected_jemaat.get('nama_lengkap', ''))
-                        wilayah = self.selected_jemaat.get('wilayah_rohani', '')
-                        if wilayah:
-                            index = self.wilayah_rohani_input.findText(wilayah)
-                            if index >= 0:
-                                self.wilayah_rohani_input.setCurrentIndex(index)
-                else:
-                    self.selected_jemaat = None
-                    self.wilayah_rohani_input.setCurrentIndex(0)
-            else:
-                self.selected_jemaat = None
-                self.wilayah_rohani_input.setCurrentIndex(0)
-        except Exception as e:
-            print(f"[TimPesertaDialog] Error searching jemaat: {str(e)}")
 
     def load_data(self):
         """Load data untuk edit"""
@@ -2934,6 +3245,10 @@ class TimPesertaDialog(QDialog):
             index = self.nama_tim_input.findText(nama_tim)
             if index >= 0:
                 self.nama_tim_input.setCurrentIndex(index)
+            else:
+                # If tim not in fixed list, it's a custom "Lainnya" value
+                self.nama_tim_input.setCurrentText("Lainnya")
+                self.tim_lainnya_input.setText(nama_tim)
 
         # Load tahun
         tahun = str(self.peserta_data.get('tahun', ''))
@@ -2944,11 +3259,20 @@ class TimPesertaDialog(QDialog):
 
     def get_data(self):
         """Ambil data dari form"""
+        tim_value = self.nama_tim_input.currentText()
+
+        # If "Lainnya" is selected, use the custom input value
+        if tim_value == "Lainnya":
+            tim_value = self.tim_lainnya_input.text().strip()
+
+        tahun_text = self.tahun_input.currentText()
+        tahun = int(tahun_text) if tahun_text and tahun_text != "Pilih Tahun" else None
+
         return {
             'id_jemaat': self.selected_jemaat.get('id_jemaat') if self.selected_jemaat else None,
-            'nama_peserta': self.nama_peserta_input.text().strip(),
+            'nama_lengkap': self.nama_peserta_input.text().strip(),
             'wilayah_rohani': self.wilayah_rohani_input.currentText() if self.wilayah_rohani_input.currentText() != "Pilih Wilayah Rohani" else '',
             'jabatan': self.jabatan_input.currentText() if self.jabatan_input.currentText() != "Pilih Jabatan" else '',
-            'nama_tim': self.nama_tim_input.currentText() if self.nama_tim_input.currentText() != "Pilih Tim" else '',
-            'tahun': int(self.tahun_input.currentText()) if self.tahun_input.currentText() != "Pilih Tahun" else None,
+            'nama_tim': tim_value if tim_value != "Pilih Tim" else '',
+            'tahun': tahun,
         }

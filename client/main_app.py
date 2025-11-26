@@ -302,7 +302,7 @@ class ClientAppWindow(QMainWindow):
         self.stacked_widget.addWidget(self.pengumuman_page)
         
         # Dokumen page
-        from config import ClientConfig
+        from API.config import ClientConfig
         config = ClientConfig.load_settings()
         self.dokumen_page = DokumenComponent(self.api_client, config)
         self.stacked_widget.addWidget(self.dokumen_page)

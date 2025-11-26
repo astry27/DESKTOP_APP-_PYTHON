@@ -4,7 +4,7 @@ import datetime
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGroupBox,
                             QFormLayout, QPushButton, QLabel, QTableWidget,
                             QTableWidgetItem, QHeaderView, QTextEdit, QMessageBox,
-                            QInputDialog, QFileDialog, QAbstractItemView, QFrame, QSizePolicy)
+                            QInputDialog, QFileDialog, QAbstractItemView, QFrame, QSizePolicy, QTabWidget)
 from PyQt5.QtCore import pyqtSignal, QTimer, QSize, Qt
 from PyQt5.QtGui import QColor, QIcon
 
@@ -144,20 +144,18 @@ class ServerControlComponent(QWidget):
         
         # Client and Log Layout
         client_log_layout = QVBoxLayout()
-        
-        # Client Table with professional styling
+
+        # Client Table
         client_group = QGroupBox("Client Terhubung")
         client_layout = QVBoxLayout(client_group)
-        client_layout.setContentsMargins(8, 8, 8, 8)  # Proper margins
+        client_layout.setContentsMargins(8, 8, 8, 8)
         client_layout.setSpacing(4)
 
-        # Create table directly without extra container for better space utilization
-        self.client_table = self.create_professional_table()
-
-        # Ensure table fills available space
+        self.client_table = self.create_professional_table_connected()
         self.client_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-
         client_layout.addWidget(self.client_table)
+
+        client_log_layout.addWidget(client_group)
         
         # Log Section
         log_group = QGroupBox("Log Aktivitas")
@@ -168,8 +166,7 @@ class ServerControlComponent(QWidget):
         
         log_button_layout = self.create_log_buttons()
         log_layout.addLayout(log_button_layout)
-        
-        client_log_layout.addWidget(client_group)
+
         client_log_layout.addWidget(log_group)
         
         control_layout.addLayout(client_log_layout, 1)
@@ -233,20 +230,21 @@ class ServerControlComponent(QWidget):
         
         return log_button_layout
     
-    def create_professional_table(self):
-        """Create table with professional styling."""
-        table = QTableWidget(0, 5)
-        table.setHorizontalHeaderLabels(["IP Address", "Hostname", "Waktu Koneksi", "Terakhir Aktif", "Status"])
+    def create_professional_table_connected(self):
+        """Create table for connected clients with professional styling."""
+        table = QTableWidget(0, 6)
+        table.setHorizontalHeaderLabels(["ID", "IP Address", "Hostname", "Waktu Koneksi", "Terakhir Aktif", "Status"])
 
         # Apply professional table styling
         self.apply_professional_table_style(table)
 
         # Set initial column widths with better proportions for full layout
-        table.setColumnWidth(0, 120)   # IP Address
-        table.setColumnWidth(1, 180)   # Hostname - wider for content
-        table.setColumnWidth(2, 150)   # Waktu Koneksi
-        table.setColumnWidth(3, 150)   # Terakhir Aktif
-        table.setColumnWidth(4, 100)   # Status
+        table.setColumnWidth(0, 50)    # ID - small column
+        table.setColumnWidth(1, 120)   # IP Address
+        table.setColumnWidth(2, 180)   # Hostname - wider for content
+        table.setColumnWidth(3, 150)   # Waktu Koneksi
+        table.setColumnWidth(4, 150)   # Terakhir Aktif
+        table.setColumnWidth(5, 100)   # Status
 
         # Excel-like column resizing - all columns can be resized
         header = table.horizontalHeader()
@@ -257,7 +255,7 @@ class ServerControlComponent(QWidget):
         # table.itemDoubleClicked.connect(self.show_client_details)
 
         return table
-        
+
     def apply_professional_table_style(self, table):
         """Apply Excel-like table styling with thin grid lines and minimal borders."""
         # Header styling - Excel-like headers
@@ -355,9 +353,9 @@ class ServerControlComponent(QWidget):
         try:
             self.check_api_status()
             self.load_connected_clients()
-        except Exception:
-            # Silently ignore errors during auto-refresh to prevent warnings
-            pass
+        except Exception as e:
+            # Log error untuk debugging
+            self.log_message.emit(f"[ERROR] auto_refresh_status: {str(e)}")
     
     def check_api_status(self):
         """Cek status API shared hosting"""
@@ -418,169 +416,213 @@ class ServerControlComponent(QWidget):
                     QMessageBox.warning(self, "Error", f"Gagal menonaktifkan API: {message}")
     
     def load_connected_clients(self):
-        """Load daftar client yang benar-benar aktif melalui API"""
+        """Load daftar client yang terhubung dari database (persistent session tracking)"""
         if not self.database_manager:
+            self.log_message.emit("[!] Database manager belum diset, skip load_connected_clients")
             return
-        
+
         try:
-            # Ambil data client yang terhubung dari API
+            # Ambil data client yang terhubung dari database via API
+            # GET /admin/active-sessions - Query dari tabel client_connections
+            self.log_message.emit("[DEBUG] Fetching active sessions from API...")
             success, result = self.database_manager.get_active_sessions()
-            
+
+            self.log_message.emit(f"[DEBUG] API Response - Success: {success}, Result type: {type(result)}")
+
             if success:
-                # Handle berbagai format response dari API
-                if isinstance(result, dict):
-                    if 'data' in result:
-                        clients = result['data']
-                    elif 'clients' in result:
-                        clients = result['clients']
-                    else:
-                        clients = []
-                elif isinstance(result, list):
+                # Result adalah list of clients dari database.py
+                # Format: [{'id_connection': N, 'client_ip': '...', 'hostname': '...', 'status': 'Terhubung', ...}, ...]
+                if isinstance(result, list):
                     clients = result
+                    self.log_message.emit(f"[DEBUG] Result is list with {len(clients)} items")
+                    self.log_message.emit(f"[OK] Berhasil mengambil {len(clients)} data client dari API")
+                elif isinstance(result, dict):
+                    # Jika masih dict (legacy format), ekstrak 'data' key
+                    clients = result.get('data', [])
+                    self.log_message.emit(f"[DEBUG] Result is dict, extracted {len(clients)} clients from 'data' key")
+                    self.log_message.emit(f"[OK] Berhasil mengambil {len(clients)} data client dari API")
                 else:
                     clients = []
-                
-                # Filter hanya client yang benar-benar aktif/terhubung dengan timeout check
-                import datetime
-                active_clients = []
-                current_time = datetime.datetime.now()
-                
+                    self.log_message.emit(f"[!] Format data client tidak sesuai: {type(result)}, gunakan list kosong")
+
+                # Process clients from database
+                # Tabel client_connections:
+                # - client_ip, hostname, status ('Terhubung'/'Terputus')
+                # - connect_time, disconnect_time, last_activity
+                self.connected_clients = []
+
                 for client in clients:
-                    status = client.get('status', '').lower()
-                    last_activity = client.get('last_activity') or client.get('connect_time')
-                    
-                    # Check jika client benar-benar aktif berdasarkan status dan waktu aktivitas terakhir
-                    is_active = False
-                    if status in ['aktif', 'active', 'terhubung', 'connected', 'online']:
-                        if last_activity:
-                            try:
-                                if isinstance(last_activity, str):
-                                    if 'T' in last_activity:
-                                        last_time = datetime.datetime.fromisoformat(last_activity.replace('Z', '+00:00'))
-                                    else:
-                                        last_time = datetime.datetime.strptime(last_activity, '%Y-%m-%d %H:%M:%S')
-                                else:
-                                    last_time = last_activity
-                                
-                                # Client dianggap aktif jika aktivitas terakhir kurang dari 5 menit yang lalu
-                                time_diff = current_time - last_time.replace(tzinfo=None)
-                                if time_diff.total_seconds() < 300:  # 5 menit
-                                    is_active = True
-                                else:
-                                    # Update status jika sudah timeout
-                                    client['status'] = 'timeout'
-                            except:
-                                # Jika tidak bisa parsing waktu, anggap tidak aktif
-                                client['status'] = 'unknown'
-                        else:
-                            # Jika tidak ada waktu aktivitas, anggap tidak aktif
-                            client['status'] = 'no_activity'
-                    
-                    if is_active:
-                        active_clients.append(client)
-                
-                self.connected_clients = active_clients
+                    # Status di database: 'Terhubung' atau 'Terputus'
+                    status = client.get('status', '')
+                    status_lower = status.lower() if status else ''
+
+                    self.log_message.emit(f"[DEBUG] Client: {client.get('hostname', 'Unknown')} - Status: '{status}' (lower: '{status_lower}')")
+
+                    # Hanya tampilkan client dengan status 'Terhubung'
+                    # Client yang timeout sudah di-update statusnya oleh endpoint
+                    if status_lower in ['terhubung', 'connected', 'aktif', 'active']:
+                        self.connected_clients.append(client)
+                        self.log_message.emit(f"[DEBUG] ✓ Client {client.get('hostname')} added to connected_clients")
+
+                # Update UI table dengan data dari database (sudah ada deduplication di update_client_table)
                 self.update_client_table()
-                self.clients_label.setText(str(len(active_clients)))
-                
-                # Log untuk debugging
-                total_sessions = len(clients)
-                active_count = len(active_clients)
-                self.log_message.emit(f"Total Sessions: {total_sessions}, Client Benar-benar Aktif: {active_count}")
-                
+
+                # Hitung unique clients setelah deduplication
+                unique_ids = set()
+                for client in self.connected_clients:
+                    conn_id = client.get('id_connection')
+                    if conn_id:
+                        unique_ids.add(conn_id)
+
+                unique_count = len(unique_ids)
+                self.clients_label.setText(str(unique_count))
+
+                # Log info hanya jika ada perubahan signifikan
+                if not hasattr(self, '_last_active_count') or self._last_active_count != unique_count:
+                    # Log detail client yang terhubung
+                    client_details = []
+                    for client in self.connected_clients:
+                        if client.get('id_connection') in unique_ids:
+                            hostname = client.get('hostname', 'Unknown')
+                            ip = client.get('client_ip', 'Unknown')
+                            client_details.append(f"{hostname} ({ip})")
+
+                    if unique_count > 0:
+                        self.log_message.emit(f"[+] Client Aktif: {unique_count} - {', '.join(list(set(client_details))[:3])}")
+                    else:
+                        self.log_message.emit(f"[+] Client Aktif: {unique_count}")
+                    self._last_active_count = unique_count
+
             else:
                 self.connected_clients = []
                 self.update_client_table()
                 self.clients_label.setText("0")
-                self.log_message.emit("Gagal mengambil data sessions")
+                error_msg = str(result) if isinstance(result, str) else "Unknown error"
+                self.log_message.emit(f"[ERROR] Gagal mengambil data dari database: {error_msg}")
+
         except Exception as e:
             self.connected_clients = []
             self.update_client_table()
             self.clients_label.setText("0")
-            self.log_message.emit(f"Error loading clients: {str(e)}")
+            self.log_message.emit(f"[ERROR] Exception loading clients: {str(e)[:100]}")
     
+    def _parse_datetime(self, dt_str):
+        """Parse datetime string dari berbagai format (GMT, ISO, MySQL)"""
+        if not dt_str:
+            return None
+
+        if isinstance(dt_str, datetime.datetime):
+            return dt_str
+
+        try:
+            # Format GMT dari API: "Fri, 24 Oct 2025 00:49:45 GMT"
+            return datetime.datetime.strptime(dt_str, '%a, %d %b %Y %H:%M:%S %Z')
+        except:
+            try:
+                # Format ISO dengan Z: "2025-10-24T14:30:45Z"
+                return datetime.datetime.fromisoformat(dt_str.replace('Z', '+00:00'))
+            except:
+                try:
+                    # Format MySQL: "2025-10-24 14:30:45"
+                    return datetime.datetime.strptime(dt_str, '%Y-%m-%d %H:%M:%S')
+                except:
+                    return None
+
     def update_client_table(self):
-        """Update tabel client yang benar-benar terhubung"""
-        self.client_table.setRowCount(len(self.connected_clients))
-        
-        for i, client in enumerate(self.connected_clients):
-            self.client_table.setItem(i, 0, QTableWidgetItem(client.get('client_ip', 'Unknown')))
-            self.client_table.setItem(i, 1, QTableWidgetItem(client.get('hostname', 'Unknown')))
-            
-            # Format waktu koneksi
-            connect_time = client.get('connect_time', '')
-            if connect_time:
-                if isinstance(connect_time, str):
-                    try:
-                        # Handle different datetime formats
-                        if 'T' in connect_time:
-                            dt = datetime.datetime.fromisoformat(connect_time.replace('Z', '+00:00'))
-                        else:
-                            dt = datetime.datetime.strptime(connect_time, '%Y-%m-%d %H:%M:%S')
-                        time_str = dt.strftime('%d/%m/%Y %H:%M:%S')
-                    except:
-                        time_str = str(connect_time)
+        """Update tabel client yang terhubung dari database - dengan deduplication"""
+        self.log_message.emit(f"[DEBUG] update_client_table called with {len(self.connected_clients)} clients")
+
+        # Gunakan dictionary untuk deduplikasi berdasarkan id_connection
+        unique_clients = {}
+        for client in self.connected_clients:
+            conn_id = client.get('id_connection')
+            if conn_id:
+                # Jika ada duplikat, ambil yang last_activity paling baru
+                if conn_id not in unique_clients:
+                    unique_clients[conn_id] = client
                 else:
-                    time_str = str(connect_time)
+                    # Bandingkan last_activity, pilih yang lebih baru
+                    existing_activity = unique_clients[conn_id].get('last_activity', '')
+                    new_activity = client.get('last_activity', '')
+                    if new_activity > existing_activity:
+                        unique_clients[conn_id] = client
+
+        # Convert dict ke list dan urutkan berdasarkan last_activity
+        clients_list = list(unique_clients.values())
+        clients_list.sort(key=lambda x: x.get('last_activity', ''), reverse=True)
+
+        self.log_message.emit(f"[DEBUG] After deduplication: {len(clients_list)} unique clients")
+        self.log_message.emit(f"[DEBUG] Setting table row count to {len(clients_list)}")
+
+        self.client_table.setRowCount(len(clients_list))
+
+        for i, client in enumerate(clients_list):
+            # Column 0: Connection ID
+            conn_id = str(client.get('id_connection', '-'))
+            id_item = QTableWidgetItem(conn_id)
+            id_item.setTextAlignment(Qt.AlignCenter)
+            self.client_table.setItem(i, 0, id_item)
+
+            # Column 1: Client IP
+            self.client_table.setItem(i, 1, QTableWidgetItem(client.get('client_ip', 'Unknown')))
+
+            # Column 2: Hostname
+            self.client_table.setItem(i, 2, QTableWidgetItem(client.get('hostname', 'Unknown')))
+
+            # Column 3: Waktu Koneksi
+            connect_time = client.get('connect_time', '')
+            connect_dt = self._parse_datetime(connect_time)
+            if connect_dt:
+                time_str = connect_dt.strftime('%d/%m/%Y %H:%M:%S')
             else:
                 time_str = '-'
-            
-            self.client_table.setItem(i, 2, QTableWidgetItem(time_str))
-            
-            # Waktu terakhir aktif
-            last_activity = client.get('last_activity') or client.get('connect_time', '')
-            if last_activity:
-                if isinstance(last_activity, str):
-                    try:
-                        # Handle different datetime formats
-                        if 'T' in last_activity:
-                            dt = datetime.datetime.fromisoformat(last_activity.replace('Z', '+00:00'))
-                        else:
-                            dt = datetime.datetime.strptime(last_activity, '%Y-%m-%d %H:%M:%S')
-                        last_active_str = dt.strftime('%d/%m/%Y %H:%M:%S')
-                        
-                        # Hitung waktu yang telah berlalu
-                        current_time = datetime.datetime.now()
-                        time_diff = current_time - dt.replace(tzinfo=None)
-                        
-                        if time_diff.total_seconds() < 60:
-                            last_active_str += " (Sekarang)"
-                        elif time_diff.total_seconds() < 3600:
-                            minutes = int(time_diff.total_seconds() / 60)
-                            last_active_str += f" ({minutes}m yang lalu)"
-                        else:
-                            hours = int(time_diff.total_seconds() / 3600)
-                            last_active_str += f" ({hours}h yang lalu)"
-                    except:
-                        last_active_str = str(last_activity)
+            self.client_table.setItem(i, 3, QTableWidgetItem(time_str))
+
+            # Column 4: Terakhir Aktif (dengan durasi relatif)
+            last_activity = client.get('last_activity')
+            last_dt = self._parse_datetime(last_activity)
+            if last_dt:
+                last_active_str = last_dt.strftime('%d/%m/%Y %H:%M:%S')
+
+                # Hitung waktu yang telah berlalu
+                current_time = datetime.datetime.now()
+                time_diff = current_time - last_dt.replace(tzinfo=None)
+
+                if time_diff.total_seconds() < 60:
+                    last_active_str += " (Sekarang)"
+                elif time_diff.total_seconds() < 3600:
+                    minutes = int(time_diff.total_seconds() / 60)
+                    last_active_str += f" ({minutes}m yang lalu)"
+                elif time_diff.total_seconds() < 86400:
+                    hours = int(time_diff.total_seconds() / 3600)
+                    last_active_str += f" ({hours}h yang lalu)"
                 else:
-                    last_active_str = str(last_activity)
+                    days = int(time_diff.total_seconds() / 86400)
+                    last_active_str += f" ({days}d yang lalu)"
             else:
                 last_active_str = 'Tidak diketahui'
-            
-            self.client_table.setItem(i, 3, QTableWidgetItem(last_active_str))
-            
-            # Status dengan warna yang sesuai
+            self.client_table.setItem(i, 4, QTableWidgetItem(last_active_str))
+
+            # Column 5: Status dengan color coding
             status = client.get('status', 'Unknown')
             status_item = QTableWidgetItem(status)
-            
-            # Color coding berdasarkan status
-            status_lower = status.lower()
-            if status_lower in ['aktif', 'active', 'terhubung', 'connected', 'online']:
-                status_item.setBackground(QColor(144, 238, 144))  # Light green
+
+            status_lower = status.lower() if status else ''
+            if status_lower in ['terhubung', 'connected', 'aktif', 'active']:
+                status_item.setBackground(QColor(144, 238, 144))  # 🟢 Light green
                 status_item.setText('Aktif')
-            elif status_lower in ['disconnect', 'disconnected', 'offline', 'terputus']:
-                status_item.setBackground(QColor(255, 182, 193))  # Light red
+            elif status_lower in ['terputus', 'disconnect', 'disconnected', 'offline']:
+                status_item.setBackground(QColor(255, 182, 193))  # 🔴 Light red
                 status_item.setText('Terputus')
             elif status_lower == 'timeout':
-                status_item.setBackground(QColor(255, 165, 0, 100))  # Light orange
+                status_item.setBackground(QColor(255, 165, 0, 100))  # 🟠 Light orange
                 status_item.setText('Timeout')
             else:
-                status_item.setBackground(QColor(255, 255, 224))  # Light yellow
+                status_item.setBackground(QColor(255, 255, 224))  # 🟡 Light yellow
                 status_item.setText(status)
-            
-            self.client_table.setItem(i, 4, status_item)
-    
+
+            self.client_table.setItem(i, 5, status_item)
+
     def send_broadcast_message(self):
         """Kirim broadcast message ke semua client melalui API"""
         if not self.database_manager:
