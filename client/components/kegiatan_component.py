@@ -370,6 +370,7 @@ class KegiatanDialog(QDialog):
 
 class KegiatanClientComponent(QWidget):
 
+    data_updated = pyqtSignal()
     log_message: pyqtSignal = pyqtSignal(str)  # type: ignore
 
     def __init__(self, api_client, parent=None):
@@ -527,7 +528,7 @@ class KegiatanClientComponent(QWidget):
         table_layout.setContentsMargins(0, 0, 0, 0)
         table_layout.setSpacing(0)
 
-        self.table_widget = QTableWidget(0, 11)
+        self.table_widget = QTableWidget(0, 10)
 
         # Set custom header
         custom_header = WordWrapHeaderView(Qt.Horizontal, self.table_widget)
@@ -536,7 +537,7 @@ class KegiatanClientComponent(QWidget):
         self.table_widget.setHorizontalHeaderLabels([
             "Kategori", "Nama Kegiatan", "Sasaran Kegiatan", "Tujuan Kegiatan",
             "Tempat Kegiatan", "Tanggal Pelaksanaan",
-            "Waktu Pelaksanaan", "Penanggung Jawab", "User", "Status Kegiatan", "Keterangan"
+            "Waktu Pelaksanaan", "Penanggung Jawab", "Status Kegiatan", "Keterangan"
         ])
 
         # Apply table styling
@@ -551,9 +552,8 @@ class KegiatanClientComponent(QWidget):
         self.table_widget.setColumnWidth(5, 120)   # Tanggal Pelaksanaan
         self.table_widget.setColumnWidth(6, 120)   # Waktu Pelaksanaan
         self.table_widget.setColumnWidth(7, 100)   # Penanggung Jawab
-        self.table_widget.setColumnWidth(8, 80)    # User
-        self.table_widget.setColumnWidth(9, 100)   # Status Kegiatan
-        self.table_widget.setColumnWidth(10, 150)  # Keterangan
+        self.table_widget.setColumnWidth(8, 100)   # Status Kegiatan
+        self.table_widget.setColumnWidth(9, 150)   # Keterangan
 
         header = self.table_widget.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.Interactive)
@@ -1448,12 +1448,7 @@ class KegiatanClientComponent(QWidget):
             penanggung_jawab = kegiatan.get('penanggung_jawab') or kegiatan.get('penanggungjawab') or kegiatan.get('nama_lengkap') or kegiatan.get('username', 'Tidak Ada')
             penanggung_jawab_item = QTableWidgetItem(str(penanggung_jawab))
 
-            # 8. User (Nama user yang melakukan input)
-            user_name = kegiatan.get('username') or kegiatan.get('user_name') or kegiatan.get('created_by') or 'Tidak Ada'
-            user_item = QTableWidgetItem(str(user_name))
-            user_item.setTextAlignment(Qt.AlignCenter | Qt.AlignVCenter)
-
-            # 9. Status Kegiatan
+            # 8. Status Kegiatan
             status_db = kegiatan.get('status_kegiatan') or kegiatan.get('status', '') or 'Direncanakan'
             status_db_item = QTableWidgetItem(str(status_db))
 
@@ -1474,11 +1469,11 @@ class KegiatanClientComponent(QWidget):
                 status_db_item.setBackground(QBrush(QColor("#e74c3c")))
                 status_db_item.setForeground(QBrush(QColor("white")))
 
-            # 10. Keterangan
+            # 9. Keterangan
             keterangan = kegiatan.get('keterangan', '') or ''
             keterangan_item = QTableWidgetItem(str(keterangan))
 
-            # Set items ke tabel sesuai urutan baru
+            # Set items ke tabel sesuai urutan baru (10 columns, no User column)
             self.table_widget.setItem(row, 0, kategori_item)
             self.table_widget.setItem(row, 1, nama_item)
             self.table_widget.setItem(row, 2, sasaran_item)
@@ -1487,9 +1482,8 @@ class KegiatanClientComponent(QWidget):
             self.table_widget.setItem(row, 5, tanggal_item)
             self.table_widget.setItem(row, 6, waktu_item)
             self.table_widget.setItem(row, 7, penanggung_jawab_item)
-            self.table_widget.setItem(row, 8, user_item)
-            self.table_widget.setItem(row, 9, status_db_item)
-            self.table_widget.setItem(row, 10, keterangan_item)
+            self.table_widget.setItem(row, 8, status_db_item)
+            self.table_widget.setItem(row, 9, keterangan_item)
 
     def filter_data(self):
         """Filter data berdasarkan kategori"""
