@@ -3,12 +3,24 @@
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QTableWidget,
                              QTableWidgetItem, QLabel, QPushButton, QFrame,
                              QMessageBox, QHeaderView, QLineEdit, QComboBox,
-                             QCalendarWidget, QTextEdit, QSplitter, QDialog,
-                             QFormLayout, QDateEdit, QTimeEdit, QFileDialog, QAbstractItemView)
+                             QTextEdit, QDialog, QFormLayout, QDateEdit, QTimeEdit,
+                             QFileDialog, QAbstractItemView, QGroupBox)
 from PyQt5.QtCore import Qt, pyqtSignal, QDate, QTime, QSize, QTimer
 from PyQt5.QtGui import QFont, QColor, QIcon, QBrush, QPainter
 import os
 import datetime
+import csv
+
+try:
+    from reportlab.lib.pagesizes import letter, A4, landscape
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import inch
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib import colors
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT
+    HAS_REPORTLAB = True
+except ImportError:
+    HAS_REPORTLAB = False
 
 class WordWrapHeaderView(QHeaderView):
     """Custom header view with word wrap and center alignment support"""
@@ -17,6 +29,10 @@ class WordWrapHeaderView(QHeaderView):
         self.setDefaultAlignment(Qt.AlignCenter | Qt.AlignVCenter)
         self.setSectionsClickable(True)
         self.setHighlightSections(True)
+        # Set minimum height to ensure header is always visible
+        self.setMinimumHeight(35)
+        # Ensure header is visible on resize
+        self.setSectionResizeMode(QHeaderView.Interactive)
 
     def sectionSizeFromContents(self, logicalIndex):
         """Calculate section size based on wrapped text"""
@@ -27,41 +43,63 @@ class WordWrapHeaderView(QHeaderView):
                 if width <= 0:
                     width = self.defaultSectionSize()
 
+                # Create font metrics with bold font
                 font = self.font()
                 font.setBold(True)
-                fm = self.fontMetrics()
+                font.setPointSize(max(font.pointSize(), 9))  # Ensure minimum font size
+                from PyQt5.QtGui import QFontMetrics
+                fm = QFontMetrics(font)
 
-                rect = fm.boundingRect(0, 0, width - 8, 1000,
+                # Calculate text rect with word wrap
+                rect = fm.boundingRect(0, 0, width - 10, 2000,
                                       Qt.AlignCenter | Qt.TextWordWrap, str(text))
 
-                return QSize(width, max(rect.height() + 12, 25))
+                # Return size with adequate padding (minimum 35px height)
+                return QSize(width, max(rect.height() + 16, 35))
 
         return super().sectionSizeFromContents(logicalIndex)
 
     def paintSection(self, painter, rect, logicalIndex):
-        """Paint section with word wrap and center alignment"""
+        """Paint section with word wrap and center alignment - always visible"""
         painter.save()
 
-        bg_color = QColor(242, 242, 242)
+        # Ensure rect has minimum height
+        if rect.height() < 35:
+            rect.setHeight(35)
+
+        # Draw background with consistent, visible color
+        bg_color = QColor(242, 242, 242)  # #f2f2f2 - light gray background
         painter.fillRect(rect, bg_color)
 
-        border_color = QColor(212, 212, 212)
+        # Draw borders for Excel-like appearance
+        border_color = QColor(180, 180, 180)  # Darker border for better visibility
         painter.setPen(border_color)
+        # Right border
         painter.drawLine(rect.topRight(), rect.bottomRight())
+        # Bottom border
         painter.drawLine(rect.bottomLeft(), rect.bottomRight())
 
         if self.model():
             text = self.model().headerData(logicalIndex, self.orientation(), Qt.DisplayRole)
             if text:
+                # Setup font with proper size
                 font = self.font()
                 font.setBold(True)
+                font.setPointSize(max(font.pointSize(), 9))  # Ensure readable size
                 painter.setFont(font)
 
-                text_color = QColor(51, 51, 51)
+                # Text color - darker for better contrast and visibility
+                text_color = QColor(30, 30, 30)  # Very dark gray, almost black
                 painter.setPen(text_color)
 
-                text_rect = rect.adjusted(4, 4, -4, -4)
-                painter.drawText(text_rect, Qt.AlignCenter | Qt.TextWordWrap, str(text))
+                # Draw text with word wrap and center alignment
+                # Add padding to ensure text doesn't touch borders
+                text_rect = rect.adjusted(6, 6, -6, -6)
+
+                # Draw text with proper alignment and wrapping
+                painter.drawText(text_rect,
+                               Qt.AlignCenter | Qt.AlignVCenter | Qt.TextWordWrap,
+                               str(text))
 
         painter.restore()
 
@@ -363,8 +401,6 @@ class KegiatanClientComponent(QWidget):
 
             self.filtered_data = self.kegiatan_data.copy()
             self.update_table()
-            self.update_calendar_indicators()
-            self.update_statistics()
             self.log_message.emit(f"Data kegiatan WR berhasil dimuat: {len(self.kegiatan_data)} kegiatan")
 
         except Exception as e:
@@ -380,24 +416,43 @@ class KegiatanClientComponent(QWidget):
         self.load_user_kegiatan_data()
 
     def setup_ui(self):
+        """Setup UI"""
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(5)
 
-        # Title section with professional styling
-        title_frame = QFrame()
-        title_frame.setStyleSheet("""
+        # Header
+        header = self.create_header()
+        layout.addWidget(header)
+
+        # Filter
+        filter_group = self.create_filter()
+        layout.addWidget(filter_group)
+
+        # Table
+        table_widget = self.create_table()
+        layout.addWidget(table_widget, 1)
+
+        # Action buttons
+        action_layout = self.create_action_buttons()
+        layout.addLayout(action_layout, 0)
+
+    def create_header(self):
+        """Create header with title"""
+        header = QFrame()
+        header.setStyleSheet("""
             QFrame {
                 background-color: white;
-                border-bottom: 2px solid #ecf0f1;
                 padding: 10px 0px;
             }
         """)
-        title_layout = QHBoxLayout(title_frame)
-        title_layout.setContentsMargins(10, 0, 10, 0)
+        header_layout = QHBoxLayout(header)
+        header_layout.setContentsMargins(10, 0, 10, 0)
 
-        title_label = QLabel("Kegiatan Wilayah Rohani")
+        title = QLabel("Kegiatan Wilayah Rohani")
         title_font = QFont("Arial", 18, QFont.Bold)
-        title_label.setFont(title_font)
-        title_label.setStyleSheet("""
+        title.setFont(title_font)
+        title.setStyleSheet("""
             QLabel {
                 color: #2c3e50;
                 padding: 2px;
@@ -405,246 +460,167 @@ class KegiatanClientComponent(QWidget):
                 border: none;
             }
         """)
-        title_layout.addWidget(title_label)
-        title_layout.addStretch()
-        layout.addWidget(title_frame)
+        header_layout.addWidget(title)
 
-        # Content area
-        content_layout = QVBoxLayout()
-        content_layout.setContentsMargins(10, 10, 10, 10)
+        header_layout.addStretch()
 
-        # Main content with splitter
-        splitter = QSplitter(Qt.Horizontal)
+        add_button = QPushButton("Tambah Kegiatan")
+        # Add icon with fallback
+        try:
+            icon = QIcon(os.path.join(os.path.dirname(__file__), '..', 'assets', 'add.png'))
+            if not icon.isNull():
+                add_button.setIcon(icon)
+                add_button.setIconSize(QSize(16, 16))
+        except:
+            pass
 
-        # Left panel - Calendar only
-        left_panel = QWidget()
-        left_panel.setMaximumWidth(320)
-        left_panel.setMinimumWidth(280)
-        left_layout = QVBoxLayout(left_panel)
-        left_layout.setContentsMargins(0, 0, 0, 0)
-
-        # Calendar
-        calendar_label = QLabel("Kalender Kegiatan")
-        calendar_label.setFont(QFont("Arial", 12, QFont.Bold))
-        calendar_label.setStyleSheet("color: #2c3e50; margin-bottom: 10px;")
-        left_layout.addWidget(calendar_label)
-
-        self.calendar = QCalendarWidget()
-        self.calendar.setStyleSheet("""
-            QCalendarWidget {
-                background-color: white;
-                border: 1px solid #bdc3c7;
-                border-radius: 5px;
-            }
-            QCalendarWidget QTableView {
-                selection-background-color: #3498db;
-            }
-        """)
-        self.calendar.clicked.connect(self.calendar_date_changed)
-        left_layout.addWidget(self.calendar)
-        left_layout.addStretch()
-
-        # Right panel - Filters, table and details
-        right_panel = QWidget()
-        right_layout = QVBoxLayout(right_panel)
-        right_layout.setContentsMargins(10, 0, 0, 0)
-
-        # Combined toolbar with search/filter and add button (tanpa title)
-        toolbar_layout = QHBoxLayout()
-        toolbar_layout.setSpacing(10)
-
-        # Search - ukuran sama dengan keuangan_component
-        search_label = QLabel("Cari:")
-        search_label.setStyleSheet("font-weight: 500; color: #2c3e50;")
-
-        self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Cari kegiatan...")
-        self.search_input.setFixedWidth(150)  # Smaller width matching reference image
-        self.search_input.textChanged.connect(self.filter_data)
-        self.search_input.setStyleSheet("""
-            QLineEdit {
-                padding: 4px 6px;
-                border: 1px solid #bdc3c7;
+        add_button.setStyleSheet("""
+            QPushButton {
+                background-color: #27ae60;
+                color: white;
+                padding: 8px 16px;
+                border: none;
                 border-radius: 3px;
-                background-color: white;
-                font-size: 11px;
-                min-height: 24px;
-                max-height: 24px;
+                font-weight: bold;
             }
-            QLineEdit:focus {
-                border: 1px solid #3498db;
+            QPushButton:hover {
+                background-color: #2ecc71;
             }
         """)
+        add_button.clicked.connect(self.add_kegiatan)
+        header_layout.addWidget(add_button)
 
-        # Category filter - sesuai dengan ENUM di database
-        category_label = QLabel("Kategori:")
-        category_label.setStyleSheet("font-weight: 500; color: #2c3e50;")
-        self.category_filter = QComboBox()
-        self.category_filter.addItems([
+        return header
+
+    def create_filter(self):
+        """Create filter section"""
+        filter_group = QGroupBox()
+        filter_layout = QHBoxLayout(filter_group)
+
+        # Kategori filter
+        kategori_label = QLabel("Filter Kategori:")
+        filter_layout.addWidget(kategori_label)
+
+        self.kategori_filter = QComboBox()
+        self.kategori_filter.addItems([
             "Semua", "Misa", "Doa", "Sosial", "Pendidikan",
             "Ibadah", "Katekese", "Rohani", "Administratif", "Lainnya"
         ])
-        self.category_filter.setFixedWidth(120)
-        self.category_filter.currentTextChanged.connect(self.filter_data)
+        self.kategori_filter.currentTextChanged.connect(self.filter_data)
+        filter_layout.addWidget(self.kategori_filter)
 
-        # Status filter
-        status_label = QLabel("Status:")
-        status_label.setStyleSheet("font-weight: 500; color: #2c3e50;")
-        self.status_filter = QComboBox()
-        self.status_filter.addItems(["Semua", "Akan Datang", "Sedang Berlangsung", "Selesai"])
-        self.status_filter.setFixedWidth(140)
-        self.status_filter.currentTextChanged.connect(self.filter_data)
+        filter_layout.addStretch()
 
-        # Add button in the same row
-        add_button = self.create_professional_button("add.png", "Tambah Kegiatan", "#27ae60", "#2ecc71")
-        add_button.clicked.connect(self.add_kegiatan)
+        return filter_group
 
-        toolbar_layout.addWidget(search_label)
-        toolbar_layout.addWidget(self.search_input)
-        toolbar_layout.addWidget(category_label)
-        toolbar_layout.addWidget(self.category_filter)
-        toolbar_layout.addWidget(status_label)
-        toolbar_layout.addWidget(self.status_filter)
-        toolbar_layout.addStretch()
-        toolbar_layout.addWidget(add_button)
+    def create_table(self):
+        """Create table for kegiatan with proper header visibility"""
+        table_container = QFrame()
+        table_container.setStyleSheet("""
+            QFrame {
+                border: 1px solid #d0d0d0;
+                background-color: white;
+                margin: 0px;
+            }
+        """)
+        table_layout = QVBoxLayout(table_container)
+        table_layout.setContentsMargins(0, 0, 0, 0)
+        table_layout.setSpacing(0)
 
-        right_layout.addLayout(toolbar_layout)
+        self.table_widget = QTableWidget(0, 11)
 
-        # Table with new layout order
-        self.table_widget = QTableWidget()
-        self.table_widget.setColumnCount(11)
+        # Set custom header
+        custom_header = WordWrapHeaderView(Qt.Horizontal, self.table_widget)
+        self.table_widget.setHorizontalHeader(custom_header)
+
         self.table_widget.setHorizontalHeaderLabels([
             "Kategori", "Nama Kegiatan", "Sasaran Kegiatan", "Tujuan Kegiatan",
             "Tempat Kegiatan", "Tanggal Pelaksanaan",
             "Waktu Pelaksanaan", "Penanggung Jawab", "User", "Status Kegiatan", "Keterangan"
         ])
 
-        custom_header = WordWrapHeaderView(Qt.Horizontal, self.table_widget)
-        self.table_widget.setHorizontalHeader(custom_header)
+        # Apply table styling
+        self.apply_table_style()
 
-        # Set column widths properly
+        # Set column widths
+        self.table_widget.setColumnWidth(0, 100)   # Kategori
+        self.table_widget.setColumnWidth(1, 150)   # Nama Kegiatan
+        self.table_widget.setColumnWidth(2, 130)   # Sasaran Kegiatan
+        self.table_widget.setColumnWidth(3, 130)   # Tujuan Kegiatan
+        self.table_widget.setColumnWidth(4, 120)   # Tempat Kegiatan
+        self.table_widget.setColumnWidth(5, 120)   # Tanggal Pelaksanaan
+        self.table_widget.setColumnWidth(6, 120)   # Waktu Pelaksanaan
+        self.table_widget.setColumnWidth(7, 100)   # Penanggung Jawab
+        self.table_widget.setColumnWidth(8, 80)    # User
+        self.table_widget.setColumnWidth(9, 100)   # Status Kegiatan
+        self.table_widget.setColumnWidth(10, 150)  # Keterangan
+
         header = self.table_widget.horizontalHeader()
-        self.table_widget.setColumnWidth(0, 100)  # Kategori
-        self.table_widget.setColumnWidth(1, 200)  # Nama Kegiatan
-        self.table_widget.setColumnWidth(2, 180)  # Sasaran Kegiatan
-        self.table_widget.setColumnWidth(3, 180)  # Tujuan Kegiatan
-        self.table_widget.setColumnWidth(4, 150)  # Tempat Kegiatan
-        self.table_widget.setColumnWidth(5, 150)  # Tanggal Pelaksanaan
-        self.table_widget.setColumnWidth(6, 150)  # Waktu Pelaksanaan
-        self.table_widget.setColumnWidth(7, 120)  # Penanggung Jawab
-        self.table_widget.setColumnWidth(8, 120)  # User
-        self.table_widget.setColumnWidth(9, 120)  # Status Kegiatan
-        self.table_widget.setColumnWidth(10, 200)  # Keterangan
-
-        header.setStretchLastSection(True)
         header.setSectionResizeMode(QHeaderView.Interactive)
-        header.setMinimumSectionSize(50)
+        header.setStretchLastSection(True)
         header.sectionResized.connect(self.update_header_height)
-        header.setVisible(True)
 
-        self.apply_professional_table_style()
-        self.table_widget.horizontalHeader().setFixedHeight(25)
-        QTimer.singleShot(100, lambda: self.update_header_height(0, 0, 0))
+        # Double click to edit
+        self.table_widget.itemDoubleClicked.connect(self.edit_kegiatan)
 
-        self.table_widget.setAlternatingRowColors(False)
-        self.table_widget.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.table_widget.setSelectionMode(QAbstractItemView.SingleSelection)
-        self.table_widget.setEditTriggers(QAbstractItemView.NoEditTriggers)
-        self.table_widget.verticalHeader().setVisible(True)
-        self.table_widget.verticalHeader().setDefaultSectionSize(24)
+        table_layout.addWidget(self.table_widget)
 
-        # Set minimum height for table
-        self.table_widget.setMinimumHeight(300)
+        QTimer.singleShot(100, self.update_header_height)
 
-        right_layout.addWidget(self.table_widget, 1)  # Stretch factor 1
+        return table_container
 
-        # Action buttons below table
-        action_buttons_layout = QHBoxLayout()
-        action_buttons_layout.setSpacing(3)  # Reduced spacing between buttons
-        action_buttons_layout.addStretch()
+    def update_header_height(self):
+        """Update header height - ensure always visible"""
+        if hasattr(self, 'table_widget'):
+            header = self.table_widget.horizontalHeader()
+            # Force minimum height to ensure visibility
+            min_height = 35
+            header.setMinimumHeight(min_height)
+            max_height = min_height
 
-        # View button
-        view_button = self.create_professional_button("view.png", "Lihat Detail", "#3498db", "#2980b9")
-        view_button.clicked.connect(self.view_kegiatan)
+            # Calculate required height for each section
+            for i in range(header.count()):
+                size = header.sectionSizeFromContents(i)
+                if size.height() > max_height:
+                    max_height = size.height()
 
-        # Edit button
-        edit_button = self.create_professional_button("edit.png", "Edit Data", "#f39c12", "#e67e22")
-        edit_button.clicked.connect(self.edit_kegiatan)
+            # Set header height to accommodate tallest section with minimum guarantee
+            final_height = max(max_height, min_height)
+            header.setFixedHeight(final_height)
 
-        # Delete button
-        delete_button = self.create_professional_button("delete.png", "Hapus Data", "#e74c3c", "#c0392b")
-        delete_button.clicked.connect(self.delete_kegiatan)
+            # Force header repaint to ensure visibility
+            header.viewport().update()
 
-        # Refresh button
-        refresh_button = self.create_professional_button("refresh.png", "Refresh", "#16a085", "#1abc9c")
-        refresh_button.clicked.connect(self.load_kegiatan_data)
-
-        # Export button
-        export_button = self.create_professional_button("export.png", "Export Data", "#9b59b6", "#8e44ad")
-        export_button.clicked.connect(self.export_kegiatan)
-
-        action_buttons_layout.addWidget(view_button)
-        action_buttons_layout.addWidget(edit_button)
-        action_buttons_layout.addWidget(delete_button)
-        action_buttons_layout.addWidget(refresh_button)
-        action_buttons_layout.addWidget(export_button)
-        action_buttons_layout.addStretch()
-
-        right_layout.addLayout(action_buttons_layout)
-
-        # Add panels to splitter
-        splitter.addWidget(left_panel)
-        splitter.addWidget(right_panel)
-        splitter.setSizes([300, 700])
-
-        content_layout.addWidget(splitter)
-        layout.addLayout(content_layout)
-
-        # Statistics
-        self.stats_layout = QHBoxLayout()
-        self.stats_layout.setContentsMargins(10, 10, 10, 10)
-        self.total_label = QLabel("Total: 0 kegiatan")
-        self.upcoming_label = QLabel("Akan Datang: 0")
-        self.today_label = QLabel("Hari Ini: 0")
-
-        self.stats_layout.addWidget(self.total_label)
-        self.stats_layout.addWidget(self.upcoming_label)
-        self.stats_layout.addWidget(self.today_label)
-        self.stats_layout.addStretch()
-
-        layout.addLayout(self.stats_layout)
-
-    def update_header_height(self, logical_index, old_size, new_size):
-        """Update header height when column widths change to fit wrapped text"""
-        if not hasattr(self, "table_widget"):
-            return
-
-        header = self.table_widget.horizontalHeader()
-        header.setMinimumHeight(25)
-        max_height = 25
-        for index in range(header.count()):
-            size = header.sectionSizeFromContents(index)
-            max_height = max(max_height, size.height())
-        header.setFixedHeight(max_height)
-
-    def apply_professional_table_style(self):
-        """Apply jemaat-style table styling for consistent appearance"""
+    def apply_table_style(self):
+        """Apply table styling with proper header visibility"""
         header_font = QFont()
         header_font.setBold(True)
         header_font.setPointSize(9)
         self.table_widget.horizontalHeader().setFont(header_font)
 
+        # Header with bold text, center alignment, and word wrap
+        # IMPORTANT: Ensure header is always visible with adequate height
         self.table_widget.horizontalHeader().setStyleSheet("""
             QHeaderView::section {
                 background-color: #f2f2f2;
                 border: none;
-                border-bottom: 1px solid #d4d4d4;
-                border-right: 1px solid #d4d4d4;
-                padding: 6px 4px;
+                border-bottom: 1px solid #b4b4b4;
+                border-right: 1px solid #b4b4b4;
+                padding: 8px 6px;
                 font-weight: bold;
-                color: #333333;
+                color: #1e1e1e;
+                min-height: 35px;
             }
         """)
+
+        header = self.table_widget.horizontalHeader()
+        header.setDefaultAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+        header.setSectionsClickable(True)
+        # CRITICAL: Set minimum height to ensure visibility when maximized
+        header.setMinimumHeight(35)
+        header.setDefaultSectionSize(100)
+        header.setMinimumSectionSize(50)
+        header.setMaximumSectionSize(500)
 
         self.table_widget.setStyleSheet("""
             QTableWidget {
@@ -655,11 +631,13 @@ class KegiatanClientComponent(QWidget):
                 font-family: 'Calibri', 'Segoe UI', Arial, sans-serif;
                 font-size: 9pt;
                 outline: none;
+                color: black;
             }
             QTableWidget::item {
                 border: none;
                 padding: 4px 6px;
                 min-height: 18px;
+                color: black;
             }
             QTableWidget::item:selected {
                 background-color: #cce7ff;
@@ -668,9 +646,14 @@ class KegiatanClientComponent(QWidget):
             QTableWidget::item:focus {
                 border: 2px solid #0078d4;
                 background-color: white;
+                color: black;
             }
         """)
 
+        self.table_widget.verticalHeader().setDefaultSectionSize(24)
+        self.table_widget.setSelectionBehavior(QAbstractItemView.SelectItems)
+        self.table_widget.setAlternatingRowColors(False)
+        self.table_widget.verticalHeader().setVisible(True)
         self.table_widget.verticalHeader().setStyleSheet("""
             QHeaderView::section {
                 background-color: #f2f2f2;
@@ -687,11 +670,165 @@ class KegiatanClientComponent(QWidget):
 
         self.table_widget.setShowGrid(True)
         self.table_widget.setGridStyle(Qt.SolidLine)
-        self.table_widget.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        self.table_widget.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        self.table_widget.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
-        self.table_widget.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
-        self.table_widget.setSizeAdjustPolicy(QAbstractItemView.AdjustToContents)
+        self.table_widget.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.table_widget.setSelectionMode(QAbstractItemView.ExtendedSelection)
+
+        self.table_widget.setMinimumHeight(200)
+
+    def create_action_buttons(self):
+        """Create action buttons layout"""
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+        button_layout.setSpacing(5)
+
+        # View detail button
+        detail_button = QPushButton(" Lihat Detail")
+        detail_button.setStyleSheet("""
+            QPushButton {
+                background-color: #2980b9;
+                color: white;
+                padding: 6px 12px;
+                border: none;
+                border-radius: 3px;
+                font-weight: 500;
+                font-size: 11px;
+            }
+            QPushButton:hover {
+                background-color: #3498db;
+            }
+            QPushButton:pressed {
+                background-color: #1f618d;
+            }
+        """)
+        try:
+            detail_icon = QIcon(os.path.join(os.path.dirname(__file__), '..', 'assets', 'view.png'))
+            if not detail_icon.isNull():
+                detail_button.setIcon(detail_icon)
+                detail_button.setIconSize(QSize(14, 14))
+        except:
+            pass
+        detail_button.clicked.connect(self.view_kegiatan)
+        button_layout.addWidget(detail_button)
+
+        # Edit button
+        edit_button = QPushButton(" Edit")
+        edit_button.setStyleSheet("""
+            QPushButton {
+                background-color: #f39c12;
+                color: white;
+                padding: 6px 12px;
+                border: none;
+                border-radius: 3px;
+                font-weight: 500;
+                font-size: 11px;
+            }
+            QPushButton:hover {
+                background-color: #f1c40f;
+            }
+            QPushButton:pressed {
+                background-color: #d68910;
+            }
+        """)
+        try:
+            edit_icon = QIcon(os.path.join(os.path.dirname(__file__), '..', 'assets', 'edit.png'))
+            if not edit_icon.isNull():
+                edit_button.setIcon(edit_icon)
+                edit_button.setIconSize(QSize(14, 14))
+        except:
+            pass
+        edit_button.clicked.connect(self.edit_kegiatan)
+        button_layout.addWidget(edit_button)
+
+        # Delete button
+        delete_button = QPushButton(" Hapus")
+        delete_button.setStyleSheet("""
+            QPushButton {
+                background-color: #e74c3c;
+                color: white;
+                padding: 6px 12px;
+                border: none;
+                border-radius: 3px;
+                font-weight: 500;
+                font-size: 11px;
+            }
+            QPushButton:hover {
+                background-color: #c0392b;
+            }
+            QPushButton:pressed {
+                background-color: #a93226;
+            }
+        """)
+        try:
+            delete_icon = QIcon(os.path.join(os.path.dirname(__file__), '..', 'assets', 'delete.png'))
+            if not delete_icon.isNull():
+                delete_button.setIcon(delete_icon)
+                delete_button.setIconSize(QSize(14, 14))
+        except:
+            pass
+        delete_button.clicked.connect(self.delete_kegiatan)
+        button_layout.addWidget(delete_button)
+
+        # Export CSV button
+        export_csv_button = QPushButton(" .csv")
+        export_csv_button.setStyleSheet("""
+            QPushButton {
+                background-color: #16a085;
+                color: white;
+                padding: 6px 12px;
+                border: none;
+                border-radius: 3px;
+                font-weight: 500;
+                font-size: 11px;
+            }
+            QPushButton:hover {
+                background-color: #1abc9c;
+            }
+            QPushButton:pressed {
+                background-color: #117a65;
+            }
+        """)
+        try:
+            export_icon = QIcon(os.path.join(os.path.dirname(__file__), '..', 'assets', 'export.png'))
+            if not export_icon.isNull():
+                export_csv_button.setIcon(export_icon)
+                export_csv_button.setIconSize(QSize(14, 14))
+        except:
+            pass
+        export_csv_button.clicked.connect(self.export_kegiatan)
+        button_layout.addWidget(export_csv_button)
+
+        # Export PDF button
+        export_pdf_button = QPushButton(" .pdf")
+        export_pdf_button.setStyleSheet("""
+            QPushButton {
+                background-color: #c0392b;
+                color: white;
+                padding: 6px 12px;
+                border: none;
+                border-radius: 3px;
+                font-weight: 500;
+                font-size: 11px;
+            }
+            QPushButton:hover {
+                background-color: #e74c3c;
+            }
+            QPushButton:pressed {
+                background-color: #a93226;
+            }
+        """)
+        try:
+            pdf_icon = QIcon(os.path.join(os.path.dirname(__file__), '..', 'assets', 'pdf.png'))
+            if not pdf_icon.isNull():
+                export_pdf_button.setIcon(pdf_icon)
+                export_pdf_button.setIconSize(QSize(14, 14))
+        except:
+            pass
+        export_pdf_button.clicked.connect(self.export_kegiatan_pdf)
+        button_layout.addWidget(export_pdf_button)
+
+        button_layout.addStretch()
+
+        return button_layout
 
     def create_professional_button(self, icon_name, text, bg_color, hover_color):
         """Create a professional button with icon and text"""
@@ -747,39 +884,36 @@ class KegiatanClientComponent(QWidget):
         """Add new kegiatan"""
         dialog = KegiatanDialog(self)
         if dialog.exec_() == QDialog.Accepted:
+            # Validate data
+            if not dialog.validate():
+                return
+
             data = dialog.get_data()
 
-            # Validasi data sebelum kirim
-            if not data.get('nama_kegiatan'):
-                QMessageBox.warning(self, "Validasi", "Nama kegiatan tidak boleh kosong")
-                return
-
-            if not data.get('tempat_kegiatan'):
-                QMessageBox.warning(self, "Validasi", "Tempat kegiatan tidak boleh kosong")
-                return
-
             try:
-                # Log data yang akan dikirim untuk debugging
-                self.log_message.emit(f"Mengirim data kegiatan WR: {data}")
-
+                self.log_message.emit(f"[DEBUG] Mengirim data: {data}")
                 result = self.api_client.add_kegiatan_wr(data)
-
-                # Log response dari server
-                self.log_message.emit(f"Response dari server: {result}")
+                self.log_message.emit(f"[DEBUG] Response add_kegiatan: success={result.get('success')}")
 
                 if result.get("success"):
-                    QMessageBox.information(self, "Sukses", "Kegiatan WR berhasil ditambahkan")
-                    self.log_message.emit(f"Kegiatan WR '{data['nama_kegiatan']}' berhasil ditambahkan")
+                    # Reload data to refresh the table
+                    self.log_message.emit("✓ Kegiatan berhasil ditambahkan, me-reload data...")
                     self.load_kegiatan_data()
+
+                    # Show success message
+                    QMessageBox.information(self, "Sukses", "Kegiatan berhasil ditambahkan dan tabel telah diperbarui")
+                    self.log_message.emit(f"✓ Kegiatan ditambahkan: {data['nama_kegiatan']}")
+                    self.data_updated.emit()
                 else:
                     error_msg = result.get('data', 'Unknown error')
-                    QMessageBox.warning(self, "Error", f"Gagal menambahkan kegiatan WR:\n{error_msg}")
-                    self.log_message.emit(f"Gagal menambahkan kegiatan WR: {error_msg}")
+                    QMessageBox.critical(self, "Error", f"Gagal menambah kegiatan:\n{error_msg}")
+                    self.log_message.emit(f"✗ Gagal menambah kegiatan: {error_msg}")
+
             except Exception as e:
                 import traceback
-                error_detail = traceback.format_exc()
-                QMessageBox.critical(self, "Error", f"Error menambahkan kegiatan:\n{str(e)}")
-                self.log_message.emit(f"Error menambahkan kegiatan: {str(e)}\n{error_detail}")
+                QMessageBox.critical(self, "Error", f"Error: {str(e)}")
+                self.log_message.emit(f"✗ Error add kegiatan: {str(e)}")
+                self.log_message.emit(f"[DEBUG] Traceback: {traceback.format_exc()}")
 
     def view_kegiatan(self):
         """View selected kegiatan"""
@@ -789,51 +923,102 @@ class KegiatanClientComponent(QWidget):
 
             # Create detail dialog
             dialog = QDialog(self)
-            dialog.setWindowTitle("Detail Kegiatan")
-            dialog.setMinimumSize(500, 400)
+            dialog.setWindowTitle("Detail Kegiatan WR")
+            dialog.setMinimumSize(550, 500)
 
             layout = QVBoxLayout(dialog)
+            layout.setContentsMargins(20, 20, 20, 20)
+            layout.setSpacing(15)
 
-            detail_text = QTextEdit()
-            detail_text.setReadOnly(True)
+            # Form layout (read-only)
+            form_layout = QFormLayout()
+            form_layout.setSpacing(8)
+            form_layout.setHorizontalSpacing(15)
+            form_layout.setVerticalSpacing(8)
 
-            # Support both old and new field names
-            tanggal = kegiatan.get('tanggal') or kegiatan.get('tanggal_mulai', 'N/A')
-            waktu = kegiatan.get('waktu') or kegiatan.get('waktu_mulai', 'N/A')
-            tempat = kegiatan.get('tempat') or kegiatan.get('lokasi', 'N/A')
+            # Kategori
+            kategori_label = QLabel(kegiatan.get('kategori', 'N/A'))
+            kategori_label.setStyleSheet("padding: 8px; background-color: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 2px;")
+            form_layout.addRow("Kategori:", kategori_label)
 
-            detail_html = f"""
-            <h2 style="color: #9b59b6;">{kegiatan.get('nama_kegiatan', 'N/A')}</h2>
-            <hr>
-            <p><strong>Tanggal:</strong> {tanggal}</p>
-            <p><strong>Waktu:</strong> {waktu}</p>
-            <p><strong>Tempat:</strong> {tempat}</p>
-            <p><strong>Kategori:</strong> {kegiatan.get('kategori', 'N/A')}</p>
-            <p><strong>Status:</strong> {self.get_kegiatan_status(kegiatan)}</p>
-            <hr>
-            <p><strong>Deskripsi:</strong></p>
-            <p>{kegiatan.get('deskripsi', 'Tidak ada deskripsi')}</p>
-            """
+            # Nama Kegiatan
+            nama_label = QLabel(kegiatan.get('nama_kegiatan', 'N/A'))
+            nama_label.setStyleSheet("padding: 8px; background-color: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 2px;")
+            nama_label.setWordWrap(True)
+            form_layout.addRow("Nama Kegiatan:", nama_label)
 
-            detail_text.setHtml(detail_html)
-            layout.addWidget(detail_text)
+            # Tanggal Pelaksanaan
+            tanggal = kegiatan.get('tanggal_pelaksanaan') or kegiatan.get('tanggal_mulai') or kegiatan.get('tanggal', 'N/A')
+            tanggal_label = QLabel(str(tanggal))
+            tanggal_label.setStyleSheet("padding: 8px; background-color: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 2px;")
+            form_layout.addRow("Tanggal Pelaksanaan:", tanggal_label)
 
+            # Waktu Mulai
+            waktu = kegiatan.get('waktu_mulai') or kegiatan.get('waktu', 'N/A')
+            waktu_label = QLabel(str(waktu))
+            waktu_label.setStyleSheet("padding: 8px; background-color: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 2px;")
+            form_layout.addRow("Waktu Mulai:", waktu_label)
+
+            # Tempat Kegiatan
+            tempat = kegiatan.get('tempat_kegiatan') or kegiatan.get('lokasi') or kegiatan.get('tempat', 'N/A')
+            tempat_label = QLabel(str(tempat))
+            tempat_label.setStyleSheet("padding: 8px; background-color: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 2px;")
+            tempat_label.setWordWrap(True)
+            form_layout.addRow("Tempat Kegiatan:", tempat_label)
+
+            # Sasaran Kegiatan
+            sasaran_label = QLabel(kegiatan.get('sasaran_kegiatan', 'N/A'))
+            sasaran_label.setStyleSheet("padding: 8px; background-color: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 2px;")
+            sasaran_label.setWordWrap(True)
+            form_layout.addRow("Sasaran Kegiatan:", sasaran_label)
+
+            # Tujuan Kegiatan
+            tujuan_label = QLabel(kegiatan.get('tujuan_kegiatan', 'N/A'))
+            tujuan_label.setStyleSheet("padding: 8px; background-color: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 2px;")
+            tujuan_label.setWordWrap(True)
+            form_layout.addRow("Tujuan Kegiatan:", tujuan_label)
+
+            # Penanggung Jawab
+            pic = kegiatan.get('penanggung_jawab') or kegiatan.get('penanggungjawab', 'N/A')
+            pic_label = QLabel(str(pic))
+            pic_label.setStyleSheet("padding: 8px; background-color: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 2px;")
+            form_layout.addRow("Penanggung Jawab:", pic_label)
+
+            # Status Kegiatan
+            status = kegiatan.get('status_kegiatan') or kegiatan.get('status', 'Direncanakan')
+            status_label = QLabel(str(status))
+            status_label.setStyleSheet("padding: 8px; background-color: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 2px;")
+            form_layout.addRow("Status Kegiatan:", status_label)
+
+            # Keterangan
+            keterangan_label = QLabel(kegiatan.get('keterangan', ''))
+            keterangan_label.setStyleSheet("padding: 8px; background-color: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 2px;")
+            keterangan_label.setWordWrap(True)
+            form_layout.addRow("Keterangan:", keterangan_label)
+
+            layout.addLayout(form_layout)
+            layout.addStretch()
+
+            # Close button
             close_button = QPushButton("Tutup")
-            close_button.clicked.connect(dialog.accept)  # type: ignore
             close_button.setStyleSheet("""
                 QPushButton {
                     background-color: #95a5a6;
                     color: white;
                     padding: 8px 20px;
                     border: none;
-                    border-radius: 4px;
-                    font-weight: bold;
+                    border-radius: 3px;
                 }
                 QPushButton:hover {
-                    background-color: #7f8c8d;
+                    background-color: #bdc3c7;
                 }
             """)
-            layout.addWidget(close_button)
+            close_button.clicked.connect(dialog.accept)
+
+            button_layout = QHBoxLayout()
+            button_layout.addStretch()
+            button_layout.addWidget(close_button)
+            layout.addLayout(button_layout)
 
             dialog.exec_()
         else:
@@ -842,100 +1027,346 @@ class KegiatanClientComponent(QWidget):
     def edit_kegiatan(self):
         """Edit selected kegiatan"""
         current_row = self.table_widget.currentRow()
-        if current_row >= 0 and current_row < len(self.filtered_data):
-            kegiatan = self.filtered_data[current_row]
+        if current_row < 0:
+            QMessageBox.warning(self, "Warning", "Pilih kegiatan yang akan diedit")
+            return
 
-            dialog = KegiatanDialog(self, kegiatan)
-            if dialog.exec_() == QDialog.Accepted:
-                data = dialog.get_data()
+        if current_row >= len(self.filtered_data):
+            QMessageBox.warning(self, "Warning", "Data kegiatan tidak valid")
+            return
 
-                try:
-                    kegiatan_id = kegiatan.get('id_kegiatan_wr') or kegiatan.get('id')
-                    result = self.api_client.update_kegiatan_wr(kegiatan_id, data)
-                    if result["success"]:
-                        QMessageBox.information(self, "Sukses", "Kegiatan WR berhasil diupdate")
-                        self.log_message.emit(f"Kegiatan WR '{data['nama_kegiatan']}' berhasil diupdate")
-                        self.load_kegiatan_data()
-                    else:
-                        QMessageBox.warning(self, "Error", f"Gagal update kegiatan WR:\n{result['data']}")
-                        self.log_message.emit(f"Gagal update kegiatan WR: {result['data']}")
-                except Exception as e:
-                    QMessageBox.critical(self, "Error", f"Error update kegiatan:\n{str(e)}")
-                    self.log_message.emit(f"Error update kegiatan: {str(e)}")
-        else:
-            QMessageBox.warning(self, "Peringatan", "Pilih kegiatan terlebih dahulu")
+        kegiatan = self.filtered_data[current_row]
+
+        dialog = KegiatanDialog(self, kegiatan)
+        if dialog.exec_() == QDialog.Accepted:
+            # Validate data
+            if not dialog.validate():
+                return
+
+            data = dialog.get_data()
+
+            try:
+                self.log_message.emit(f"[DEBUG] Update data: {data}")
+                result = self.api_client.update_kegiatan_wr(kegiatan.get('id_kegiatan_wr'), data)
+                self.log_message.emit(f"[DEBUG] Response update: success={result.get('success')}")
+
+                if result.get("success"):
+                    # Reload data to refresh the table
+                    self.log_message.emit("✓ Kegiatan berhasil diperbarui, me-reload data...")
+                    self.load_kegiatan_data()
+
+                    QMessageBox.information(self, "Sukses", "Kegiatan berhasil diperbarui dan tabel telah diperbarui")
+                    self.log_message.emit(f"✓ Kegiatan diperbarui: {data['nama_kegiatan']}")
+                    self.data_updated.emit()
+                else:
+                    error_msg = result.get('data', 'Unknown error')
+                    QMessageBox.critical(self, "Error", f"Gagal update kegiatan:\n{error_msg}")
+                    self.log_message.emit(f"✗ Gagal update kegiatan: {error_msg}")
+
+            except Exception as e:
+                import traceback
+                QMessageBox.critical(self, "Error", f"Error: {str(e)}")
+                self.log_message.emit(f"✗ Error edit kegiatan: {str(e)}")
+                self.log_message.emit(f"[DEBUG] Traceback: {traceback.format_exc()}")
 
     def delete_kegiatan(self):
         """Delete selected kegiatan"""
         current_row = self.table_widget.currentRow()
-        if current_row >= 0 and current_row < len(self.filtered_data):
-            kegiatan = self.filtered_data[current_row]
+        if current_row < 0:
+            QMessageBox.warning(self, "Warning", "Pilih kegiatan yang akan dihapus")
+            return
 
-            reply = QMessageBox.question(self, "Konfirmasi",
-                                       f"Apakah Anda yakin ingin menghapus kegiatan '{kegiatan.get('nama_kegiatan')}'?",
-                                       QMessageBox.Yes | QMessageBox.No)
-            if reply == QMessageBox.Yes:
-                try:
-                    kegiatan_id = kegiatan.get('id_kegiatan_wr') or kegiatan.get('id')
-                    result = self.api_client.delete_kegiatan_wr(kegiatan_id)
-                    if result["success"]:
-                        QMessageBox.information(self, "Sukses", "Kegiatan WR berhasil dihapus")
-                        self.log_message.emit(f"Kegiatan WR '{kegiatan.get('nama_kegiatan')}' berhasil dihapus")
-                        self.load_kegiatan_data()
-                    else:
-                        QMessageBox.warning(self, "Error", f"Gagal menghapus kegiatan WR:\n{result['data']}")
-                        self.log_message.emit(f"Gagal menghapus kegiatan WR: {result['data']}")
-                except Exception as e:
-                    QMessageBox.critical(self, "Error", f"Error menghapus kegiatan:\n{str(e)}")
-                    self.log_message.emit(f"Error menghapus kegiatan: {str(e)}")
-        else:
-            QMessageBox.warning(self, "Peringatan", "Pilih kegiatan terlebih dahulu")
+        if current_row >= len(self.filtered_data):
+            QMessageBox.warning(self, "Warning", "Data kegiatan tidak valid")
+            return
+
+        kegiatan = self.filtered_data[current_row]
+
+        reply = QMessageBox.question(self, "Konfirmasi",
+                                    f"Yakin ingin menghapus kegiatan '{kegiatan.get('nama_kegiatan')}'?",
+                                    QMessageBox.Yes | QMessageBox.No,
+                                    QMessageBox.No)
+
+        if reply == QMessageBox.Yes:
+            try:
+                self.log_message.emit(f"[DEBUG] Delete kegiatan ID: {kegiatan.get('id_kegiatan_wr')}")
+                result = self.api_client.delete_kegiatan_wr(kegiatan.get('id_kegiatan_wr'))
+                self.log_message.emit(f"[DEBUG] Response delete: success={result.get('success')}")
+
+                if result.get("success"):
+                    # Reload data to refresh the table
+                    self.log_message.emit("✓ Kegiatan berhasil dihapus, me-reload data...")
+                    self.load_kegiatan_data()
+
+                    QMessageBox.information(self, "Sukses", "Kegiatan berhasil dihapus dan tabel telah diperbarui")
+                    self.log_message.emit(f"✓ Kegiatan dihapus: {kegiatan.get('nama_kegiatan')}")
+                    self.data_updated.emit()
+                else:
+                    error_msg = result.get('data', 'Unknown error')
+                    QMessageBox.critical(self, "Error", f"Gagal hapus kegiatan:\n{error_msg}")
+                    self.log_message.emit(f"✗ Gagal hapus kegiatan: {error_msg}")
+
+            except Exception as e:
+                import traceback
+                QMessageBox.critical(self, "Error", f"Error: {str(e)}")
+                self.log_message.emit(f"✗ Error delete kegiatan: {str(e)}")
+                self.log_message.emit(f"[DEBUG] Traceback: {traceback.format_exc()}")
 
     def export_kegiatan(self):
-        """Export kegiatan data to CSV file"""
+        """Export data to CSV"""
         if not self.filtered_data:
             QMessageBox.warning(self, "Warning", "Tidak ada data untuk diekspor")
             return
 
-        file_path, _ = QFileDialog.getSaveFileName(
-            self,
-            "Export Data Kegiatan",
-            f"data_kegiatan_{datetime.date.today().isoformat()}.csv",
-            "CSV Files (*.csv)"
+        filename, _ = QFileDialog.getSaveFileName(
+            self, "Export Kegiatan", "kegiatan_wr.csv", "CSV Files (*.csv)"
         )
 
-        if file_path:
-            try:
-                import csv
-                with open(file_path, 'w', newline='', encoding='utf-8') as f:
-                    writer = csv.DictWriter(f, fieldnames=[
-                        'Kategori', 'Nama Kegiatan', 'Sasaran', 'Tujuan', 'Tempat', 'Tanggal', 'Waktu', 'Penanggung Jawab', 'Status', 'Keterangan'
-                    ])
-                    writer.writeheader()
-                    for kegiatan in self.filtered_data:
-                        # Support both old and new field names
-                        tanggal = kegiatan.get('tanggal') or kegiatan.get('tanggal_mulai', '')
-                        waktu = kegiatan.get('waktu') or kegiatan.get('waktu_mulai', '')
-                        tempat = kegiatan.get('tempat') or kegiatan.get('lokasi', '')
-                        penanggung_jawab = kegiatan.get('penanggung_jawab') or kegiatan.get('penanggungjawab', '')
+        if not filename:
+            return
 
-                        writer.writerow({
-                            'Kategori': kegiatan.get('kategori', ''),
-                            'Nama Kegiatan': kegiatan.get('nama_kegiatan', ''),
-                            'Sasaran': kegiatan.get('sasaran_kegiatan', ''),
-                            'Tujuan': kegiatan.get('tujuan_kegiatan', ''),
-                            'Tempat': tempat,
-                            'Tanggal': tanggal,
-                            'Waktu': waktu,
-                            'Penanggung Jawab': penanggung_jawab,
-                            'Status': self.get_kegiatan_status(kegiatan),
-                            'Keterangan': kegiatan.get('keterangan', '')
-                        })
-                QMessageBox.information(self, "Export Berhasil", f"Data berhasil diekspor ke: {file_path}")
-                self.log_message.emit(f"Data kegiatan berhasil diekspor ke {file_path}")
+        try:
+            with open(filename, 'w', newline='', encoding='utf-8') as f:
+                writer = csv.DictWriter(f, fieldnames=[
+                    "Kategori", "Nama Kegiatan", "Tanggal", "Waktu", "Tempat", "Sasaran", "Tujuan", "PIC", "Status", "Keterangan"
+                ])
+                writer.writeheader()
+
+                for kegiatan in self.filtered_data:
+                    # Format tanggal ke dd/mm/yyyy untuk export
+                    tanggal_mulai = kegiatan.get('tanggal_pelaksanaan') or kegiatan.get('tanggal_mulai') or kegiatan.get('tanggal', '')
+                    if tanggal_mulai:
+                        try:
+                            if 'T' in str(tanggal_mulai):
+                                dt = datetime.datetime.fromisoformat(str(tanggal_mulai).replace('Z', '+00:00'))
+                            else:
+                                dt = datetime.datetime.strptime(str(tanggal_mulai), '%Y-%m-%d')
+                            tanggal_display = dt.strftime('%d/%m/%Y')
+                        except:
+                            tanggal_display = str(tanggal_mulai)
+                    else:
+                        tanggal_display = ''
+
+                    # Format waktu
+                    waktu = kegiatan.get('waktu_mulai') or kegiatan.get('waktu', '')
+                    waktu_display = waktu[:5] if waktu and len(waktu) >= 5 else waktu
+
+                    # Format tempat
+                    tempat = kegiatan.get('tempat_kegiatan') or kegiatan.get('lokasi') or kegiatan.get('tempat', '')
+
+                    # Format penanggung jawab
+                    penanggung_jawab = kegiatan.get('penanggung_jawab') or kegiatan.get('penanggungjawab', '')
+
+                    # Status
+                    status = kegiatan.get('status_kegiatan') or kegiatan.get('status', '')
+
+                    writer.writerow({
+                        "Kategori": kegiatan.get('kategori', ''),
+                        "Nama Kegiatan": kegiatan.get('nama_kegiatan', ''),
+                        "Tanggal": tanggal_display,
+                        "Waktu": waktu_display,
+                        "Tempat": tempat,
+                        "Sasaran": kegiatan.get('sasaran_kegiatan', ''),
+                        "Tujuan": kegiatan.get('tujuan_kegiatan', ''),
+                        "PIC": penanggung_jawab,
+                        "Status": status,
+                        "Keterangan": kegiatan.get('keterangan', '')
+                    })
+
+            QMessageBox.information(self, "Sukses", f"Data berhasil diekspor ke {filename}")
+            self.log_message.emit(f"Data diekspor ke: {filename}")
+
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Error export: {str(e)}")
+
+    def export_kegiatan_pdf(self):
+        """Export data to PDF with proper text wrapping and column fitting"""
+        if not self.filtered_data:
+            QMessageBox.warning(self, "Warning", "Tidak ada data untuk diekspor")
+            return
+
+        if not HAS_REPORTLAB:
+            QMessageBox.critical(self, "Error",
+                "Perpustakaan reportlab tidak terinstall.\n"
+                "Silakan jalankan: pip install reportlab")
+            return
+
+        filename, _ = QFileDialog.getSaveFileName(
+            self, "Export Kegiatan ke PDF", "kegiatan_wr.pdf", "PDF Files (*.pdf)"
+        )
+
+        if not filename:
+            return
+
+        try:
+            # Create PDF document with landscape orientation for better fit
+            doc = SimpleDocTemplate(filename, pagesize=landscape(A4),
+                                   rightMargin=15, leftMargin=15,
+                                   topMargin=15, bottomMargin=15)
+
+            # Container for elements
+            elements = []
+
+            # Add title
+            style = getSampleStyleSheet()
+            title_style = ParagraphStyle(
+                'CustomTitle',
+                parent=style['Heading1'],
+                fontSize=14,
+                textColor=colors.HexColor('#2c3e50'),
+                spaceAfter=10,
+                alignment=TA_CENTER
+            )
+            elements.append(Paragraph("Kegiatan Wilayah Rohani", title_style))
+            elements.append(Spacer(1, 0.15*inch))
+
+            # Create cell style for wrapping text
+            cell_style = ParagraphStyle(
+                'CellStyle',
+                parent=style['Normal'],
+                fontSize=7.5,
+                leading=9,
+                alignment=TA_LEFT,
+                wordWrap='CJK'
+            )
+
+            # Prepare table data with wrapped paragraphs
+            table_data = []
+
+            # Header row
+            headers = ["Kategori", "Nama Kegiatan", "Tanggal", "Waktu", "Tempat", "Sasaran",
+                      "Tujuan", "PIC", "Status", "Keterangan"]
+            table_data.append(headers)
+
+            for kegiatan in self.filtered_data:
+                # Format tanggal ke dd/mm/yyyy
+                tanggal_mulai = kegiatan.get('tanggal_pelaksanaan') or kegiatan.get('tanggal_mulai') or kegiatan.get('tanggal', '')
+                if tanggal_mulai:
+                    try:
+                        if 'T' in str(tanggal_mulai):
+                            dt = datetime.datetime.fromisoformat(str(tanggal_mulai).replace('Z', '+00:00'))
+                        else:
+                            dt = datetime.datetime.strptime(str(tanggal_mulai), '%Y-%m-%d')
+                        tanggal_display = dt.strftime('%d/%m/%Y')
+                    except:
+                        tanggal_display = str(tanggal_mulai)
+                else:
+                    tanggal_display = ''
+
+                # Format waktu
+                waktu = kegiatan.get('waktu_mulai') or kegiatan.get('waktu', '')
+                waktu_display = waktu[:5] if waktu and len(waktu) >= 5 else waktu
+
+                # Create wrapped paragraphs for long text fields
+                kategori_text = str(kegiatan.get('kategori', '-'))
+                nama_text = str(kegiatan.get('nama_kegiatan', '-'))
+                tempat_text = str(kegiatan.get('tempat_kegiatan') or kegiatan.get('lokasi') or kegiatan.get('tempat', '-'))
+                sasaran_text = str(kegiatan.get('sasaran_kegiatan', '-'))
+                tujuan_text = str(kegiatan.get('tujuan_kegiatan', '-'))
+                pic_text = str(kegiatan.get('penanggung_jawab', '-'))
+                status_text = str(kegiatan.get('status_kegiatan', '-'))
+                keterangan_text = str(kegiatan.get('keterangan', '-'))
+
+                # Wrap text in Paragraph objects for proper text handling
+                row = [
+                    Paragraph(kategori_text, cell_style),
+                    Paragraph(nama_text, cell_style),
+                    Paragraph(tanggal_display, cell_style),
+                    Paragraph(waktu_display, cell_style),
+                    Paragraph(tempat_text, cell_style),
+                    Paragraph(sasaran_text, cell_style),
+                    Paragraph(tujuan_text, cell_style),
+                    Paragraph(pic_text, cell_style),
+                    Paragraph(status_text, cell_style),
+                    Paragraph(keterangan_text, cell_style)
+                ]
+                table_data.append(row)
+
+            # Create table with optimized column widths for landscape
+            # Landscape A4: ~11 inches wide, minus margins = ~10.5 inches available
+            table = Table(table_data, colWidths=[
+                0.8*inch,   # Kategori
+                1.2*inch,   # Nama Kegiatan
+                0.9*inch,   # Tanggal
+                0.8*inch,   # Waktu
+                1.0*inch,   # Tempat
+                1.0*inch,   # Sasaran
+                1.0*inch,   # Tujuan
+                0.9*inch,   # PIC
+                0.8*inch,   # Status
+                1.2*inch    # Keterangan
+            ], splitByRow=True)
+
+            # Style table with better formatting
+            table_style = TableStyle([
+                # Header row styling
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2c3e50')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+                ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 8),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+                ('TOPPADDING', (0, 0), (-1, 0), 8),
+
+                # Data rows with proper alignment and padding
+                ('ALIGN', (0, 1), (-1, -1), 'LEFT'),
+                ('VALIGN', (0, 1), (-1, -1), 'TOP'),
+                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 1), (-1, -1), 7.5),
+
+                # Alternating row colors
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f5f5f5')]),
+
+                # Grid and padding
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cccccc')),
+                ('TOPPADDING', (0, 1), (-1, -1), 5),
+                ('BOTTOMPADDING', (0, 1), (-1, -1), 5),
+                ('LEFTPADDING', (0, 0), (-1, -1), 5),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 5),
+
+                # Set minimum row height for text wrapping
+                ('MINHEIGHT', (0, 1), (-1, -1), 25),
+            ])
+
+            table.setStyle(table_style)
+            elements.append(table)
+
+            # Add summary
+            elements.append(Spacer(1, 0.15*inch))
+            summary_text = f"Total Kegiatan: {len(self.filtered_data)} | Tanggal Export: {datetime.datetime.now().strftime('%d/%m/%Y %H:%M')}"
+            summary_style = ParagraphStyle(
+                'Summary',
+                parent=style['Normal'],
+                fontSize=8,
+                textColor=colors.HexColor('#666666'),
+                alignment=TA_LEFT
+            )
+            elements.append(Paragraph(summary_text, summary_style))
+
+            # Build PDF
+            doc.build(elements)
+
+            QMessageBox.information(self, "Sukses", f"Data berhasil diekspor ke {filename}\n\nFile PDF dapat dibuka dan dicetak.")
+            self.log_message.emit(f"Data PDF diekspor ke: {filename}")
+
+            # Try to open the PDF file
+            import subprocess
+            import sys
+            try:
+                if sys.platform == 'win32':
+                    os.startfile(filename)
+                elif sys.platform == 'darwin':
+                    subprocess.Popen(['open', filename])
+                else:  # Linux
+                    subprocess.Popen(['xdg-open', filename])
             except Exception as e:
-                QMessageBox.critical(self, "Export Error", f"Gagal mengekspor data: {str(e)}")
-                self.log_message.emit(f"Error export data: {str(e)}")
+                self.log_message.emit(f"[DEBUG] Tidak dapat membuka PDF otomatis: {e}")
+
+        except Exception as e:
+            import traceback
+            QMessageBox.critical(self, "Error", f"Error export PDF: {str(e)}")
+            self.log_message.emit(f"[DEBUG] Error PDF: {traceback.format_exc()}")
 
     def update_table(self):
         """Update table with new column order"""
@@ -1060,157 +1491,22 @@ class KegiatanClientComponent(QWidget):
             self.table_widget.setItem(row, 9, status_db_item)
             self.table_widget.setItem(row, 10, keterangan_item)
 
-    def update_calendar_indicators(self):
-        """Update calendar to mark dates that have kegiatan"""
-        # Get all dates from kegiatan_data
-        kegiatan_dates = set()
-
-        for kegiatan in self.kegiatan_data:
-            # Support both old (tanggal) and new (tanggal_mulai) fields
-            tanggal_str = kegiatan.get('tanggal_pelaksanaan') or kegiatan.get('tanggal_mulai') or kegiatan.get('tanggal', '')
-            if tanggal_str:
-                try:
-                    if 'T' in str(tanggal_str):
-                        tanggal_date = datetime.datetime.fromisoformat(str(tanggal_str).replace('Z', '+00:00')).date()
-                    else:
-                        tanggal_date = datetime.datetime.strptime(str(tanggal_str), '%Y-%m-%d').date()
-                    kegiatan_dates.add(tanggal_date)
-                except:
-                    pass
-
-        # Create a custom formatting for calendar
-        # Mark dates with kegiatan by making them bold
-        if hasattr(self.calendar, 'setDateTextFormat'):
-            from PyQt5.QtGui import QTextCharFormat
-
-            # Default format (for dates without kegiatan)
-            default_format = QTextCharFormat()
-
-            # Format for dates with kegiatan (bold)
-            kegiatan_format = QTextCharFormat()
-            kegiatan_format.setFontWeight(700)  # Bold
-
-            # Current calendar month
-            current_date = self.calendar.selectedDate().toPyDate()
-            current_month = current_date.month()
-            current_year = current_date.year()
-
-            # Apply formatting
-            for day in range(1, 32):
-                try:
-                    date_obj = datetime.date(current_year, current_month, day)
-                    q_date = QDate(date_obj.year, date_obj.month, date_obj.day)
-
-                    if date_obj in kegiatan_dates:
-                        self.calendar.setDateTextFormat(q_date, kegiatan_format)
-                    else:
-                        self.calendar.setDateTextFormat(q_date, default_format)
-                except ValueError:
-                    # Invalid day for this month
-                    pass
-
-    def get_kegiatan_status(self, kegiatan):
-        """Determine status of kegiatan based on date/time"""
-        try:
-            today = datetime.date.today()
-
-            # Support both old (tanggal) and new (tanggal_mulai) fields
-            tanggal_str = kegiatan.get('tanggal') or kegiatan.get('tanggal_mulai', '')
-            if not tanggal_str:
-                return "Unknown"
-
-            if 'T' in tanggal_str:
-                kegiatan_date = datetime.datetime.fromisoformat(tanggal_str.replace('Z', '+00:00')).date()
-            else:
-                kegiatan_date = datetime.datetime.strptime(tanggal_str, '%Y-%m-%d').date()
-
-            if kegiatan_date > today:
-                return "Akan Datang"
-            elif kegiatan_date == today:
-                return "Sedang Berlangsung"
-            else:
-                return "Selesai"
-        except:
-            return "Unknown"
-
     def filter_data(self):
-        """Filter data based on search, category, and status"""
-        search_text = self.search_input.text().lower()
-        category_filter = self.category_filter.currentText()
-        status_filter = self.status_filter.currentText()
+        """Filter data berdasarkan kategori"""
+        kategori = self.kategori_filter.currentText()
 
-        self.filtered_data = []
-
+        filtered = []
         for kegiatan in self.kegiatan_data:
-            # Search filter
-            nama = (kegiatan.get('nama_kegiatan', '') or '').lower()
-            # Support both old (tempat) and new (lokasi) fields
-            tempat = (kegiatan.get('tempat') or kegiatan.get('lokasi', '') or '').lower()
-
-            if search_text and search_text not in nama and search_text not in tempat:
+            # Filter by kategori
+            if kategori != "Semua" and kegiatan.get('kategori') != kategori:
                 continue
 
-            # Category filter
-            kategori = kegiatan.get('kategori', '') or 'Lainnya'
-            if category_filter != "Semua" and kategori != category_filter:
-                continue
+            filtered.append(kegiatan)
 
-            # Status filter
-            status = self.get_kegiatan_status(kegiatan)
-            if status_filter != "Semua" and status != status_filter:
-                continue
+        self.populate_table(filtered)
 
-            self.filtered_data.append(kegiatan)
-
+    def populate_table(self, kegiatan_list):
+        """Populate table with data"""
+        self.filtered_data = kegiatan_list
         self.update_table()
-        self.update_statistics()
 
-    def calendar_date_changed(self, date):
-        """Handle calendar date selection"""
-        selected_date = date.toString("yyyy-MM-dd")
-
-        # Filter kegiatan for selected date
-        filtered_for_date = []
-        for kegiatan in self.kegiatan_data:
-            # Support multiple field names for date
-            tanggal = kegiatan.get('tanggal_pelaksanaan') or kegiatan.get('tanggal_mulai') or kegiatan.get('tanggal', '')
-            if tanggal and selected_date in tanggal:
-                filtered_for_date.append(kegiatan)
-
-        if filtered_for_date:
-            self.filtered_data = filtered_for_date
-            self.update_table()
-            self.update_statistics()
-            QMessageBox.information(self, "Kegiatan",
-                f"Ditemukan {len(filtered_for_date)} kegiatan pada {date.toString('dd/MM/yyyy')}")
-        else:
-            self.filtered_data = []
-            self.update_table()
-            self.update_statistics()
-            QMessageBox.information(self, "Kegiatan",
-                f"Tidak ada kegiatan pada {date.toString('dd/MM/yyyy')}")
-
-
-    def update_statistics(self):
-        """Update statistics labels"""
-        today = datetime.date.today()
-
-        total = len(self.filtered_data)
-        upcoming = 0
-        today_count = 0
-
-        for kegiatan in self.filtered_data:
-            status = self.get_kegiatan_status(kegiatan)
-            if status == "Akan Datang":
-                upcoming += 1
-            elif status == "Sedang Berlangsung":
-                today_count += 1
-
-        self.total_label.setText(f"Total: {total} kegiatan")
-        self.upcoming_label.setText(f"Akan Datang: {upcoming}")
-        self.today_label.setText(f"Hari Ini: {today_count}")
-
-        # Style the labels
-        self.total_label.setStyleSheet("color: #2c3e50; font-weight: bold;")
-        self.upcoming_label.setStyleSheet("color: #3498db; font-weight: bold;")
-        self.today_label.setStyleSheet("color: #e67e22; font-weight: bold;")
