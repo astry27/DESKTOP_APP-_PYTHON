@@ -126,6 +126,7 @@ class JemaatDialog(QDialog):
         self.tanggal_lahir_input.setCalendarPopup(True)
         self.tanggal_lahir_input.setDate(QDate.currentDate())  # Set to current date
         self.tanggal_lahir_input.setMinimumWidth(300)
+        self.tanggal_lahir_input.setDisplayFormat("dd/MM/yyyy")  # Format: DD/MM/YYYY
         self.tanggal_lahir_input.dateChanged.connect(self.calculate_age)
         
         self.umur_input = QLineEdit()
@@ -193,6 +194,8 @@ class JemaatDialog(QDialog):
         self.alamat_input.setMinimumWidth(300)
         self.email_input = QLineEdit()
         self.email_input.setMinimumWidth(300)
+        self.no_telepon_input = QLineEdit()
+        self.no_telepon_input.setMinimumWidth(300)
         
         data_diri_layout.addRow("Wilayah Rohani:", self.wilayah_rohani_input)
         data_diri_layout.addRow("Nama Keluarga:", self.nama_keluarga_input)
@@ -228,6 +231,7 @@ class JemaatDialog(QDialog):
         
         data_diri_layout.addRow("Alamat:", self.alamat_input)
         data_diri_layout.addRow("Email:", self.email_input)
+        data_diri_layout.addRow("No. Telepon:", self.no_telepon_input)
         
         # Set consistent spacing and alignment
         data_diri_layout.setVerticalSpacing(5)
@@ -257,6 +261,7 @@ class JemaatDialog(QDialog):
         self.tanggal_babtis_input.setCalendarPopup(True)
         self.tanggal_babtis_input.setDate(QDate.currentDate())
         self.tanggal_babtis_input.setMinimumWidth(300)
+        self.tanggal_babtis_input.setDisplayFormat("dd/MM/yyyy")  # Format: DD/MM/YYYY
         self.nama_babtis_input = QLineEdit()
         self.nama_babtis_input.setMinimumWidth(300)
 
@@ -306,6 +311,7 @@ class JemaatDialog(QDialog):
         self.tanggal_komuni_input.setCalendarPopup(True)
         self.tanggal_komuni_input.setDate(QDate.currentDate())
         self.tanggal_komuni_input.setMinimumWidth(300)
+        self.tanggal_komuni_input.setDisplayFormat("dd/MM/yyyy")  # Format: DD/MM/YYYY
 
         ekaristi_layout.addRow("Status:", self.status_ekaristi_input)
 
@@ -349,6 +355,7 @@ class JemaatDialog(QDialog):
         self.tanggal_krisma_input.setCalendarPopup(True)
         self.tanggal_krisma_input.setDate(QDate.currentDate())
         self.tanggal_krisma_input.setMinimumWidth(300)
+        self.tanggal_krisma_input.setDisplayFormat("dd/MM/yyyy")  # Format: DD/MM/YYYY
 
         krisma_layout.addRow("Status:", self.status_krisma_input)
 
@@ -397,6 +404,7 @@ class JemaatDialog(QDialog):
         self.tanggal_perkawinan_input.setCalendarPopup(True)
         self.tanggal_perkawinan_input.setDate(QDate.currentDate())
         self.tanggal_perkawinan_input.setMinimumWidth(300)
+        self.tanggal_perkawinan_input.setDisplayFormat("dd/MM/yyyy")  # Format: DD/MM/YYYY
         self.status_perkawinan_detail_input = QComboBox()
         self.status_perkawinan_detail_input.addItems(["Pilih status", "Sipil", "Gereja", "Sipil dan Gereja"])
         self.status_perkawinan_detail_input.setCurrentIndex(0)
@@ -443,39 +451,33 @@ class JemaatDialog(QDialog):
         status_layout = QFormLayout(status_group)
 
         self.status_keanggotaan_input = QComboBox()
-        self.status_keanggotaan_input.addItems(["Pilih Status", "Menetap", "Pindah", "Meninggal Dunia"])
+        self.status_keanggotaan_input.addItems(["-- Pilih Status Keanggotaan --", "Menetap", "Pindah", "Meninggal"])
         self.status_keanggotaan_input.setCurrentIndex(0)
         self.status_keanggotaan_input.setMinimumWidth(300)
         self.setup_placeholder_style(self.status_keanggotaan_input)
         self.status_keanggotaan_input.currentTextChanged.connect(self.on_status_keanggotaan_changed)
 
         # Conditional fields for Pindah status
-        self.wilayah_rohani_pindah_input = QLineEdit()
-        self.wilayah_rohani_pindah_input.setMinimumWidth(300)
+        self.wr_tujuan_input = QLineEdit()
+        self.wr_tujuan_input.setMinimumWidth(300)
 
-        self.paroki_pindah_input = QLineEdit()
-        self.paroki_pindah_input.setMinimumWidth(300)
-
-        self.keuskupan_pindah_input = QLineEdit()
-        self.keuskupan_pindah_input.setMinimumWidth(300)
+        self.paroki_tujuan_input = QLineEdit()
+        self.paroki_tujuan_input.setMinimumWidth(300)
 
         status_layout.addRow("Status Keanggotaan:", self.status_keanggotaan_input)
 
         # Create label widgets and register label-input pairs for conditional fields
-        wilayah_label = QLabel("Wilayah Rohani Tujuan:")
-        paroki_pindah_label = QLabel("Paroki Tujuan:")
-        keuskupan_pindah_label = QLabel("Keuskupan Tujuan:")
+        wr_tujuan_label = QLabel("Wilayah Rohani Tujuan:")
+        paroki_tujuan_label = QLabel("Paroki Tujuan:")
 
-        self.field_pairs['wilayah_rohani_pindah'] = (wilayah_label, self.wilayah_rohani_pindah_input)
-        self.field_pairs['paroki_pindah'] = (paroki_pindah_label, self.paroki_pindah_input)
-        self.field_pairs['keuskupan_pindah'] = (keuskupan_pindah_label, self.keuskupan_pindah_input)
+        self.field_pairs['wr_tujuan'] = (wr_tujuan_label, self.wr_tujuan_input)
+        self.field_pairs['paroki_tujuan'] = (paroki_tujuan_label, self.paroki_tujuan_input)
 
-        status_layout.addRow(wilayah_label, self.wilayah_rohani_pindah_input)
-        status_layout.addRow(paroki_pindah_label, self.paroki_pindah_input)
-        status_layout.addRow(keuskupan_pindah_label, self.keuskupan_pindah_input)
+        status_layout.addRow(wr_tujuan_label, self.wr_tujuan_input)
+        status_layout.addRow(paroki_tujuan_label, self.paroki_tujuan_input)
 
-        # Initially hide pindah fields
-        self.set_field_visibility(['wilayah_rohani_pindah', 'paroki_pindah', 'keuskupan_pindah'], False)
+        # Initially hide tujuan fields
+        self.set_field_visibility(['wr_tujuan', 'paroki_tujuan'], False)
         
         # Set consistent spacing and alignment
         status_layout.setVerticalSpacing(5)
@@ -607,7 +609,7 @@ class JemaatDialog(QDialog):
     def on_status_keanggotaan_changed(self, text):
         """Handle perubahan status keanggotaan"""
         visible = (text == "Pindah")
-        self.set_field_visibility(['wilayah_rohani_pindah', 'paroki_pindah', 'keuskupan_pindah'], visible)
+        self.set_field_visibility(['wr_tujuan', 'paroki_tujuan'], visible)
     
     def on_jenis_pekerjaan_changed(self, text):
         """Handle perubahan status pekerjaan"""
@@ -651,32 +653,84 @@ class JemaatDialog(QDialog):
         visible = (text == "Lainnya")
         self.set_field_visibility(['status_kekatolikan_lainnya'], visible)
 
+    def parse_date_string(self, date_string):
+        """Parse date string from various formats including RFC 2822"""
+        if not date_string or str(date_string).lower() in ('none', 'null', ''):
+            return None
+
+        try:
+            import re
+            from datetime import datetime
+
+            date_string = str(date_string).strip()
+
+            # Try RFC 2822 format first (from Flask API)
+            # Example: "Thu, 27 Nov 2025 00:00:00 GMT"
+            match = re.match(r'^\w+,\s+(\d{1,2})\s+(\w+)\s+(\d{4})', date_string)
+            if match:
+                day = int(match.group(1))
+                month_str = match.group(2)
+                year = int(match.group(3))
+
+                # Convert month abbreviation to number
+                month_map = {
+                    'Jan': 1, 'Feb': 2, 'Mar': 3, 'Apr': 4, 'May': 5, 'Jun': 6,
+                    'Jul': 7, 'Aug': 8, 'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12
+                }
+                month = month_map.get(month_str, 1)
+
+                date = QDate(year, month, day)
+                if date.isValid():
+                    return date
+
+            # Try yyyy-MM-dd format
+            date = QDate.fromString(date_string, "yyyy-MM-dd")
+            if date.isValid():
+                return date
+
+            # Try dd/MM/yyyy format
+            date = QDate.fromString(date_string, "dd/MM/yyyy")
+            if date.isValid():
+                return date
+
+            # Try yyyy/MM/dd format
+            date = QDate.fromString(date_string, "yyyy/MM/dd")
+            if date.isValid():
+                return date
+
+        except Exception:
+            pass
+
+        return None
+
     def load_data(self):
         """Load data untuk edit"""
         if not self.jemaat_data:
             return
 
+        # Helper to safely get and format text values
+        def safe_text(value):
+            if value is None or str(value).lower() in ('none', 'null'):
+                return ''
+            return str(value)
+
         # Data Diri
         self.set_combo_value(self.wilayah_rohani_input, self.jemaat_data.get('wilayah_rohani', ''))
-        self.nama_keluarga_input.setText(str(self.jemaat_data.get('nama_keluarga', '')))
-        self.no_kk_input.setText(str(self.jemaat_data.get('no_kk', '')))
-        self.nama_lengkap_input.setText(str(self.jemaat_data.get('nama_lengkap', '')))
-        self.nik_input.setText(str(self.jemaat_data.get('nik', '')))
-        self.tempat_lahir_input.setText(str(self.jemaat_data.get('tempat_lahir', '')))
-        self.alamat_input.setText(str(self.jemaat_data.get('alamat', '')))
-        self.email_input.setText(str(self.jemaat_data.get('email', '')))
-        self.detail_pekerjaan_input.setText(str(self.jemaat_data.get('detail_pekerjaan', '')))
-        
-        # Handle tanggal lahir
+        self.nama_keluarga_input.setText(safe_text(self.jemaat_data.get('nama_keluarga', '')))
+        self.no_kk_input.setText(safe_text(self.jemaat_data.get('no_kk', '')))
+        self.nama_lengkap_input.setText(safe_text(self.jemaat_data.get('nama_lengkap', '')))
+        self.nik_input.setText(safe_text(self.jemaat_data.get('nik', '')))
+        self.tempat_lahir_input.setText(safe_text(self.jemaat_data.get('tempat_lahir', '')))
+        self.alamat_input.setText(safe_text(self.jemaat_data.get('alamat', '')))
+        self.email_input.setText(safe_text(self.jemaat_data.get('email', '')))
+        self.no_telepon_input.setText(safe_text(self.jemaat_data.get('no_telepon', '')))
+        self.detail_pekerjaan_input.setText(safe_text(self.jemaat_data.get('detail_pekerjaan', '')))
+
+        # Handle tanggal lahir with RFC 2822 support
         if self.jemaat_data.get('tanggal_lahir'):
-            try:
-                if isinstance(self.jemaat_data['tanggal_lahir'], str):
-                    date = QDate.fromString(self.jemaat_data['tanggal_lahir'], "yyyy-MM-dd")
-                else:
-                    date = QDate(self.jemaat_data['tanggal_lahir'])
+            date = self.parse_date_string(self.jemaat_data['tanggal_lahir'])
+            if date and date.isValid():
                 self.tanggal_lahir_input.setDate(date)
-            except:
-                pass
         
         # Set combo box values with conversion from old format
         # Convert jenis kelamin dari format lama ke format baru
@@ -715,84 +769,66 @@ class JemaatDialog(QDialog):
         
         # Sakramen Babtis
         self.set_combo_value(self.status_babtis_input, self.jemaat_data.get('status_babtis', 'Belum'))
-        self.tempat_babtis_input.setText(str(self.jemaat_data.get('tempat_babtis', '')))
-        self.nama_babtis_input.setText(str(self.jemaat_data.get('nama_babtis', '')))
-        
+        self.tempat_babtis_input.setText(safe_text(self.jemaat_data.get('tempat_babtis', '')))
+        self.nama_babtis_input.setText(safe_text(self.jemaat_data.get('nama_babtis', '')))
+
         if self.jemaat_data.get('tanggal_babtis'):
-            try:
-                if isinstance(self.jemaat_data['tanggal_babtis'], str):
-                    date = QDate.fromString(self.jemaat_data['tanggal_babtis'], "yyyy-MM-dd")
-                else:
-                    date = QDate(self.jemaat_data['tanggal_babtis'])
+            date = self.parse_date_string(self.jemaat_data['tanggal_babtis'])
+            if date and date.isValid():
                 self.tanggal_babtis_input.setDate(date)
-            except:
-                pass
         
         # Trigger babtis changed to show/hide fields
         self.on_babtis_status_changed(self.status_babtis_input.currentText())
         
         # Sakramen Ekaristi
         self.set_combo_value(self.status_ekaristi_input, self.jemaat_data.get('status_ekaristi', 'Belum'))
-        self.tempat_komuni_input.setText(str(self.jemaat_data.get('tempat_komuni', '')))
-        
+        self.tempat_komuni_input.setText(safe_text(self.jemaat_data.get('tempat_komuni', '')))
+
         if self.jemaat_data.get('tanggal_komuni'):
-            try:
-                if isinstance(self.jemaat_data['tanggal_komuni'], str):
-                    date = QDate.fromString(self.jemaat_data['tanggal_komuni'], "yyyy-MM-dd")
-                else:
-                    date = QDate(self.jemaat_data['tanggal_komuni'])
+            date = self.parse_date_string(self.jemaat_data['tanggal_komuni'])
+            if date and date.isValid():
                 self.tanggal_komuni_input.setDate(date)
-            except:
-                pass
         
         # Trigger ekaristi changed to show/hide fields
         self.on_ekaristi_status_changed(self.status_ekaristi_input.currentText())
         
         # Sakramen Krisma
         self.set_combo_value(self.status_krisma_input, self.jemaat_data.get('status_krisma', 'Belum'))
-        self.tempat_krisma_input.setText(str(self.jemaat_data.get('tempat_krisma', '')))
-        
+        self.tempat_krisma_input.setText(safe_text(self.jemaat_data.get('tempat_krisma', '')))
+
         if self.jemaat_data.get('tanggal_krisma'):
-            try:
-                if isinstance(self.jemaat_data['tanggal_krisma'], str):
-                    date = QDate.fromString(self.jemaat_data['tanggal_krisma'], "yyyy-MM-dd")
-                else:
-                    date = QDate(self.jemaat_data['tanggal_krisma'])
+            date = self.parse_date_string(self.jemaat_data['tanggal_krisma'])
+            if date and date.isValid():
                 self.tanggal_krisma_input.setDate(date)
-            except:
-                pass
-        
+
         # Trigger krisma changed to show/hide fields
         self.on_krisma_status_changed(self.status_krisma_input.currentText())
-        
+
         # Sakramen Perkawinan
         self.set_combo_value(self.status_perkawinan_input, self.jemaat_data.get('status_perkawinan', 'Belum'))
-        self.keuskupan_input.setText(str(self.jemaat_data.get('keuskupan', '')))
-        self.paroki_input.setText(str(self.jemaat_data.get('paroki', '')))
-        self.kota_perkawinan_input.setText(str(self.jemaat_data.get('kota_perkawinan', '')))
+        self.keuskupan_input.setText(safe_text(self.jemaat_data.get('keuskupan', '')))
+        self.paroki_input.setText(safe_text(self.jemaat_data.get('paroki', '')))
+        self.kota_perkawinan_input.setText(safe_text(self.jemaat_data.get('kota_perkawinan', '')))
         self.set_combo_value(self.status_perkawinan_detail_input, self.jemaat_data.get('status_perkawinan_detail', 'Sipil'))
-        
+
         if self.jemaat_data.get('tanggal_perkawinan'):
-            try:
-                if isinstance(self.jemaat_data['tanggal_perkawinan'], str):
-                    date = QDate.fromString(self.jemaat_data['tanggal_perkawinan'], "yyyy-MM-dd")
-                else:
-                    date = QDate(self.jemaat_data['tanggal_perkawinan'])
+            date = self.parse_date_string(self.jemaat_data['tanggal_perkawinan'])
+            if date and date.isValid():
                 self.tanggal_perkawinan_input.setDate(date)
-            except:
-                pass
         
         # Trigger perkawinan changed to show/hide fields
         self.on_perkawinan_status_changed(self.status_perkawinan_input.currentText())
         
-        # Status
-        self.set_combo_value(self.status_keanggotaan_input, self.jemaat_data.get('status_keanggotaan', 'Aktif'))
-        
+        # Status - Map old "Aktif" value to "Menetap" for backward compatibility
+        status_keanggotaan = self.jemaat_data.get('status_keanggotaan', 'Menetap')
+        if status_keanggotaan == 'Aktif' or status_keanggotaan == 'Tidak Aktif':
+            status_keanggotaan = 'Menetap'  # Convert old values to Menetap
+        self.set_combo_value(self.status_keanggotaan_input, status_keanggotaan)
+
         # Conditional Pindah fields
-        self.wilayah_rohani_pindah_input.setText(str(self.jemaat_data.get('wilayah_rohani_pindah', '')))
-        self.paroki_pindah_input.setText(str(self.jemaat_data.get('paroki_pindah', '')))
-        self.keuskupan_pindah_input.setText(str(self.jemaat_data.get('keuskupan_pindah', '')))
-        
+        self.wr_tujuan_input.setText(safe_text(self.jemaat_data.get('wr_tujuan', '')))
+        self.paroki_tujuan_input.setText(safe_text(self.jemaat_data.get('paroki_tujuan', '')))
+
         # Trigger status keanggotaan changed to show/hide pindah fields
         self.on_status_keanggotaan_changed(self.status_keanggotaan_input.currentText())
     
@@ -828,6 +864,21 @@ class JemaatDialog(QDialog):
                 return ''  # Return empty string for placeholder
             return combo_box.currentText()
 
+        # Helper function to get visible input value or empty
+        def get_visible_value(widget):
+            if widget.isVisible():
+                return widget.text().strip()
+            return ''
+
+        # Helper function to get visible date value or None
+        def get_visible_date(widget):
+            if widget.isVisible():
+                date_str = widget.date().toString("yyyy-MM-dd")
+                # Check if date is valid and not the default placeholder
+                if date_str and date_str != '2000-01-01':
+                    return date_str
+            return None
+
         data = {
             # Data Diri
             'wilayah_rohani': get_combo_value(self.wilayah_rohani_input),
@@ -844,42 +895,42 @@ class JemaatDialog(QDialog):
             'hubungan_keluarga': get_combo_value(self.hubungan_keluarga_input),
             'pendidikan_terakhir': get_combo_value(self.pendidikan_terakhir_input),
             'jenis_pekerjaan': get_combo_value(self.jenis_pekerjaan_input),
-            'detail_pekerjaan': self.detail_pekerjaan_input.text().strip() if self.detail_pekerjaan_input.isVisible() else '',
+            'detail_pekerjaan': get_visible_value(self.detail_pekerjaan_input),
             'status_menikah': get_combo_value(self.status_menikah_input),
             'alamat': self.alamat_input.text().strip(),
             'email': self.email_input.text().strip(),
-            
+            'no_telepon': self.no_telepon_input.text().strip(),
+
             # Sakramen Babtis
             'status_babtis': get_combo_value(self.status_babtis_input),
-            'tempat_babtis': self.tempat_babtis_input.text().strip() if self.tempat_babtis_input.isVisible() else '',
-            'tanggal_babtis': self.tanggal_babtis_input.date().toString("yyyy-MM-dd") if self.tanggal_babtis_input.isVisible() else None,
-            'nama_babtis': self.nama_babtis_input.text().strip() if self.nama_babtis_input.isVisible() else '',
-            
+            'tempat_babtis': get_visible_value(self.tempat_babtis_input),
+            'tanggal_babtis': get_visible_date(self.tanggal_babtis_input),
+            'nama_babtis': get_visible_value(self.nama_babtis_input),
+
             # Sakramen Ekaristi
             'status_ekaristi': get_combo_value(self.status_ekaristi_input),
-            'tempat_komuni': self.tempat_komuni_input.text().strip() if self.tempat_komuni_input.isVisible() else '',
-            'tanggal_komuni': self.tanggal_komuni_input.date().toString("yyyy-MM-dd") if self.tanggal_komuni_input.isVisible() else None,
-            
+            'tempat_komuni': get_visible_value(self.tempat_komuni_input),
+            'tanggal_komuni': get_visible_date(self.tanggal_komuni_input),
+
             # Sakramen Krisma
             'status_krisma': get_combo_value(self.status_krisma_input),
-            'tempat_krisma': self.tempat_krisma_input.text().strip() if self.tempat_krisma_input.isVisible() else '',
-            'tanggal_krisma': self.tanggal_krisma_input.date().toString("yyyy-MM-dd") if self.tanggal_krisma_input.isVisible() else None,
-            
+            'tempat_krisma': get_visible_value(self.tempat_krisma_input),
+            'tanggal_krisma': get_visible_date(self.tanggal_krisma_input),
+
             # Sakramen Perkawinan
             'status_perkawinan': get_combo_value(self.status_perkawinan_input),
-            'keuskupan': self.keuskupan_input.text().strip() if self.keuskupan_input.isVisible() else '',
-            'paroki': self.paroki_input.text().strip() if self.paroki_input.isVisible() else '',
-            'kota_perkawinan': self.kota_perkawinan_input.text().strip() if self.kota_perkawinan_input.isVisible() else '',
-            'tanggal_perkawinan': self.tanggal_perkawinan_input.date().toString("yyyy-MM-dd") if self.tanggal_perkawinan_input.isVisible() else None,
+            'keuskupan': get_visible_value(self.keuskupan_input),
+            'paroki': get_visible_value(self.paroki_input),
+            'kota_perkawinan': get_visible_value(self.kota_perkawinan_input),
+            'tanggal_perkawinan': get_visible_date(self.tanggal_perkawinan_input),
             'status_perkawinan_detail': get_combo_value(self.status_perkawinan_detail_input) if self.status_perkawinan_detail_input.isVisible() else '',
-            
+
             # Status
             'status_keanggotaan': get_combo_value(self.status_keanggotaan_input),
-            'wilayah_rohani_pindah': self.wilayah_rohani_pindah_input.text().strip() if self.wilayah_rohani_pindah_input.isVisible() else '',
-            'paroki_pindah': self.paroki_pindah_input.text().strip() if self.paroki_pindah_input.isVisible() else '',
-            'keuskupan_pindah': self.keuskupan_pindah_input.text().strip() if self.keuskupan_pindah_input.isVisible() else ''
+            'wr_tujuan': get_visible_value(self.wr_tujuan_input),
+            'paroki_tujuan': get_visible_value(self.paroki_tujuan_input)
         }
-        
+
         return data
 
 
@@ -890,83 +941,166 @@ class KegiatanDialog(QDialog):
         self.kegiatan_data = kegiatan_data
         self.setWindowTitle("Tambah Kegiatan" if not kegiatan_data else "Edit Kegiatan")
         self.setModal(True)
-        self.setFixedSize(550, 700)
+        self.resize(550, 500)  # More compact size
+        self.setMinimumWidth(500)
 
-        # Setup UI
-        layout = QVBoxLayout(self)
+        self.setup_ui()
 
-        # Scroll area for long form
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll_widget = QWidget()
-        scroll_layout = QVBoxLayout(scroll_widget)
+    def setup_ui(self):
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(15, 15, 15, 15)
+        main_layout.setSpacing(8)  # Reduced spacing
 
-        # Form
-        form_group = QGroupBox("Data Kegiatan")
-        form_layout = QFormLayout(form_group)
-        form_layout.setSpacing(8)
+        # ===== FORM CONTENT SECTION =====
+        form_layout = QFormLayout()
+        form_layout.setLabelAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        form_layout.setFormAlignment(Qt.AlignLeft | Qt.AlignTop)
+        form_layout.setVerticalSpacing(8)  # Reduced from 10
+        form_layout.setHorizontalSpacing(12)
+        form_layout.setContentsMargins(0, 0, 0, 0)
 
-        # Row 1: Nama Kegiatan
+        # ===== NAMA KEGIATAN =====
+        nama_label = QLabel("Nama Kegiatan *:")
+        nama_label.setMinimumWidth(110)
         self.nama_input = QLineEdit()
-        form_layout.addRow("Nama Kegiatan:", self.nama_input)
+        self.nama_input.setPlaceholderText("Masukkan nama kegiatan...")
+        form_layout.addRow(nama_label, self.nama_input)
 
-        # Row 2: Lokasi
+        # ===== LOKASI =====
+        lokasi_label = QLabel("Lokasi *:")
+        lokasi_label.setMinimumWidth(110)
         self.lokasi_input = QLineEdit()
-        form_layout.addRow("Lokasi:", self.lokasi_input)
+        self.lokasi_input.setPlaceholderText("Tempat pelaksanaan kegiatan...")
+        form_layout.addRow(lokasi_label, self.lokasi_input)
 
-        # Row 3: Tanggal Kegiatan
+        # ===== TANGGAL KEGIATAN =====
+        tanggal_label = QLabel("Tanggal Kegiatan *:")
+        tanggal_label.setMinimumWidth(110)
         self.tanggal_input = QDateEdit()
         self.tanggal_input.setCalendarPopup(True)
         self.tanggal_input.setDate(QDate.currentDate())
-        form_layout.addRow("Tanggal Kegiatan:", self.tanggal_input)
+        form_layout.addRow(tanggal_label, self.tanggal_input)
 
-        # Row 4: Waktu Kegiatan
+        # ===== WAKTU KEGIATAN =====
+        waktu_label = QLabel("Waktu Kegiatan:")
+        waktu_label.setMinimumWidth(110)
         self.waktu_input = QTimeEdit()
         self.waktu_input.setTime(QTime(8, 0))
-        form_layout.addRow("Waktu Kegiatan:", self.waktu_input)
+        form_layout.addRow(waktu_label, self.waktu_input)
 
-        # Row 5: Penanggung Jawab (PIC)
+        # ===== PENANGGUNG JAWAB =====
+        pic_label = QLabel("Penanggung Jawab:")
+        pic_label.setMinimumWidth(110)
         self.penanggung_jawab_input = QLineEdit()
-        form_layout.addRow("Penanggung Jawab:", self.penanggung_jawab_input)
+        self.penanggung_jawab_input.setPlaceholderText("Nama penanggung jawab (opsional)...")
+        form_layout.addRow(pic_label, self.penanggung_jawab_input)
 
-        # Row 6: Kategori
+        # ===== KATEGORI =====
+        kategori_label = QLabel("Kategori *:")
+        kategori_label.setMinimumWidth(110)
         self.kategori_input = QComboBox()
+        self.kategori_input.addItem("-- Pilih Kategori --")  # Default placeholder
         self.kategori_input.addItems(['Misa', 'Doa', 'Sosial', 'Pendidikan', 'Ibadah', 'Katekese', 'Rohani', 'Administratif', 'Lainnya'])
-        form_layout.addRow("Kategori:", self.kategori_input)
+        self.kategori_input.setCurrentIndex(0)  # Set to placeholder
+        form_layout.addRow(kategori_label, self.kategori_input)
 
-        # Row 7: Status
+        # ===== STATUS =====
+        status_label = QLabel("Status:")
+        status_label.setMinimumWidth(110)
         self.status_input = QComboBox()
         self.status_input.addItems(['Direncanakan', 'Berlangsung', 'Selesai', 'Dibatalkan'])
-        form_layout.addRow("Status:", self.status_input)
+        form_layout.addRow(status_label, self.status_input)
 
-        # Row 8: Biaya
+        # ===== BIAYA =====
+        biaya_label = QLabel("Biaya (Rp):")
+        biaya_label.setMinimumWidth(110)
         self.biaya_input = QLineEdit()
-        self.biaya_input.setPlaceholderText("Masukkan biaya (opsional)")
-        form_layout.addRow("Biaya (Rp):", self.biaya_input)
+        self.biaya_input.setPlaceholderText("Masukkan biaya (opsional)...")
+        form_layout.addRow(biaya_label, self.biaya_input)
 
-        # Row 9: Sasaran Kegiatan
+        # ===== SASARAN KEGIATAN =====
+        sasaran_label = QLabel("Sasaran Kegiatan:")
+        sasaran_label.setMinimumWidth(110)
+        sasaran_label.setAlignment(Qt.AlignTop)
         self.sasaran_input = QTextEdit()
-        self.sasaran_input.setMaximumHeight(70)
-        self.sasaran_input.setPlaceholderText("Sasaran/target kegiatan (opsional)")
-        form_layout.addRow("Sasaran Kegiatan:", self.sasaran_input)
+        self.sasaran_input.setPlaceholderText("Sasaran/target kegiatan (opsional)...")
+        self.sasaran_input.setMinimumHeight(45)
+        self.sasaran_input.setMaximumHeight(65)
+        form_layout.addRow(sasaran_label, self.sasaran_input)
 
-        # Row 10: Keterangan
+        # ===== KETERANGAN =====
+        keterangan_label = QLabel("Keterangan:")
+        keterangan_label.setMinimumWidth(110)
+        keterangan_label.setAlignment(Qt.AlignTop)
         self.keterangan_input = QTextEdit()
-        self.keterangan_input.setMaximumHeight(70)
-        form_layout.addRow("Keterangan:", self.keterangan_input)
+        self.keterangan_input.setPlaceholderText("Catatan tambahan (opsional)...")
+        self.keterangan_input.setMinimumHeight(45)
+        self.keterangan_input.setMaximumHeight(65)
+        form_layout.addRow(keterangan_label, self.keterangan_input)
 
-        scroll_layout.addWidget(form_group)
-        scroll.setWidget(scroll_widget)
-        layout.addWidget(scroll)
+        main_layout.addLayout(form_layout)
 
-        # Buttons
-        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        button_box.accepted.connect(self.accept)  # type: ignore
-        button_box.rejected.connect(self.reject)  # type: ignore
-        layout.addWidget(button_box)
+        # ===== INFO LABEL =====
+        info_label = QLabel("* Field wajib diisi")
+        info_label.setStyleSheet("color: #7f8c8d; font-style: italic; font-size: 10px;")
+        main_layout.addWidget(info_label)
+
+        # ===== BUTTON SECTION =====
+        button_layout = QHBoxLayout()
+        button_layout.setSpacing(10)
+        button_layout.setContentsMargins(0, 8, 0, 0)
+        button_layout.addStretch()
+
+        self.cancel_button = QPushButton("Batal")
+        self.cancel_button.clicked.connect(self.reject)
+        self.cancel_button.setFixedWidth(85)
+        self.cancel_button.setFixedHeight(32)
+        self.cancel_button.setStyleSheet("""
+            QPushButton {
+                background-color: #95a5a6;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                padding: 6px 16px;
+                font-weight: bold;
+                font-size: 11px;
+            }
+            QPushButton:hover {
+                background-color: #7f8c8d;
+            }
+            QPushButton:pressed {
+                background-color: #6c7a7b;
+            }
+        """)
+
+        self.ok_button = QPushButton("Simpan")
+        self.ok_button.clicked.connect(self.accept)
+        self.ok_button.setFixedWidth(85)
+        self.ok_button.setFixedHeight(32)
+        self.ok_button.setStyleSheet("""
+            QPushButton {
+                background-color: #27ae60;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                padding: 6px 16px;
+                font-weight: bold;
+                font-size: 11px;
+            }
+            QPushButton:hover {
+                background-color: #229954;
+            }
+            QPushButton:pressed {
+                background-color: #1e8449;
+            }
+        """)
+
+        button_layout.addWidget(self.cancel_button)
+        button_layout.addWidget(self.ok_button)
+        main_layout.addLayout(button_layout)
 
         # Jika edit, isi data
-        if kegiatan_data:
+        if self.kegiatan_data:
             self.load_data()
     
     def load_data(self):
@@ -981,7 +1115,15 @@ class KegiatanDialog(QDialog):
 
             # Set biaya
             biaya = self.kegiatan_data.get('biaya', 0)
-            self.biaya_input.setText(str(int(biaya)) if biaya else '')
+            if biaya:
+                try:
+                    # Handle both string and numeric biaya values
+                    biaya_value = float(biaya)
+                    self.biaya_input.setText(str(int(biaya_value)) if biaya_value == int(biaya_value) else str(biaya_value))
+                except (ValueError, TypeError):
+                    self.biaya_input.setText(str(biaya))
+            else:
+                self.biaya_input.setText('')
 
             # Set kategori
             kategori = self.kegiatan_data.get('kategori', 'Lainnya')

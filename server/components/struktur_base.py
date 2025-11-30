@@ -22,6 +22,10 @@ class WordWrapHeaderView(QHeaderView):
         self.setDefaultAlignment(Qt.AlignCenter | Qt.AlignVCenter)
         self.setSectionsClickable(True)
         self.setHighlightSections(True)
+        # Set minimum height to ensure header is always visible
+        self.setMinimumHeight(35)
+        # Ensure header is visible on resize
+        self.setSectionResizeMode(QHeaderView.Interactive)
 
     def sectionSizeFromContents(self, logicalIndex):
         """Calculate section size based on wrapped text"""
@@ -34,30 +38,36 @@ class WordWrapHeaderView(QHeaderView):
                 if width <= 0:
                     width = self.defaultSectionSize()
 
-                # Create font metrics
+                # Create font metrics with bold font
                 font = self.font()
                 font.setBold(True)
-                fm = self.fontMetrics()
+                font.setPointSize(max(font.pointSize(), 9))  # Ensure minimum font size
+                from PyQt5.QtGui import QFontMetrics
+                fm = QFontMetrics(font)
 
                 # Calculate text rect with word wrap
-                rect = fm.boundingRect(0, 0, width - 8, 1000,
+                rect = fm.boundingRect(0, 0, width - 10, 2000,
                                       Qt.AlignCenter | Qt.TextWordWrap, str(text))
 
-                # Return size with padding
-                return QSize(width, max(rect.height() + 12, 25))
+                # Return size with adequate padding (minimum 35px height)
+                return QSize(width, max(rect.height() + 16, 35))
 
         return super().sectionSizeFromContents(logicalIndex)
 
     def paintSection(self, painter, rect, logicalIndex):
-        """Paint section with word wrap and center alignment"""
+        """Paint section with word wrap and center alignment - always visible"""
         painter.save()
 
-        # Draw background with consistent color
-        bg_color = QColor(242, 242, 242)  # #f2f2f2
+        # Ensure rect has minimum height
+        if rect.height() < 35:
+            rect.setHeight(35)
+
+        # Draw background with consistent, visible color
+        bg_color = QColor(242, 242, 242)  # #f2f2f2 - light gray background
         painter.fillRect(rect, bg_color)
 
-        # Draw borders
-        border_color = QColor(212, 212, 212)  # #d4d4d4
+        # Draw borders for Excel-like appearance
+        border_color = QColor(180, 180, 180)  # Darker border for better visibility
         painter.setPen(border_color)
         # Right border
         painter.drawLine(rect.topRight(), rect.bottomRight())
@@ -68,18 +78,24 @@ class WordWrapHeaderView(QHeaderView):
         if self.model():
             text = self.model().headerData(logicalIndex, self.orientation(), Qt.DisplayRole)
             if text:
-                # Setup font
+                # Setup font with proper size
                 font = self.font()
                 font.setBold(True)
+                font.setPointSize(max(font.pointSize(), 9))  # Ensure readable size
                 painter.setFont(font)
 
-                # Text color
-                text_color = QColor(51, 51, 51)  # #333333
+                # Text color - darker for better contrast and visibility
+                text_color = QColor(30, 30, 30)  # Very dark gray, almost black
                 painter.setPen(text_color)
 
                 # Draw text with word wrap and center alignment
-                text_rect = rect.adjusted(4, 4, -4, -4)
-                painter.drawText(text_rect, Qt.AlignCenter | Qt.TextWordWrap, str(text))
+                # Add padding to ensure text doesn't touch borders
+                text_rect = rect.adjusted(6, 6, -6, -6)
+
+                # Draw text with proper alignment and wrapping
+                painter.drawText(text_rect,
+                               Qt.AlignCenter | Qt.AlignVCenter | Qt.TextWordWrap,
+                               str(text))
 
         painter.restore()
 
@@ -360,15 +376,17 @@ class BaseStrukturComponent(QWidget):
         table.horizontalHeader().setFont(header_font)
 
         # Header with bold text, center alignment, and word wrap
+        # IMPORTANT: Ensure header is always visible with adequate height
         table.horizontalHeader().setStyleSheet("""
             QHeaderView::section {
                 background-color: #f2f2f2;
                 border: none;
-                border-bottom: 1px solid #d4d4d4;
-                border-right: 1px solid #d4d4d4;
-                padding: 6px 4px;
+                border-bottom: 1px solid #b4b4b4;
+                border-right: 1px solid #b4b4b4;
+                padding: 8px 6px;
                 font-weight: bold;
-                color: #333333;
+                color: #1e1e1e;
+                min-height: 35px;
             }
         """)
 
@@ -376,7 +394,9 @@ class BaseStrukturComponent(QWidget):
         header = table.horizontalHeader()
         header.setDefaultAlignment(Qt.AlignCenter | Qt.AlignVCenter)
         header.setSectionsClickable(True)
-        header.setMinimumHeight(25)
+        # CRITICAL: Set minimum height to ensure visibility when maximized
+        header.setMinimumHeight(35)
+        header.setDefaultSectionSize(100)
         header.setMinimumSectionSize(50)
         header.setMaximumSectionSize(500)
 

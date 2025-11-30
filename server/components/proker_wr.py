@@ -106,14 +106,14 @@ class ProgramKerjaWRWidget(QWidget):
         filter_group = QGroupBox()
         filter_layout = QHBoxLayout(filter_group)
 
-        # Wilayah Rohani filter
-        wilayah_label = QLabel("Filter WR:")
-        filter_layout.addWidget(wilayah_label)
+        # User filter
+        user_label = QLabel("Filter User:")
+        filter_layout.addWidget(user_label)
 
-        self.wilayah_filter = QComboBox()
-        self.wilayah_filter.addItem("Semua WR")
-        self.wilayah_filter.currentTextChanged.connect(self.filter_programs)
-        filter_layout.addWidget(self.wilayah_filter)
+        self.user_filter = QComboBox()
+        self.user_filter.addItem("Semua User")
+        self.user_filter.currentTextChanged.connect(self.filter_programs)
+        filter_layout.addWidget(self.user_filter)
 
         # Category filter
         category_label = QLabel("Kategori:")
@@ -126,6 +126,19 @@ class ProgramKerjaWRWidget(QWidget):
         ])
         self.category_filter.currentTextChanged.connect(self.filter_programs)
         filter_layout.addWidget(self.category_filter)
+
+        # Bulan filter
+        bulan_label = QLabel("Bulan:")
+        filter_layout.addWidget(bulan_label)
+
+        self.bulan_filter = QComboBox()
+        self.bulan_filter.addItems([
+            "Semua Bulan",
+            "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+            "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+        ])
+        self.bulan_filter.currentTextChanged.connect(self.filter_programs)
+        filter_layout.addWidget(self.bulan_filter)
 
         filter_layout.addStretch()
 
@@ -151,10 +164,10 @@ class ProgramKerjaWRWidget(QWidget):
         custom_header = WordWrapHeaderView(Qt.Horizontal, self.program_table)
         self.program_table.setHorizontalHeader(custom_header)
 
-        # Column order: Kategori, Judul, Estimasi Waktu, Sasaran, PIC, Anggaran, Sumber Anggaran, Status, WR
+        # Column order: Kategori, Judul, Bulan, Sasaran, PIC, Anggaran, Sumber Anggaran, Keterangan, User
         self.program_table.setHorizontalHeaderLabels([
-            "Kategori", "Judul Program", "Est. Waktu", "Sasaran", "PIC",
-            "Anggaran", "Sumber Anggaran", "Status", "Wilayah Rohani"
+            "Kategori", "Judul", "Waktu Estimasi", "Sasaran", "PIC",
+            "Anggaran", "Sumber Anggaran", "Keterangan", "User"
         ])
 
         # Apply professional table styling
@@ -163,13 +176,13 @@ class ProgramKerjaWRWidget(QWidget):
         # Set column widths
         self.program_table.setColumnWidth(0, 100)   # Kategori
         self.program_table.setColumnWidth(1, 180)   # Judul
-        self.program_table.setColumnWidth(2, 100)   # Est. Waktu
+        self.program_table.setColumnWidth(2, 100)   # Bulan
         self.program_table.setColumnWidth(3, 120)   # Sasaran
         self.program_table.setColumnWidth(4, 80)    # PIC
         self.program_table.setColumnWidth(5, 100)   # Anggaran
         self.program_table.setColumnWidth(6, 130)   # Sumber Anggaran
-        self.program_table.setColumnWidth(7, 100)   # Status
-        self.program_table.setColumnWidth(8, 120)   # Wilayah Rohani
+        self.program_table.setColumnWidth(7, 150)   # Keterangan
+        self.program_table.setColumnWidth(8, 120)   # User
 
         header = self.program_table.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.Interactive)
@@ -361,21 +374,27 @@ class ProgramKerjaWRWidget(QWidget):
             self.export_programs()
 
     def filter_programs(self):
-        """Filter programs based on wilayah and category"""
-        wilayah_filter = self.wilayah_filter.currentText()
+        """Filter programs based on user, category, and bulan"""
+        user_filter = self.user_filter.currentText()
         category_filter = self.category_filter.currentText()
+        bulan_filter = self.bulan_filter.currentText()
 
         filtered_programs = []
 
         for program in self.work_programs:
-            # Wilayah filter
-            if wilayah_filter != "Semua WR":
-                if program.get('wilayah_rohani', '') != wilayah_filter:
+            # User filter
+            if user_filter != "Semua User":
+                if program.get('user_name', '') != user_filter:
                     continue
 
             # Category filter
             if category_filter != "Semua":
                 if program.get('category', '') != category_filter:
+                    continue
+
+            # Bulan filter
+            if bulan_filter != "Semua Bulan":
+                if program.get('month', '') != bulan_filter:
                     continue
 
             filtered_programs.append(program)
@@ -427,24 +446,11 @@ class ProgramKerjaWRWidget(QWidget):
             # Column 6: Sumber Anggaran
             sumber_item = QTableWidgetItem(program.get('budget_source', 'N/A'))
 
-            # Column 7: Status
-            status = program.get('status', 'Direncanakan')
-            status_item = QTableWidgetItem(status)
-            if status == "Direncanakan":
-                status_item.setBackground(QBrush(QColor("#3498db")))
-                status_item.setForeground(QBrush(QColor("white")))
-            elif status == "Berlangsung":
-                status_item.setBackground(QBrush(QColor("#f39c12")))
-                status_item.setForeground(QBrush(QColor("white")))
-            elif status == "Selesai":
-                status_item.setBackground(QBrush(QColor("#2ecc71")))
-                status_item.setForeground(QBrush(QColor("white")))
-            elif status == "Dibatalkan":
-                status_item.setBackground(QBrush(QColor("#e74c3c")))
-                status_item.setForeground(QBrush(QColor("white")))
+            # Column 7: Keterangan
+            keterangan_item = QTableWidgetItem(program.get('keterangan', ''))
 
-            # Column 8: Wilayah Rohani
-            wilayah_item = QTableWidgetItem(program.get('wilayah_rohani', 'N/A'))
+            # Column 8: User
+            user_item = QTableWidgetItem(program.get('user_name', 'N/A'))
 
             # Store data in first column
             kategori_item.setData(Qt.UserRole, program)
@@ -457,8 +463,8 @@ class ProgramKerjaWRWidget(QWidget):
             self.program_table.setItem(row_idx, 4, pic_item)
             self.program_table.setItem(row_idx, 5, budget_item)
             self.program_table.setItem(row_idx, 6, sumber_item)
-            self.program_table.setItem(row_idx, 7, status_item)
-            self.program_table.setItem(row_idx, 8, wilayah_item)
+            self.program_table.setItem(row_idx, 7, keterangan_item)
+            self.program_table.setItem(row_idx, 8, user_item)
 
         # Select first row if available
         if programs and self.program_table.rowCount() > 0:
@@ -477,6 +483,12 @@ class ProgramKerjaWRWidget(QWidget):
             if success:
                 self.work_programs = []
                 for program in programs:
+                    # Get username from API response (already joined)
+                    # Priority: username > ID (tidak pakai nama_lengkap)
+                    user_name = program.get('username', 'N/A')
+                    if not user_name or user_name == '' or user_name == 'N/A':
+                        user_name = f"User #{program.get('reported_by', 'N/A')}"
+
                     ui_data = {
                         'id': program.get('id_program_kerja_wr'),
                         'month': program.get('estimasi_waktu', ''),
@@ -487,12 +499,12 @@ class ProgramKerjaWRWidget(QWidget):
                         'budget_source': program.get('sumber_anggaran', ''),
                         'category': program.get('kategori', ''),
                         'keterangan': program.get('keterangan', ''),
-                        'wilayah_rohani': program.get('wilayah_rohani_id', 'N/A'),
-                        'status': program.get('status', 'Direncanakan')
+                        'user_name': user_name,
+                        'reported_by': program.get('reported_by')
                     }
                     self.work_programs.append(ui_data)
 
-                self.update_wilayah_filter()
+                self.update_user_filter()
                 self.filter_programs()
                 self.log_message.emit(f"Data program kerja WR berhasil dimuat: {len(self.work_programs)} program")
             else:
@@ -501,27 +513,27 @@ class ProgramKerjaWRWidget(QWidget):
         except Exception as e:
             self.log_message.emit(f"Error loading program kerja WR: {str(e)}")
 
-    def update_wilayah_filter(self):
-        """Update wilayah rohani filter dropdown"""
-        current_text = self.wilayah_filter.currentText()
-        self.wilayah_filter.clear()
-        self.wilayah_filter.addItem("Semua WR")
+    def update_user_filter(self):
+        """Update user filter dropdown"""
+        current_text = self.user_filter.currentText()
+        self.user_filter.clear()
+        self.user_filter.addItem("Semua User")
 
-        # Get unique wilayah rohani
-        wilayahs = set()
+        # Get unique users
+        users = set()
         for program in self.work_programs:
-            wilayah = program.get('wilayah_rohani', '')
-            if wilayah:
-                wilayahs.add(wilayah)
+            user = program.get('user_name', '')
+            if user and user != 'N/A':
+                users.add(user)
 
-        # Add wilayah to filter
-        for wilayah in sorted(wilayahs):
-            self.wilayah_filter.addItem(str(wilayah))
+        # Add users to filter
+        for user in sorted(users):
+            self.user_filter.addItem(user)
 
         # Restore previous selection if exists
-        index = self.wilayah_filter.findText(current_text)
+        index = self.user_filter.findText(current_text)
         if index >= 0:
-            self.wilayah_filter.setCurrentIndex(index)
+            self.user_filter.setCurrentIndex(index)
 
     def view_program(self):
         """View selected program details"""
@@ -550,13 +562,12 @@ class ProgramKerjaWRWidget(QWidget):
         <h2 style="color: #9b59b6;">{program.get('title', 'N/A')}</h2>
         <hr>
         <p><strong>Kategori:</strong> {program.get('category', 'N/A')}</p>
-        <p><strong>Estimasi Waktu:</strong> {program.get('month', 'N/A')}</p>
+        <p><strong>Bulan:</strong> {program.get('month', 'N/A')}</p>
         <p><strong>Sasaran:</strong> {program.get('target', 'N/A')}</p>
         <p><strong>PIC:</strong> {program.get('responsible', 'N/A')}</p>
         <p><strong>Anggaran:</strong> Rp {program.get('budget_amount', '0')}</p>
         <p><strong>Sumber Anggaran:</strong> {program.get('budget_source', 'N/A')}</p>
-        <p><strong>Status:</strong> {program.get('status', 'N/A')}</p>
-        <p><strong>Wilayah Rohani:</strong> {program.get('wilayah_rohani', 'N/A')}</p>
+        <p><strong>User:</strong> {program.get('user_name', 'N/A')}</p>
         <hr>
         <p><strong>Keterangan:</strong></p>
         <p>{program.get('keterangan', 'Tidak ada keterangan')}</p>
@@ -587,8 +598,8 @@ class ProgramKerjaWRWidget(QWidget):
         try:
             with open(filename, 'w', newline='', encoding='utf-8') as csvfile:
                 fieldnames = [
-                    "Kategori", "Judul", "Est. Waktu", "Sasaran", "PIC",
-                    "Anggaran", "Sumber Anggaran", "Status", "Wilayah Rohani", "Keterangan"
+                    "Kategori", "Judul", "Bulan", "Sasaran", "PIC",
+                    "Anggaran", "Sumber Anggaran", "Keterangan", "User"
                 ]
                 writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                 writer.writeheader()
@@ -597,14 +608,13 @@ class ProgramKerjaWRWidget(QWidget):
                     writer.writerow({
                         "Kategori": item.get('category', ''),
                         "Judul": item.get('title', ''),
-                        "Est. Waktu": item.get('month', ''),
+                        "Bulan": item.get('month', ''),
                         "Sasaran": item.get('target', ''),
                         "PIC": item.get('responsible', ''),
                         "Anggaran": item.get('budget_amount', ''),
                         "Sumber Anggaran": item.get('budget_source', ''),
-                        "Status": item.get('status', ''),
-                        "Wilayah Rohani": item.get('wilayah_rohani', ''),
-                        "Keterangan": item.get('keterangan', '')
+                        "Keterangan": item.get('keterangan', ''),
+                        "User": item.get('user_name', '')
                     })
 
             QMessageBox.information(self, "Sukses", f"Data berhasil diekspor ke {filename}")

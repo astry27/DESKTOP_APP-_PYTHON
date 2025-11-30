@@ -104,17 +104,33 @@ class WorkProgramDialog(QDialog):
         # Kategori (tambah sebelum Estimasi Waktu)
         self.category_input = QComboBox()
         self.category_input.addItems([
+            "-- Pilih Kategori --",
             "Ibadah", "Doa", "Katekese", "Sosial",
             "Rohani", "Administratif", "Perayaan", "Lainnya"
         ])
+        self.category_input.setCurrentIndex(0)
+        self.category_input.setStyleSheet("""
+            QComboBox {
+                color: #888888;
+                font-style: italic;
+            }
+        """)
         form_layout.addRow("Kategori:", self.category_input)
 
         # Estimasi Waktu (bulan dropdown - renamed from tanggal)
         self.month_input = QComboBox()
         self.month_input.addItems([
+            "-- Pilih Bulan --",
             "Januari", "Februari", "Maret", "April", "Mei", "Juni",
             "Juli", "Agustus", "September", "Oktober", "November", "Desember"
         ])
+        self.month_input.setCurrentIndex(0)
+        self.month_input.setStyleSheet("""
+            QComboBox {
+                color: #888888;
+                font-style: italic;
+            }
+        """)
         form_layout.addRow("Estimasi Waktu (Bulan):", self.month_input)
 
         # Perayaan/Program (Judul Program yang akan direncanakan)
@@ -140,9 +156,17 @@ class WorkProgramDialog(QDialog):
         # Sumber Anggaran
         self.budget_source_input = QComboBox()
         self.budget_source_input.addItems([
+            "-- Pilih Sumber Anggaran --",
             "Kas Gereja", "Donasi Jemaat", "Sponsor External",
             "Dana Komisi", "APBG", "Kolekte Khusus", "Lainnya"
         ])
+        self.budget_source_input.setCurrentIndex(0)
+        self.budget_source_input.setStyleSheet("""
+            QComboBox {
+                color: #888888;
+                font-style: italic;
+            }
+        """)
         form_layout.addRow("Sumber Anggaran:", self.budget_source_input)
 
         # Keterangan (tambah setelah Sumber Anggaran) - renamed from Deskripsi
@@ -167,12 +191,18 @@ class WorkProgramDialog(QDialog):
             return
 
         # Load kategori
-        self.category_input.setCurrentText(self.program_data.get('category', 'Ibadah'))
+        category = self.program_data.get('category', '')
+        if category and category != "-- Pilih Kategori --":
+            self.category_input.setCurrentText(category)
+        else:
+            self.category_input.setCurrentIndex(0)
 
         # Load estimasi waktu (bulan)
         month_str = self.program_data.get('month', '')
-        if month_str:
+        if month_str and month_str != "-- Pilih Bulan --":
             self.month_input.setCurrentText(month_str)
+        else:
+            self.month_input.setCurrentIndex(0)
 
         # Load program title
         self.title_input.setText(self.program_data.get('title', ''))
@@ -187,7 +217,11 @@ class WorkProgramDialog(QDialog):
         self.budget_amount_input.setText(self.program_data.get('budget_amount', ''))
 
         # Load budget source
-        self.budget_source_input.setCurrentText(self.program_data.get('budget_source', 'Kas Gereja'))
+        budget_source = self.program_data.get('budget_source', '')
+        if budget_source and budget_source != "-- Pilih Sumber Anggaran --":
+            self.budget_source_input.setCurrentText(budget_source)
+        else:
+            self.budget_source_input.setCurrentIndex(0)
 
         # Load keterangan
         self.keterangan_input.setText(self.program_data.get('keterangan', ''))

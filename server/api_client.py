@@ -287,9 +287,9 @@ class ApiClient:
 
     # ========== FILES METHODS ==========
     def get_files(self):
-        return self._make_request('GET', f"{self.base_url}/files")
+        return self._make_request('GET', f"{self.base_url}/dokumen/files")
     
-    def upload_file(self, file_path, document_name=None, document_type=None, keterangan=None, bentuk=None):
+    def upload_file(self, file_path, document_name=None, document_type=None, keterangan=None, bentuk=None, admin_id=None):
         """Upload file with improved error handling"""
         for attempt in range(3):
             try:
@@ -302,11 +302,11 @@ class ApiClient:
                     if document_name:
                         data['nama_dokumen'] = document_name
 
-                    # Jenis dokumen (required by API)
+                    # Kategori dokumen (required by API - maps to kategori_file)
                     if document_type:
-                        data['jenis_dokumen'] = document_type
+                        data['kategori_file'] = document_type
                     else:
-                        data['jenis_dokumen'] = 'Administrasi'  # Default
+                        data['kategori_file'] = 'Lainnya'  # Default
 
                     # Bentuk dokumen (required by API)
                     if bentuk:
@@ -320,8 +320,12 @@ class ApiClient:
                     else:
                         data['keterangan'] = ''
 
+                    # Admin ID (optional - who uploaded the file)
+                    if admin_id:
+                        data['uploaded_by_admin'] = admin_id
+
                     # Debug logging untuk upload
-                    print(f"Upload API - nama: {document_name}, jenis: {document_type}, bentuk: {bentuk or 'Lainnya'}, keterangan: {keterangan}")
+                    print(f"Upload API - nama: {document_name}, kategori: {document_type or 'Lainnya'}, bentuk: {bentuk or 'Lainnya'}, admin_id: {admin_id}, keterangan: {keterangan}")
 
                     # Use longer timeout for file upload (up to 60 seconds for large files)
                     upload_timeout = 60
@@ -370,18 +374,24 @@ class ApiClient:
         return self._make_request('GET', f"{self.base_url}/log/activities/admin/{admin_id}?limit={limit}")
     
     def download_file(self, file_id):
-        """Download file with improved error handling"""
+        """Download file with improved error handling - returns binary content"""
         for attempt in range(3):
             try:
                 response = self.session.get(f"{self.base_url}/dokumen/files/{file_id}/download",
                                           timeout=self.timeout)
-                response.raise_for_status()
-                
-                # Debug logging untuk response
+
+                # Check for error response (JSON error)
+                if response.status_code >= 400:
+                    try:
+                        error_data = response.json()
+                        return {"success": False, "data": error_data.get('message', f"HTTP {response.status_code}")}
+                    except:
+                        return {"success": False, "data": f"HTTP {response.status_code}: {response.text[:200]}"}
+
+                # Success - return binary content
                 print(f"Download API - Status: {response.status_code}, Size: {len(response.content)} bytes")
-                
                 return {"success": True, "data": response.content, "headers": dict(response.headers)}
-                
+
             except ConnectionError as e:
                 if "Failed to resolve" in str(e) or "getaddrinfo failed" in str(e) or "Name or service not known" in str(e):
                     if attempt < 2:
@@ -397,7 +407,7 @@ class ApiClient:
                 return {"success": False, "data": f"Timeout download file: {e}"}
             except RequestException as e:
                 return {"success": False, "data": f"Gagal download file: {e}"}
-        
+
         return {"success": False, "data": "Gagal download file setelah 3 kali percobaan"}
     # ========== PESAN METHODS ==========
     def get_recent_messages(self, limit=50):

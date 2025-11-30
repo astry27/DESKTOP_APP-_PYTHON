@@ -49,7 +49,7 @@ def get_my_kegiatan_wr():
             if row.get('updated_at'):  # type: ignore
                 row['updated_at'] = row['updated_at'].isoformat()  # type: ignore
 
-        return jsonify(result), 200
+        return jsonify({"success": True, "data": result}), 200
 
     except mysql.connector.Error as e:
         import traceback

@@ -1,9 +1,13 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-from config import get_db_connection, DB_CONFIG
 import datetime
 import os
 import sys
+
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from config import get_db_connection, DB_CONFIG
 
 # Create Flask app
 app = Flask(__name__)
@@ -39,7 +43,7 @@ from routes.pesan_routes import pesan_bp
 from routes.log_routes import log_bp
 from routes.broadcast_routes import broadcast_bp
 from routes.kegiatan_wr_routes import kegiatan_wr_bp
-# from routes.program_kerja_wr_routes import program_kerja_wr_bp  # File not found
+from routes.program_kerja_wr_routes import program_kerja_wr_bp
 from routes.program_kerja_k_kategorial_routes import program_kerja_k_kategorial_bp
 from routes.buku_kronik_routes import buku_kronik_bp
 from routes.kategorial_routes import kategorial_bp
@@ -64,7 +68,7 @@ app.register_blueprint(pesan_bp)
 app.register_blueprint(log_bp)
 app.register_blueprint(broadcast_bp)
 app.register_blueprint(kegiatan_wr_bp)
-# app.register_blueprint(program_kerja_wr_bp)  # File not found
+app.register_blueprint(program_kerja_wr_bp)
 app.register_blueprint(program_kerja_k_kategorial_bp)
 app.register_blueprint(buku_kronik_bp)
 app.register_blueprint(kategorial_bp)

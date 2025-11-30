@@ -461,23 +461,10 @@ class ProgramKerjaKegiatanParokiWidget(QWidget):
             biaya_item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
             self.kegiatan_paroki_table.setItem(row_index, 6, biaya_item)
 
-            # Kolom 7: Status dengan color coding
+            # Kolom 7: Status - Center aligned, no styling (normal text style)
             status = str(row_data.get('status', 'Direncanakan'))
             status_item = QTableWidgetItem(status)
             status_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter)
-            # Color code status
-            if status == "Direncanakan":
-                status_item.setBackground(QBrush(QColor("#3498db")))
-                status_item.setForeground(QBrush(QColor("white")))
-            elif status == "Berlangsung":
-                status_item.setBackground(QBrush(QColor("#f39c12")))
-                status_item.setForeground(QBrush(QColor("white")))
-            elif status == "Selesai":
-                status_item.setBackground(QBrush(QColor("#2ecc71")))
-                status_item.setForeground(QBrush(QColor("white")))
-            elif status == "Dibatalkan":
-                status_item.setBackground(QBrush(QColor("#e74c3c")))
-                status_item.setForeground(QBrush(QColor("white")))
             self.kegiatan_paroki_table.setItem(row_index, 7, status_item)
 
             # Kolom 8: Keterangan

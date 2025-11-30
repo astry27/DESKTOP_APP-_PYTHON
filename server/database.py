@@ -505,8 +505,9 @@ class DatabaseManager:
         else:
             return False, result["data"]
     
-    def upload_file(self, file_path: str, document_name: Optional[str] = None, document_type: Optional[str] = None, keterangan: Optional[str] = None, kategori: Optional[str] = None) -> Tuple[bool, Any]:
-        result = self.api_client.upload_file(file_path, document_name, document_type, keterangan, kategori)
+    def upload_file(self, file_path: str, document_name: Optional[str] = None, document_type: Optional[str] = None, keterangan: Optional[str] = None, kategori: Optional[str] = None, admin_id: Optional[int] = None) -> Tuple[bool, Any]:
+        # Map kategori parameter to bentuk for api_client compatibility
+        result = self.api_client.upload_file(file_path, document_name, document_type, keterangan, bentuk=kategori, admin_id=admin_id)
         if result["success"]:
             return True, result["data"]
         else:

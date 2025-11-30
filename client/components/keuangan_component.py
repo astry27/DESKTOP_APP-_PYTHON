@@ -96,7 +96,7 @@ class KeuanganDialog(QDialog):
                 self.tanggal.setDate(QDate.currentDate())
         else:
             self.tanggal.setDate(QDate.currentDate())
-        form_layout.addRow("Tanggal:", self.tanggal)
+        form_layout.addRow("Tanggal Transaksi:", self.tanggal)
 
         # Jenis Transaksi
         self.jenis = QComboBox()
@@ -329,7 +329,7 @@ class KeuanganClientComponent(QWidget):
         self.table_widget = QTableWidget()
         self.table_widget.setColumnCount(7)
         self.table_widget.setHorizontalHeaderLabels([
-            "Tanggal", "Jenis", "Kategori", "Keterangan", "Jumlah (Rp)", "Saldo", "Aksi"
+            "Tanggal Transaksi", "Jenis", "Kategori", "Keterangan", "Jumlah (Rp)", "Saldo", "Aksi"
         ])
 
         custom_header = WordWrapHeaderView(Qt.Horizontal, self.table_widget)
@@ -1646,7 +1646,7 @@ Jumlah: Rp {selected_data.get('jumlah', 0):,.0f}
         return table_data
 
     def _format_date(self, tanggal):
-        """Format date string in Indonesian format (dd/mm/yyyy)"""
+        """Format date string in Indonesian format (dd/mm/yyyy) - tanggal saja tanpa hari"""
         tanggal_formatted = 'N/A'
 
         if tanggal and tanggal != 'N/A':
@@ -1654,15 +1654,34 @@ Jumlah: Rp {selected_data.get('jumlah', 0):,.0f}
                 dt = None
                 if isinstance(tanggal, str):
                     tanggal_str = tanggal.strip()
-                    if 'T' in tanggal_str or (' ' in tanggal_str and ':' in tanggal_str):
+
+                    # Handle RFC 1123 / GMT format (Mon, 17 Nov 2025 00:00:00 GMT)
+                    if 'GMT' in tanggal_str or tanggal_str.count(',') == 1:
+                        try:
+                            # Parse RFC 1123 format
+                            from email.utils import parsedate_to_datetime
+                            dt = parsedate_to_datetime(tanggal_str)
+                        except:
+                            # Fallback: extract date parts manually
+                            # Format: "Mon, 17 Nov 2025 00:00:00 GMT"
+                            try:
+                                parts = tanggal_str.split(',')[1].strip().split()  # "17 Nov 2025 00:00:00 GMT"
+                                date_part = ' '.join(parts[:3])  # "17 Nov 2025"
+                                dt = datetime.datetime.strptime(date_part, '%d %b %Y')
+                            except:
+                                pass
+                    # Handle ISO format with time (2025-01-15T10:30:00 or 2025-01-15 10:30:00)
+                    elif 'T' in tanggal_str or (' ' in tanggal_str and ':' in tanggal_str):
                         try:
                             dt = datetime.datetime.fromisoformat(tanggal_str.replace('Z', '+00:00'))
                         except:
-                            parts = tanggal_str.split(' ')[0] if ' ' in tanggal_str else tanggal_str
+                            parts = tanggal_str.split('T')[0] if 'T' in tanggal_str else tanggal_str.split(' ')[0]
                             dt = datetime.datetime.strptime(parts, '%Y-%m-%d')
+                    # Handle date only format (2025-01-15)
                     elif '-' in tanggal_str:
-                        parts = tanggal_str.split(' ')[0]
+                        parts = tanggal_str.split(' ')[0] if ' ' in tanggal_str else tanggal_str
                         dt = datetime.datetime.strptime(parts, '%Y-%m-%d')
+                    # Handle already formatted dates (15/01/2025)
                     elif '/' in tanggal_str:
                         try:
                             dt = datetime.datetime.strptime(tanggal_str, '%d/%m/%Y')
@@ -1673,6 +1692,7 @@ Jumlah: Rp {selected_data.get('jumlah', 0):,.0f}
                                 dt = None
 
                 if dt:
+                    # Format sebagai dd/mm/yyyy saja tanpa hari
                     tanggal_formatted = dt.strftime('%d/%m/%Y')
                 else:
                     tanggal_formatted = str(tanggal)

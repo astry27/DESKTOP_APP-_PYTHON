@@ -51,8 +51,8 @@ class ProgramKerjaDPPWidget(QWidget):
         title_frame = QFrame()
         title_frame.setStyleSheet("""
             QFrame {
-                background-color: white;
-                border-bottom: 2px solid #ecf0f1;
+                background-color: transparent;
+                border: none;
                 padding: 10px 0px;
             }
         """)

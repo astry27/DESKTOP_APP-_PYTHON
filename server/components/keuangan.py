@@ -456,12 +456,51 @@ class KeuanganWRWidget(QWidget):
         running_balance = 0.0
 
         for row, item in enumerate(self.filtered_data):
+            # Format tanggal transaksi - dd/mm/yyyy saja tanpa hari
             tanggal = item.get('tanggal', '')
             if tanggal:
                 try:
                     if isinstance(tanggal, str):
-                        date_obj = datetime.datetime.strptime(tanggal, '%Y-%m-%d')
-                        tanggal = date_obj.strftime('%d/%m/%Y')
+                        tanggal_str = tanggal.strip()
+
+                        # Handle RFC 1123 / GMT format (Mon, 17 Nov 2025 00:00:00 GMT)
+                        if 'GMT' in tanggal_str or tanggal_str.count(',') == 1:
+                            try:
+                                # Parse RFC 1123 format
+                                from email.utils import parsedate_to_datetime
+                                date_obj = parsedate_to_datetime(tanggal_str)
+                            except:
+                                # Fallback: extract date parts manually
+                                # Format: "Mon, 17 Nov 2025 00:00:00 GMT"
+                                try:
+                                    parts = tanggal_str.split(',')[1].strip().split()  # "17 Nov 2025 00:00:00 GMT"
+                                    date_part = ' '.join(parts[:3])  # "17 Nov 2025"
+                                    date_obj = datetime.datetime.strptime(date_part, '%d %b %Y')
+                                except:
+                                    date_obj = None
+                        # Handle ISO format with time (2025-01-15T10:30:00 or 2025-01-15 10:30:00)
+                        elif 'T' in tanggal_str or (' ' in tanggal_str and ':' in tanggal_str):
+                            try:
+                                date_obj = datetime.datetime.fromisoformat(tanggal_str.replace('Z', '+00:00'))
+                            except:
+                                parts = tanggal_str.split('T')[0] if 'T' in tanggal_str else tanggal_str.split(' ')[0]
+                                date_obj = datetime.datetime.strptime(parts, '%Y-%m-%d')
+                        # Handle date only format (2025-01-15)
+                        elif '-' in tanggal_str:
+                            parts = tanggal_str.split(' ')[0] if ' ' in tanggal_str else tanggal_str
+                            date_obj = datetime.datetime.strptime(parts, '%Y-%m-%d')
+                        # Handle already formatted dates (15/01/2025)
+                        elif '/' in tanggal_str:
+                            try:
+                                date_obj = datetime.datetime.strptime(tanggal_str, '%d/%m/%Y')
+                            except:
+                                date_obj = datetime.datetime.strptime(tanggal_str, '%m/%d/%Y')
+                        else:
+                            date_obj = datetime.datetime.strptime(tanggal_str, '%Y-%m-%d')
+
+                        if date_obj:
+                            # Format sebagai dd/mm/yyyy saja tanpa hari
+                            tanggal = date_obj.strftime('%d/%m/%Y')
                 except:
                     pass
             self.table.setItem(row, 0, QTableWidgetItem(str(tanggal)))
@@ -781,12 +820,51 @@ class KeuanganKategorialWidget(QWidget):
         self.table.setRowCount(len(self.filtered_data))
 
         for row, item in enumerate(self.filtered_data):
+            # Format tanggal transaksi - dd/mm/yyyy saja tanpa hari
             tanggal = item.get('tanggal', '')
             if tanggal:
                 try:
                     if isinstance(tanggal, str):
-                        date_obj = datetime.datetime.strptime(tanggal, '%Y-%m-%d')
-                        tanggal = date_obj.strftime('%d/%m/%Y')
+                        tanggal_str = tanggal.strip()
+
+                        # Handle RFC 1123 / GMT format (Mon, 17 Nov 2025 00:00:00 GMT)
+                        if 'GMT' in tanggal_str or tanggal_str.count(',') == 1:
+                            try:
+                                # Parse RFC 1123 format
+                                from email.utils import parsedate_to_datetime
+                                date_obj = parsedate_to_datetime(tanggal_str)
+                            except:
+                                # Fallback: extract date parts manually
+                                # Format: "Mon, 17 Nov 2025 00:00:00 GMT"
+                                try:
+                                    parts = tanggal_str.split(',')[1].strip().split()  # "17 Nov 2025 00:00:00 GMT"
+                                    date_part = ' '.join(parts[:3])  # "17 Nov 2025"
+                                    date_obj = datetime.datetime.strptime(date_part, '%d %b %Y')
+                                except:
+                                    date_obj = None
+                        # Handle ISO format with time (2025-01-15T10:30:00 or 2025-01-15 10:30:00)
+                        elif 'T' in tanggal_str or (' ' in tanggal_str and ':' in tanggal_str):
+                            try:
+                                date_obj = datetime.datetime.fromisoformat(tanggal_str.replace('Z', '+00:00'))
+                            except:
+                                parts = tanggal_str.split('T')[0] if 'T' in tanggal_str else tanggal_str.split(' ')[0]
+                                date_obj = datetime.datetime.strptime(parts, '%Y-%m-%d')
+                        # Handle date only format (2025-01-15)
+                        elif '-' in tanggal_str:
+                            parts = tanggal_str.split(' ')[0] if ' ' in tanggal_str else tanggal_str
+                            date_obj = datetime.datetime.strptime(parts, '%Y-%m-%d')
+                        # Handle already formatted dates (15/01/2025)
+                        elif '/' in tanggal_str:
+                            try:
+                                date_obj = datetime.datetime.strptime(tanggal_str, '%d/%m/%Y')
+                            except:
+                                date_obj = datetime.datetime.strptime(tanggal_str, '%m/%d/%Y')
+                        else:
+                            date_obj = datetime.datetime.strptime(tanggal_str, '%Y-%m-%d')
+
+                        if date_obj:
+                            # Format sebagai dd/mm/yyyy saja tanpa hari
+                            tanggal = date_obj.strftime('%d/%m/%Y')
                 except:
                     pass
             self.table.setItem(row, 0, QTableWidgetItem(str(tanggal)))

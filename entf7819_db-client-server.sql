@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost:3306
--- Generation Time: Nov 12, 2025 at 07:11 PM
+-- Generation Time: Nov 26, 2025 at 09:37 PM
 -- Server version: 10.11.14-MariaDB-cll-lve
 -- PHP Version: 8.4.14
 
@@ -45,7 +45,7 @@ CREATE TABLE `admin` (
 --
 
 INSERT INTO `admin` (`id_admin`, `username`, `password`, `nama_lengkap`, `email`, `peran`, `is_active`, `created_at`, `updated_at`, `last_login`) VALUES
-(1, 'admin', '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9', 'Administrator Gereja', 'admin@gereja.com', 'Admin', 1, '2025-06-15 14:16:27', '2025-11-11 12:57:32', '2025-11-11 13:57:29'),
+(1, 'admin', '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9', 'Administrator Gereja', 'admin@gereja.com', 'Admin', 1, '2025-06-15 14:16:27', '2025-11-26 14:21:49', '2025-11-26 15:21:50'),
 (2, 'asdf', '2413fb3709b05939f04cf2e92f7d0897fc2596f9ad0b8a9ea855c7bfebaae892', 'asdf', 'asdf@gmail.com', 'User', 1, '2025-09-30 13:22:10', '2025-09-30 14:10:52', '2025-09-30 14:10:52'),
 (3, 'astry', '2413fb3709b05939f04cf2e92f7d0897fc2596f9ad0b8a9ea855c7bfebaae892', 'astry', 'astry@gmail.com', 'User', 1, '2025-10-29 15:28:14', '2025-10-29 15:29:06', '2025-10-29 16:29:09');
 
@@ -101,7 +101,8 @@ CREATE TABLE `aset` (
 --
 
 INSERT INTO `aset` (`id_aset`, `kode_aset`, `nama_aset`, `jenis_aset`, `kategori`, `merk_tipe`, `tahun_perolehan`, `sumber_perolehan`, `nilai`, `kondisi`, `lokasi`, `status`, `penanggung_jawab`, `keterangan`, `created_at`, `updated_at`) VALUES
-(1, 'SFGH-12', 'SS', 'Bergerak', 'Tanah', 'SS', 2025, 'Pembelian', 2000000.00, 'Baik', 'Gereja Utama', 'Aktif', 'ASS', 'AAASS', '2025-11-05 08:07:40', '2025-11-05 08:07:40');
+(1, 'SFGH-12', 'SS', 'Bergerak', 'Tanah', 'SS', 2025, 'Pembelian', 2000000.00, 'Baik', 'Gereja Utama', 'Aktif', 'ASS', 'AAASS', '2025-11-05 08:07:40', '2025-11-05 08:07:40'),
+(2, 'ad123', 'df', 'Bergerak', 'Tanah', '11', 2025, 'Pembelian', 2000000.00, 'Baik', 'Pastoran', 'Tidak Aktif', '11', 'asdfghjkl', '2025-11-18 14:53:24', '2025-11-26 05:57:26');
 
 -- --------------------------------------------------------
 
@@ -118,6 +119,16 @@ CREATE TABLE `buku_kronik` (
   `created_at` timestamp NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Tabel untuk pencatatan peristiwa/kejadian gereja';
+
+--
+-- Dumping data for table `buku_kronik`
+--
+
+INSERT INTO `buku_kronik` (`id_kronik`, `tanggal`, `peristiwa`, `keterangan`, `created_by`, `created_at`, `updated_at`) VALUES
+(1, '2025-11-19', 'asdfghj', '', 1, '2025-11-18 22:49:39', '2025-11-18 22:49:39'),
+(2, '2025-11-19', 'asdf', 'gh', 1, '2025-11-19 00:10:54', '2025-11-19 00:10:54'),
+(3, '2025-11-19', 'asdfghjkm', 'sdyguoh', 1, '2025-11-19 02:41:06', '2025-11-19 02:41:06'),
+(5, '2025-11-26', 'misa', '', 1, '2025-11-25 16:12:57', '2025-11-25 16:12:57');
 
 -- --------------------------------------------------------
 
@@ -145,7 +156,11 @@ INSERT INTO `client_connections` (`id_connection`, `client_ip`, `hostname`, `sta
 (78, '192.168.1.999', 'FINAL-VERIFY-CLIENT', 'Terputus', '2025-11-04 14:18:34', '2025-11-04 14:20:37', '2025-11-04 14:20:37'),
 (79, '192.168.1.111', 'LIVE-TEST-CLIENT', 'Terputus', '2025-11-04 14:39:07', '2025-11-04 14:41:09', '2025-11-04 14:41:09'),
 (80, '192.168.1.222', 'DEBUG-TEST-CLIENT', 'Terputus', '2025-11-04 14:41:50', '2025-11-04 14:44:03', '2025-11-04 14:44:03'),
-(81, '10.1.3.172', 'SECOND-POWER-CLIENT', 'Terputus', '2025-11-05 07:42:04', '2025-11-05 07:44:10', '2025-11-05 07:44:10');
+(81, '10.1.3.172', 'SECOND-POWER-CLIENT', 'Terputus', '2025-11-05 07:42:04', '2025-11-05 07:44:10', '2025-11-05 07:44:10'),
+(82, '10.1.13.249', 'SECOND-POWER-CLIENT', 'Terputus', '2025-11-18 13:20:30', '2025-11-18 13:33:44', '2025-11-18 13:33:44'),
+(83, '10.1.13.249', 'SECOND-POWER-CLIENT', 'Terputus', '2025-11-18 20:09:51', '2025-11-19 00:21:13', '2025-11-19 00:21:13'),
+(84, '192.168.1.100', 'SECOND-POWER', 'Terputus', '2025-11-21 03:57:40', '2025-11-21 03:59:46', '2025-11-21 03:59:46'),
+(85, '10.1.13.249', 'SECOND-POWER-CLIENT', 'Terputus', '2025-11-21 04:39:57', '2025-11-21 04:40:11', '2025-11-21 04:40:11');
 
 -- --------------------------------------------------------
 
@@ -156,28 +171,16 @@ INSERT INTO `client_connections` (`id_connection`, `client_ip`, `hostname`, `sta
 CREATE TABLE `dokumen` (
   `id_dokumen` int(11) NOT NULL,
   `nama_dokumen` varchar(200) NOT NULL,
-  `ukuran_file` bigint(20) DEFAULT NULL,
-  `tipe_file` varchar(50) DEFAULT NULL,
-  `jenis_dokumen` enum('Administrasi','Keanggotaan','Keuangan','Liturgi','Legalitas') NOT NULL DEFAULT 'Administrasi',
+  `bentuk_dokumen` varchar(100) DEFAULT NULL COMMENT 'Bentuk/tipe dokumen (Surat, Laporan, dll)',
+  `kategori_file` varchar(100) DEFAULT 'Lainnya' COMMENT 'Kategori/bentuk file dari upload dialog',
   `file_path` varchar(500) NOT NULL DEFAULT '',
+  `ukuran_file` bigint(20) DEFAULT 0 COMMENT 'Ukuran file dalam bytes - otomatis terisi saat upload',
   `keterangan` text DEFAULT NULL,
+  `upload_date` timestamp NULL DEFAULT current_timestamp() COMMENT 'Tanggal dan waktu upload dokumen',
   `uploaded_by_admin` int(11) DEFAULT NULL,
-  `uploaded_by_pengguna` int(11) DEFAULT NULL,
-  `uploaded_by_name` varchar(100) DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
-
---
--- Dumping data for table `dokumen`
---
-
-INSERT INTO `dokumen` (`id_dokumen`, `nama_dokumen`, `ukuran_file`, `tipe_file`, `jenis_dokumen`, `file_path`, `keterangan`, `uploaded_by_admin`, `uploaded_by_pengguna`, `uploaded_by_name`, `created_at`, `updated_at`) VALUES
-(3, 'Catatan Desain.pdf', 47678, NULL, 'Administrasi', '', '', NULL, NULL, NULL, '2025-09-29 14:37:25', '2025-10-21 19:37:19'),
-(5, 'Bukti Pendaftaran_MAYDUPI ASTRI TURNIP_Optimasi Instagram dengan Insight.pdf', 412216, NULL, 'Administrasi', '', '', NULL, NULL, NULL, '2025-09-29 14:37:25', '2025-10-21 19:37:19'),
-(7, 'Daftar_Jemaat_2025-03-19.xls', 1653, NULL, 'Administrasi', '', '', NULL, NULL, NULL, '2025-09-29 14:37:25', '2025-10-21 19:37:19'),
-(9, 'PROMPT.docx', 15951, NULL, 'Administrasi', '', '', NULL, NULL, NULL, '2025-10-01 06:17:37', '2025-10-21 19:37:19'),
-(11, 'DOW30.csv', 1247332, NULL, 'Keuangan', '', '', NULL, NULL, 'Administrator', '2025-10-19 15:55:04', '2025-10-21 19:37:19');
 
 -- --------------------------------------------------------
 
@@ -202,6 +205,7 @@ CREATE TABLE `jemaat` (
   `no_kk` varchar(20) DEFAULT NULL COMMENT 'Nomor Kartu Keluarga',
   `alamat` text DEFAULT NULL,
   `email` varchar(100) DEFAULT NULL,
+  `no_telepon` varchar(20) DEFAULT NULL,
   `tanggal_lahir` date DEFAULT NULL,
   `tempat_lahir` varchar(100) DEFAULT NULL,
   `umur` int(11) DEFAULT NULL,
@@ -216,7 +220,7 @@ CREATE TABLE `jemaat` (
   `kota_perkawinan` varchar(100) DEFAULT NULL,
   `tanggal_perkawinan` date DEFAULT NULL,
   `status_perkawinan_detail` varchar(100) DEFAULT NULL,
-  `status_keanggotaan` varchar(50) DEFAULT 'Aktif',
+  `status_keanggotaan` varchar(50) DEFAULT 'Aktif' COMMENT 'Status: Aktif, Menetap, Pindah, Meninggal, Tidak Aktif',
   `wr_tujuan` varchar(100) DEFAULT NULL,
   `paroki_tujuan` varchar(100) DEFAULT NULL,
   `jenis_pekerjaan` varchar(100) DEFAULT NULL,
@@ -242,16 +246,10 @@ CREATE TABLE `jemaat` (
 -- Dumping data for table `jemaat`
 --
 
-INSERT INTO `jemaat` (`id_jemaat`, `nama_lengkap`, `nik`, `nama_keluarga`, `no_kk`, `alamat`, `email`, `tanggal_lahir`, `tempat_lahir`, `umur`, `status_kekatolikan`, `kategori`, `hubungan_keluarga`, `jenis_kelamin`, `status_menikah`, `status_perkawinan`, `keuskupan`, `paroki`, `kota_perkawinan`, `tanggal_perkawinan`, `status_perkawinan_detail`, `status_keanggotaan`, `wr_tujuan`, `paroki_tujuan`, `jenis_pekerjaan`, `detail_pekerjaan`, `pendidikan_terakhir`, `nama_babtis`, `status_babtis`, `status_ekaristi`, `status_krisma`, `wilayah_rohani`, `created_at`, `updated_at`, `created_by_pengguna`, `tanggal_babtis`, `tempat_babtis`, `tanggal_komuni`, `tempat_komuni`, `tanggal_krisma`, `tempat_krisma`) VALUES
-(12, 'Test User', NULL, 'Keluarga Test', NULL, 'Test Address', 'test@test.com', '2025-10-31', 'Jakarta', 34, NULL, 'KBK', 'Kepala Keluarga', 'Laki-laki', 'Sudah Menikah', '', '', '', '', '0000-00-00', NULL, 'Aktif', '', '', 'Bekerja', 'Programmer', 'S1', 'Test Baptis', 'Sudah', 'Sudah', 'Sudah', 'WR Test', '2025-10-01 03:49:57', '2025-10-31 01:40:58', 1, '1990-06-01', 'Gereja Test', '1998-06-01', 'Gereja Test', '2000-06-01', 'Gereja Test'),
-(13, 'Test User', NULL, 'Keluarga Test', NULL, 'Test Address', 'test@test.com', '1990-01-01', 'Jakarta', 34, NULL, 'KBK', 'Kepala Keluarga', 'Laki-laki', 'Sudah Menikah', '', '', '', '', NULL, NULL, 'Aktif', '', '', 'Bekerja', 'Programmer', 'S1', 'Test Baptis', 'Sudah', 'Sudah', 'Sudah', 'WR Test', '2025-10-01 03:50:09', '2025-10-01 03:50:09', 1, '1990-06-01', 'Gereja Test', '1998-06-01', 'Gereja Test', '2000-06-01', 'Gereja Test'),
-(20, 'ad', NULL, NULL, NULL, 'adf', NULL, '2025-10-31', NULL, NULL, NULL, NULL, NULL, 'Laki-laki', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Aktif', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-10-30 20:44:49', '2025-10-30 20:44:49', NULL, NULL, NULL, NULL, NULL, NULL, NULL),
-(21, 'ada', NULL, 'adaa', NULL, 'testt', NULL, '2011-01-01', 'adaa', NULL, NULL, NULL, NULL, 'Laki-laki', NULL, 'Belum', NULL, NULL, NULL, NULL, NULL, 'Aktif', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-10-30 20:58:00', '2025-10-30 21:47:37', 3, NULL, NULL, NULL, NULL, NULL, NULL),
-(22, 'test', NULL, NULL, NULL, NULL, NULL, '2011-11-11', NULL, NULL, NULL, NULL, NULL, 'Laki-laki', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Aktif', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-10-30 21:44:27', '2025-10-30 22:14:44', 3, NULL, NULL, NULL, NULL, NULL, NULL),
-(23, 'ass', NULL, NULL, NULL, NULL, NULL, '2025-10-31', NULL, NULL, NULL, NULL, NULL, 'Laki-laki', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Aktif', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-10-30 22:16:12', '2025-10-30 22:16:12', 3, NULL, NULL, NULL, NULL, NULL, NULL),
-(24, 'ss', NULL, 'sss', NULL, 'sss', 'ss', '2025-11-05', 'ssss', NULL, NULL, NULL, NULL, 'Laki-laki', NULL, NULL, NULL, NULL, NULL, '2025-11-05', NULL, 'Pilih Status', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'ST. ALOYSIUS GONZAGA', '2025-11-05 07:16:18', '2025-11-05 07:17:56', 3, '2025-11-05', NULL, '2025-11-05', NULL, '2025-11-05', NULL),
-(25, 'aa', NULL, NULL, NULL, NULL, NULL, '2025-11-05', NULL, NULL, NULL, NULL, NULL, 'Laki-laki', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Aktif', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-11-05 07:17:41', '2025-11-05 07:17:41', 3, NULL, NULL, NULL, NULL, NULL, NULL),
-(26, 'cccc', NULL, 'cccc', NULL, NULL, NULL, '2025-11-05', 'cccc', NULL, NULL, NULL, NULL, 'Laki-laki', NULL, NULL, NULL, NULL, NULL, '2025-11-05', NULL, 'Pilih Status', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'ST. YOHANES BAPTISTA DE LA SALLE', '2025-11-05 08:31:27', '2025-11-05 08:32:10', 3, '2025-11-05', NULL, '2025-11-05', NULL, '2025-11-05', NULL);
+INSERT INTO `jemaat` (`id_jemaat`, `nama_lengkap`, `nik`, `nama_keluarga`, `no_kk`, `alamat`, `email`, `no_telepon`, `tanggal_lahir`, `tempat_lahir`, `umur`, `status_kekatolikan`, `kategori`, `hubungan_keluarga`, `jenis_kelamin`, `status_menikah`, `status_perkawinan`, `keuskupan`, `paroki`, `kota_perkawinan`, `tanggal_perkawinan`, `status_perkawinan_detail`, `status_keanggotaan`, `wr_tujuan`, `paroki_tujuan`, `jenis_pekerjaan`, `detail_pekerjaan`, `pendidikan_terakhir`, `nama_babtis`, `status_babtis`, `status_ekaristi`, `status_krisma`, `wilayah_rohani`, `created_at`, `updated_at`, `created_by_pengguna`, `tanggal_babtis`, `tempat_babtis`, `tanggal_komuni`, `tempat_komuni`, `tanggal_krisma`, `tempat_krisma`) VALUES
+(34, 'Test Final', '1245790987', 'cobaa', '123456789098765', 'None', 'None', NULL, '2000-11-21', 'jakarta', 25, 'Kelahiran', 'OMK', NULL, 'Laki-laki', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Aktif', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'ST. DOMINICO SAVIO', '2025-11-20 11:36:17', '2025-11-20 17:16:18', 1, NULL, NULL, NULL, NULL, NULL, NULL),
+(36, 'qwer', '12345679098', 'qwer', '124567890987', 'None', 'None', NULL, '2006-11-25', 'qwer', 19, 'Kelahiran', 'Balita', 'Anak', 'Perempuan', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Aktif', NULL, NULL, NULL, NULL, 'SMP', NULL, 'Sudah', NULL, NULL, 'STA. BRIGITTA', '2025-11-20 12:07:31', '2025-11-25 13:14:15', 1, NULL, NULL, NULL, NULL, NULL, NULL),
+(39, 'zxcv', NULL, 'sdfghjk', NULL, 'None', 'None', NULL, '2008-11-25', 'None', 17, NULL, NULL, NULL, 'Laki-laki', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Aktif', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'ST. ALOYSIUS GONZAGA', '2025-11-21 03:06:44', '2025-11-25 13:12:49', 1, NULL, NULL, NULL, NULL, NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -282,7 +280,8 @@ CREATE TABLE `kategorial` (
 --
 
 INSERT INTO `kategorial` (`id_kategorial`, `kelompok_kategorial`, `kelompok_kategorial_lainnya`, `nama_lengkap`, `jenis_kelamin`, `jabatan`, `no_hp`, `email`, `alamat`, `wilayah_rohani`, `masa_jabatan`, `status`, `foto_path`, `created_at`, `updated_at`) VALUES
-(1, 'PPA', '', 'tess', '', 'tess', 'tess', 'tess', 'tess', 'ST. BLASIUS', '2025-2026', 'Aktif', 'https://enternal.my.id/flask/uploads/struktur/struktur_new_6200b6bd_20251105_130023.jpeg', '2025-11-05 06:00:26', '2025-11-05 06:38:11');
+(1, 'OMK', '', 'tess', 'Perempuan', 'tess', 'tess', 'tess', 'tess', 'ST. BLASIUS', '2025-2026', 'Aktif', 'https://enternal.my.id/flask/uploads/struktur/struktur_new_6200b6bd_20251105_130023.jpeg', '2025-11-05 06:00:26', '2025-11-18 16:30:02'),
+(2, 'KMK', '', 'asdf', 'Perempuan', 'asdfg', '12345678', 'asdfghjk', 'werh', 'STA. AGNES', '2025-2-27', 'Aktif', 'https://enternal.my.id/flask/uploads/struktur/struktur_new_de4192a8_20251118_232711.jpg', '2025-11-18 16:27:14', '2025-11-18 16:27:14');
 
 -- --------------------------------------------------------
 
@@ -344,9 +343,9 @@ CREATE TABLE `kegiatan_wr` (
 INSERT INTO `kegiatan_wr` (`id_kegiatan_wr`, `kategori`, `nama_kegiatan`, `sasaran_kegiatan`, `tujuan_kegiatan`, `tempat_kegiatan`, `tanggal_pelaksanaan`, `waktu_mulai`, `penanggung_jawab`, `status_kegiatan`, `keterangan`, `user_id`, `created_at`, `updated_at`) VALUES
 (4, 'Misa', 'ASF', 'ADV', 'ADVSGV', 'GSFG', '2025-10-07', '02:09:00', 'FSFGF', 'Direncanakan', '', 6, '2025-10-06 18:09:58', '2025-10-06 18:09:58'),
 (5, 'Misa', '21err', 'getrnh', 'htn', 'ryhj', '2025-10-07', '03:14:00', 'yhj', 'Direncanakan', '', 6, '2025-10-06 19:14:26', '2025-10-06 19:14:26'),
-(6, 'Misa', 'adfd', 'adfa', 'aeg', 'aegr', '2025-10-09', '00:20:00', 'aegr', 'Direncanakan', '', 3, '2025-10-08 16:20:35', '2025-10-08 16:20:35'),
 (7, 'Doa', 'aa', 'aa', 'aaa', 'aa', '2025-10-30', '16:29:00', 'aa', 'Direncanakan', 'aa', 3, '2025-10-30 08:29:22', '2025-10-30 08:29:22'),
-(8, 'Misa', 'tess', 'tess', 'tess', 'tess', '2025-11-05', '13:53:00', 'tess', 'Direncanakan', 'tess', 3, '2025-11-05 05:53:57', '2025-11-05 05:53:57');
+(8, 'Misa', 'tess', 'tess', 'tess', 'tess', '2025-11-05', '13:53:00', 'tess', 'Direncanakan', 'tess', 3, '2025-11-05 05:53:57', '2025-11-05 05:53:57'),
+(9, 'Misa', '111', '11', '111', '111', '2025-11-19', '02:33:00', '111', 'Direncanakan', '1111', 3, '2025-11-18 18:33:59', '2025-11-18 18:33:59');
 
 -- --------------------------------------------------------
 
@@ -376,7 +375,7 @@ INSERT INTO `keuangan` (`id_keuangan`, `tanggal`, `kategori`, `sub_kategori`, `j
 (18, '2025-10-06', 'Pemasukan', 'Operasional', 500000.00, 'asdfff', '2025-10-05 20:12:30', '2025-10-05 20:12:30', 3),
 (19, '2025-10-06', 'Pemasukan', 'Kolekte', 250000.00, 'asdf', '2025-10-06 15:26:41', '2025-10-06 15:26:41', 6),
 (23, '2025-10-30', 'Pengeluaran', 'Donasi', 100000.00, 'donasi pemabngunan', '2025-10-30 06:57:47', '2025-10-30 06:57:47', 3),
-(28, '2025-11-05', 'Pemasukan', 'Kolekte', 100000.00, '', '2025-11-05 08:04:49', '2025-11-05 08:04:49', 3);
+(29, '2025-11-17', 'Pemasukan', 'Kolekte', 100000.00, '', '2025-11-17 15:16:47', '2025-11-17 15:16:47', 3);
 
 -- --------------------------------------------------------
 
@@ -425,7 +424,7 @@ CREATE TABLE `k_binaan` (
 --
 
 INSERT INTO `k_binaan` (`id_binaan`, `kelompok_binaan`, `kelompok_binaan_lainnya`, `nama_lengkap`, `jenis_kelamin`, `jabatan`, `no_hp`, `email`, `alamat`, `wilayah_rohani`, `masa_jabatan`, `status`, `foto_path`, `created_at`, `updated_at`) VALUES
-(1, 'Perkawinan', '', 'tess', 'Perempuan', '', '', '', '', 'ST. CORNELIUS', '1234', 'Aktif', 'https://enternal.my.id/flask/uploads/struktur/struktur_new_a523585d_20251105_133727.jpg', '2025-11-05 06:37:43', '2025-11-05 06:37:43');
+(1, 'PPA', '', 'tess', 'Perempuan', 'asdfv', '087865432345', 'qwer@gmail.com', 'qwer', 'ST. CORNELIUS', '2025-2090', 'Aktif', 'https://enternal.my.id/flask/uploads/struktur/struktur_new_a523585d_20251105_133727.jpg', '2025-11-05 06:37:43', '2025-11-20 17:15:11');
 
 -- --------------------------------------------------------
 
@@ -673,7 +672,131 @@ INSERT INTO `log_aktivitas` (`id_log`, `id_admin`, `id_pengguna`, `aktivitas`, `
 (208, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-07 15:51:11'),
 (209, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-08 10:13:56'),
 (210, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-11 12:24:44'),
-(211, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-11 12:59:12');
+(211, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-11 12:59:12'),
+(212, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-12 15:26:05'),
+(213, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-12 15:54:11'),
+(214, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-12 15:57:22'),
+(215, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-12 16:04:44'),
+(216, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-12 16:16:58'),
+(217, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-12 16:31:07'),
+(218, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-12 16:42:18'),
+(219, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-12 16:55:21'),
+(220, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-12 17:09:31'),
+(221, 1, NULL, 'Application Closed', 'Administrator menutup aplikasi', '127.0.0.1', '2025-11-12 17:20:39'),
+(222, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-12 17:27:58'),
+(223, 1, NULL, 'Application Closed', 'Administrator menutup aplikasi', '127.0.0.1', '2025-11-12 17:28:40'),
+(224, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-14 13:07:15'),
+(225, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-16 10:00:22'),
+(226, 1, NULL, 'Application Closed', 'Administrator menutup aplikasi', '127.0.0.1', '2025-11-16 10:03:05'),
+(227, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-16 10:15:55'),
+(228, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-16 11:14:04'),
+(229, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-16 11:45:02'),
+(230, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-16 15:15:57'),
+(231, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-16 15:35:51'),
+(232, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-16 15:54:07'),
+(233, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-16 16:01:56'),
+(234, 1, NULL, 'Application Closed', 'Administrator menutup aplikasi', '127.0.0.1', '2025-11-16 16:02:05'),
+(235, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-16 16:11:15'),
+(236, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-16 16:17:10'),
+(237, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-16 16:24:39'),
+(238, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-16 16:46:31'),
+(239, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-16 16:55:02'),
+(240, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-16 17:02:32'),
+(241, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-16 17:08:59'),
+(242, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-16 17:16:42'),
+(243, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-16 17:24:30'),
+(244, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-16 17:29:19'),
+(245, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-16 17:37:57'),
+(246, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-16 17:41:39'),
+(247, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-16 17:51:10'),
+(248, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-16 18:15:42'),
+(249, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-16 18:26:49'),
+(250, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-16 18:41:32'),
+(251, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-16 19:25:38'),
+(252, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-16 19:36:00'),
+(253, 1, NULL, 'Application Closed', 'Administrator menutup aplikasi', '127.0.0.1', '2025-11-16 19:59:44'),
+(254, 1, NULL, 'Application Closed', 'Administrator menutup aplikasi', '127.0.0.1', '2025-11-16 19:59:51'),
+(255, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-17 08:10:57'),
+(256, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-17 08:23:28'),
+(257, 1, NULL, 'Application Closed', 'Administrator menutup aplikasi', '127.0.0.1', '2025-11-17 08:23:43'),
+(258, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-17 08:28:50'),
+(259, 1, NULL, 'Application Closed', 'Administrator menutup aplikasi', '127.0.0.1', '2025-11-17 08:28:53'),
+(260, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-17 08:34:20'),
+(261, 1, NULL, 'Application Closed', 'Administrator menutup aplikasi', '127.0.0.1', '2025-11-17 08:34:24'),
+(262, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-17 08:35:35'),
+(263, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-17 09:00:39'),
+(264, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-17 09:46:50'),
+(265, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-17 10:00:18'),
+(266, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-17 10:13:00'),
+(267, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-17 10:59:48'),
+(268, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-17 11:11:33'),
+(269, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-17 13:32:23'),
+(270, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-17 13:54:57'),
+(271, 1, NULL, 'Application Closed', 'Administrator menutup aplikasi', '127.0.0.1', '2025-11-17 13:55:00'),
+(272, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-17 14:43:31'),
+(273, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-18 12:56:22'),
+(274, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-18 13:34:03'),
+(275, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-18 14:41:24'),
+(276, 1, NULL, 'Application Closed', 'Administrator menutup aplikasi', '127.0.0.1', '2025-11-18 14:41:33'),
+(277, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-18 14:42:04'),
+(278, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-18 20:08:43'),
+(279, 1, NULL, 'Application Closed', 'Administrator menutup aplikasi', '127.0.0.1', '2025-11-18 21:18:49'),
+(280, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-18 21:19:11'),
+(281, 1, NULL, 'Application Closed', 'Administrator menutup aplikasi', '127.0.0.1', '2025-11-18 22:20:56'),
+(282, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-18 22:21:49'),
+(283, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-18 23:52:24'),
+(284, 1, NULL, 'Application Closed', 'Administrator menutup aplikasi', '127.0.0.1', '2025-11-19 00:21:03'),
+(285, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-19 01:48:08'),
+(286, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-19 02:16:18'),
+(287, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-19 02:27:47'),
+(288, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-19 06:44:22'),
+(289, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-19 07:12:05'),
+(290, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-19 07:37:01'),
+(291, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-19 08:15:30'),
+(292, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-19 08:33:34'),
+(293, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-19 08:50:09'),
+(294, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-20 07:29:57'),
+(295, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-20 07:40:39'),
+(296, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-20 10:08:45'),
+(297, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-20 10:19:50'),
+(298, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-20 10:53:39'),
+(299, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-20 11:26:33'),
+(300, 1, NULL, 'Application Closed', 'Administrator menutup aplikasi', '127.0.0.1', '2025-11-20 12:50:59'),
+(301, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-20 12:52:21'),
+(302, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-20 16:57:35'),
+(303, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-20 17:37:46'),
+(304, 1, NULL, 'Application Closed', 'Administrator menutup aplikasi', '127.0.0.1', '2025-11-20 17:38:03'),
+(305, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-21 02:52:08'),
+(306, 1, NULL, 'Application Closed', 'Administrator menutup aplikasi', '127.0.0.1', '2025-11-21 03:45:52'),
+(307, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-21 03:46:15'),
+(308, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-21 04:29:13'),
+(309, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-21 06:14:22'),
+(310, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-21 06:45:12'),
+(311, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-21 08:42:10'),
+(312, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-21 10:03:18'),
+(313, 1, NULL, 'Application Closed', 'Administrator menutup aplikasi', '127.0.0.1', '2025-11-21 10:19:26'),
+(314, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-21 10:20:26'),
+(315, 1, NULL, 'Application Closed', 'Administrator menutup aplikasi', '127.0.0.1', '2025-11-21 12:59:29'),
+(316, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-21 13:01:14'),
+(317, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-21 14:10:57'),
+(318, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-21 14:35:35'),
+(319, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-21 14:52:57'),
+(320, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-21 16:59:56'),
+(321, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-22 03:07:09'),
+(322, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-24 11:10:32'),
+(323, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-24 18:20:33'),
+(324, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-24 18:23:00'),
+(325, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-24 18:31:45'),
+(326, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-25 06:52:39'),
+(327, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-25 10:30:27'),
+(328, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-25 13:09:02'),
+(329, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-26 06:02:00'),
+(330, 1, NULL, 'Application Closed', 'Administrator menutup aplikasi', '127.0.0.1', '2025-11-26 06:02:37'),
+(331, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-26 08:32:34'),
+(332, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-26 10:46:40'),
+(333, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-26 12:54:12'),
+(334, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-26 13:21:55'),
+(335, 1, NULL, 'Login berhasil', 'Administrator login ke sistem', '127.0.0.1', '2025-11-26 14:23:09');
 
 -- --------------------------------------------------------
 
@@ -699,7 +822,7 @@ CREATE TABLE `pengguna` (
 --
 
 INSERT INTO `pengguna` (`id_pengguna`, `username`, `password`, `nama_lengkap`, `email`, `peran`, `is_active`, `created_at`, `updated_at`, `last_login`) VALUES
-(3, 'asdf', '2413fb3709b05939f04cf2e92f7d0897fc2596f9ad0b8a9ea855c7bfebaae892', 'asdf', 'asdf@gmail.com', 'user', 1, '2025-09-30 14:17:39', '2025-11-08 07:01:32', '2025-11-08 07:01:32'),
+(3, 'asdf', '2413fb3709b05939f04cf2e92f7d0897fc2596f9ad0b8a9ea855c7bfebaae892', 'asdf', 'asdf@gmail.com', 'user', 1, '2025-09-30 14:17:39', '2025-11-21 03:49:52', '2025-11-21 03:49:52'),
 (5, 'qwer', '70f98078fb2c7d7bfb3ae17330b91eaa018110b03896979b4c88bfaed3805906', 'qwer', 'qwer@gmail.com', 'user', 1, '2025-10-01 01:40:51', '2025-11-04 13:00:56', '2025-11-04 13:00:56'),
 (6, 'user', 'e606e38b0d8c19b24cf0ee3808183162ea7cd63ff7912dbb22b5e803286b4446', 'user client', 'user@gmail.com', 'user', 1, '2025-10-01 05:19:54', '2025-10-06 19:15:33', '2025-10-06 19:15:33');
 
@@ -730,7 +853,9 @@ INSERT INTO `pengumuman` (`id_pengumuman`, `judul`, `isi`, `sasaran`, `is_active
 (20, 'AQSWSWD', 'WDXDSDAS\nASDXSD : ASD\nDSCD :ASDA', 'OMK', 1, 'Administrator', 'sAYA', '2025-10-09 16:37:50', '2025-10-09 16:37:50'),
 (21, 'sawdefv', 'wvsebgrhnmky,', 'Umum', 1, 'Administrator', 'asdasdcd', '2025-10-09 16:44:21', '2025-10-09 16:44:21'),
 (23, 'Test Pengumuman Baru', 'Ini adalah tes pengumuman untuk validasi struktur database baru. Tanggal otomatis dari created_at.', 'Umum', 1, 'Administrator', 'Bapak Pendeta', '2025-10-09 17:03:30', '2025-10-09 17:03:30'),
-(26, 'fdsaesrdf', 'Syalom, Umat Terkasih!\nMari bersama-sama merawat rumah Tuhan kita. Kami mengundang seluruh jemaat untuk ikut dalam kegiatan Gotong Royong pada:\n\nHari/Tanggal	: Sabtu, 18 Oktober 2025 \nWaktu	: 08:00 Pagi - Selesai \nTempat	: Lingkungan Gereja\n\nKehadiran Saudara/i adalah berkat bagi kita semua. Tuhan memberkati!', 'Umum', 1, 'Administrator', 'asdfghj', '2025-10-09 17:34:29', '2025-10-31 14:14:02');
+(26, 'fdsaesrdf', 'Syalom, Umat Terkasih!\nMari bersama-sama merawat rumah Tuhan kita. Kami mengundang seluruh jemaat untuk ikut dalam kegiatan Gotong Royong pada:\n\nHari/Tanggal	: Sabtu, 18 Oktober 2025 \nWaktu	: 08:00 Pagi - Selesai \nTempat	: Lingkungan Gereja\n\nKehadiran Saudara/i adalah berkat bagi kita semua. Tuhan memberkati!', 'Umum', 1, 'Administrator', 'asdfghj', '2025-10-09 17:34:29', '2025-10-31 14:14:02'),
+(27, 'Pertemuan', 'harap seluruh OMK melakukan pertemuan', 'OMK', 1, 'Administrator', 'OMK', '2025-11-18 15:09:33', '2025-11-18 15:09:33'),
+(28, 'qwer', 'qwer', 'Umum', 1, 'Administrator', 'Administrator', '2025-11-20 17:09:51', '2025-11-20 17:09:51');
 
 -- --------------------------------------------------------
 
@@ -759,7 +884,9 @@ CREATE TABLE `program_kerja` (
 INSERT INTO `program_kerja` (`id_program_kerja`, `estimasi_waktu`, `judul`, `sasaran`, `penanggung_jawab`, `anggaran`, `sumber_anggaran`, `kategori`, `keterangan`, `created_at`, `updated_at`) VALUES
 (2, '2025-09-30', 'asdf', 'asdfasdfasdf', 'asdf', '123', 'Kas Gereja', '', '', '2025-09-30 05:05:18', '2025-09-30 05:05:35'),
 (3, '2025-10-01', 'rosario', 'Umat', 'umat', '2000000', 'Kas Gereja', '', '', '2025-10-01 06:10:30', '2025-10-01 06:10:30'),
-(4, '2025-10-07', 'ghbj', 'hjnk', 'ghb', 'fgvb', 'Kas Gereja', '', '', '2025-10-06 18:51:52', '2025-10-06 18:51:52');
+(4, '2025-10-07', 'ghbj', 'hjnk', 'ghb', 'fgvb', 'Kas Gereja', '', '', '2025-10-06 18:51:52', '2025-10-06 18:51:52'),
+(5, 'Januari', 'sss', 'ss', 'sss', '100000', 'Kas Gereja', 'Sosial', '', '2025-11-18 22:45:22', '2025-11-18 22:45:22'),
+(6, 'Mei', 'qwer', 'qwer', 'qwer', '1234567', 'Donasi Jemaat', 'Katekese', 'qwer', '2025-11-20 17:10:25', '2025-11-20 17:10:25');
 
 -- --------------------------------------------------------
 
@@ -874,35 +1001,14 @@ CREATE TABLE `struktur` (
 --
 
 INSERT INTO `struktur` (`id_struktur`, `nama_lengkap`, `jenis_kelamin`, `wilayah_rohani`, `jabatan_utama`, `status_aktif`, `email`, `telepon`, `foto_path`, `created_at`, `updated_at`, `periode`) VALUES
-(1, 'Romo Andreas Simatupang', NULL, 'None', 'Pastor Paroki', 'Aktif', 'pastor@gereja.com', '081234567890', 'https://enternal.my.id/flask/uploads/struktur/struktur_new_d0019fe5_20250929_225104.jpg', '2025-09-29 14:59:49', '2025-09-29 15:51:07', NULL),
+(1, 'Romo Andreas Simatupang', 'Laki-laki', 'ST. ALOYSIUS GONZAGA', 'Pastor Paroki', 'Aktif', 'pastor@gereja.com', '081234567890', 'https://enternal.my.id/flask/uploads/struktur/struktur_new_d0019fe5_20250929_225104.jpg', '2025-09-29 14:59:49', '2025-11-18 16:28:36', 'None'),
 (2, 'Test Admin', NULL, 'Wilayah Santo Yusuf', 'Pastor Paroki', 'Aktif', 'test@gereja.com', '081234567890', 'https://enternal.my.id/flask/uploads/struktur/struktur_new_9d2906ab_20250929_231409.jpg', '2025-09-29 15:07:04', '2025-09-29 16:14:14', NULL),
-(4, 'maydupi', NULL, 'May', 'May', 'Aktif', 'may@gmail.com', '05784564586', 'https://enternal.my.id/flask/uploads/struktur/struktur_new_87c16c00_20250929_224441.jpg', '2025-09-29 15:15:36', '2025-09-29 15:44:44', NULL),
+(4, 'maydupi', 'Perempuan', 'ST. ALBERTUS AGUNG', 'May', 'Aktif', 'may@gmail.com', '05784564586', 'https://enternal.my.id/flask/uploads/struktur/struktur_new_87c16c00_20250929_224441.jpg', '2025-09-29 15:15:36', '2025-11-18 16:28:19', 'None'),
 (6, 'saya', 'Laki-laki', 'WR1', 'Sekrtaris', 'Aktif', '', '', 'https://enternal.my.id/flask/uploads/struktur/struktur_new_aee48c1d_20251020_011201.jpg', '2025-10-19 18:12:05', '2025-10-19 18:12:05', '2025-2027'),
-(7, 'Lukas', 'Laki-laki', 'ST. Maria', 'Koordinator', 'Aktif', 'lukas@gmail.com', '08787654321', 'https://enternal.my.id/flask/uploads/struktur/struktur_new_8af53fab_20251105_125727.jpg', '2025-11-05 05:57:31', '2025-11-05 06:38:50', '20252-207');
-
--- --------------------------------------------------------
-
---
--- Table structure for table `tim_pembina`
---
-
-CREATE TABLE `tim_pembina` (
-  `id_tim_pembina` int(11) NOT NULL,
-  `tim_pembina` varchar(100) NOT NULL,
-  `tanggal_pelantikan` date DEFAULT NULL,
-  `keterangan` text DEFAULT NULL,
-  `created_at` timestamp NULL DEFAULT current_timestamp(),
-  `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
-  `tim_pembina_lainnya` varchar(100) DEFAULT NULL COMMENT 'Custom tim pembina value ketika user memilih Lainnya dari dropdown'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
---
--- Dumping data for table `tim_pembina`
---
-
-INSERT INTO `tim_pembina` (`id_tim_pembina`, `tim_pembina`, `tanggal_pelantikan`, `keterangan`, `created_at`, `updated_at`, `tim_pembina_lainnya`) VALUES
-(1, 'Liturgi', '2025-11-07', '', '2025-11-07 15:29:27', '2025-11-07 15:29:27', NULL),
-(2, 'Lainnya', '2025-11-07', 'tesss', '2025-11-07 15:30:06', '2025-11-07 15:30:06', 'tesss');
+(7, 'Lukas', 'Laki-laki', 'ST. Maria', 'Koordinator', 'Aktif', 'lukas@gmail.com', '08787654321', 'https://enternal.my.id/flask/uploads/struktur/struktur_new_8af53fab_20251105_125727.jpg', '2025-11-05 05:57:31', '2025-11-05 06:38:50', '20252-207'),
+(8, 'aaaaaaaa', 'Laki-laki', 'ST. DOMINICO SAVIO', 'koordi', 'Aktif', 'aaaaa@gmail.com', '081234567890', 'https://enternal.my.id/flask/uploads/struktur/struktur_new_4140fd52_20251118_222054.jpg', '2025-11-18 15:21:10', '2025-11-18 15:21:10', '2025-2027'),
+(9, 'qwer', 'Laki-laki', 'ST. DOMINICO SAVIO', 'qwer', 'Aktif', 'qwert@gmail.com', '082276543212', 'https://enternal.my.id/flask/uploads/struktur/struktur_new_5656cb12_20251121_001137.jpg', '2025-11-20 17:11:40', '2025-11-20 17:11:40', '2025-2070'),
+(10, 'aku', 'Perempuan', 'ST. DOMINICO SAVIO', 'aa', 'Aktif', '', '', 'https://enternal.my.id/flask/uploads/struktur/struktur_new_5ed01409_20251126_202339.jpg', '2025-11-26 13:23:44', '2025-11-26 13:23:44', '2025-2026');
 
 -- --------------------------------------------------------
 
@@ -911,17 +1017,26 @@ INSERT INTO `tim_pembina` (`id_tim_pembina`, `tim_pembina`, `tanggal_pelantikan`
 --
 
 CREATE TABLE `tim_pembina_peserta` (
-  `id_peserta` int(11) NOT NULL,
   `id_tim_pembina` int(11) NOT NULL,
-  `id_jemaat` int(11) NOT NULL,
-  `nama_lengkap` varchar(100) NOT NULL,
-  `wilayah_rohani` varchar(100) NOT NULL,
-  `jabatan` varchar(50) NOT NULL,
-  `koordinator_bidang` varchar(100) DEFAULT NULL COMMENT 'Filled when jabatan=Koordinator',
-  `sie_bidang` varchar(100) DEFAULT NULL COMMENT 'Filled when jabatan=Anggota Sie',
+  `nama_peserta` varchar(255) NOT NULL,
+  `is_manual_entry` tinyint(1) DEFAULT 0,
+  `id_jemaat` int(11) DEFAULT NULL,
+  `tim_pembina` enum('Liturgi','Katekese','Perkawinan','Keluarga','Konsultasi','Lainnya') NOT NULL,
+  `tim_pembina_lainnya` varchar(255) DEFAULT NULL,
+  `wilayah_rohani` varchar(255) NOT NULL,
+  `jabatan` enum('Pembina','Ketua','Sekretaris','Bendahara','Koordinator','Anggota Sie','Anggota Biasa') NOT NULL,
+  `tahun` year(4) NOT NULL,
   `created_at` timestamp NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `tim_pembina_peserta`
+--
+
+INSERT INTO `tim_pembina_peserta` (`id_tim_pembina`, `nama_peserta`, `is_manual_entry`, `id_jemaat`, `tim_pembina`, `tim_pembina_lainnya`, `wilayah_rohani`, `jabatan`, `tahun`, `created_at`, `updated_at`) VALUES
+(1, 'qwer', 0, 36, 'Katekese', NULL, 'STA. BRIGITTA', 'Sekretaris', '2025', '2025-11-25 06:53:16', '2025-11-25 06:53:16'),
+(2, 'Test Final', 0, 34, 'Liturgi', NULL, 'ST. DOMINICO SAVIO', 'Ketua', '2026', '2025-11-25 16:11:47', '2025-11-25 16:11:47');
 
 -- --------------------------------------------------------
 
@@ -1099,7 +1214,7 @@ ALTER TABLE `client_connections`
 --
 ALTER TABLE `dokumen`
   ADD PRIMARY KEY (`id_dokumen`),
-  ADD KEY `fk_dokumen_pengguna` (`uploaded_by_pengguna`);
+  ADD KEY `idx_ukuran_file` (`ukuran_file`);
 
 --
 -- Indexes for table `jemaat`
@@ -1109,7 +1224,18 @@ ALTER TABLE `jemaat`
   ADD KEY `idx_jemaat_nama` (`nama_lengkap`),
   ADD KEY `idx_jemaat_wilayah_rohani` (`wilayah_rohani`),
   ADD KEY `idx_jemaat_status_keanggotaan` (`status_keanggotaan`),
-  ADD KEY `idx_status_kekatolikan` (`status_kekatolikan`);
+  ADD KEY `idx_status_kekatolikan` (`status_kekatolikan`),
+  ADD KEY `idx_jemaat_nama_lengkap` (`nama_lengkap`),
+  ADD KEY `idx_jemaat_nama_keluarga` (`nama_keluarga`),
+  ADD KEY `idx_jemaat_no_kk` (`no_kk`),
+  ADD KEY `idx_jemaat_nik` (`nik`),
+  ADD KEY `idx_jemaat_kategori` (`kategori`),
+  ADD KEY `idx_jemaat_status_babtis` (`status_babtis`),
+  ADD KEY `idx_jemaat_status_ekaristi` (`status_ekaristi`),
+  ADD KEY `idx_jemaat_status_krisma` (`status_krisma`),
+  ADD KEY `idx_jemaat_status_perkawinan` (`status_perkawinan`),
+  ADD KEY `idx_jemaat_created_by_pengguna` (`created_by_pengguna`),
+  ADD KEY `idx_jemaat_created_at` (`created_at`);
 
 --
 -- Indexes for table `kategorial`
@@ -1247,23 +1373,16 @@ ALTER TABLE `struktur`
   ADD KEY `idx_struktur_periode` (`periode`);
 
 --
--- Indexes for table `tim_pembina`
---
-ALTER TABLE `tim_pembina`
-  ADD PRIMARY KEY (`id_tim_pembina`),
-  ADD KEY `idx_created_at` (`created_at`),
-  ADD KEY `idx_tim_pembina` (`tim_pembina`);
-
---
 -- Indexes for table `tim_pembina_peserta`
 --
 ALTER TABLE `tim_pembina_peserta`
-  ADD PRIMARY KEY (`id_peserta`),
-  ADD UNIQUE KEY `unique_tim_peserta` (`id_tim_pembina`,`id_jemaat`),
-  ADD KEY `idx_id_tim` (`id_tim_pembina`),
-  ADD KEY `idx_id_jemaat` (`id_jemaat`),
+  ADD PRIMARY KEY (`id_tim_pembina`),
+  ADD KEY `id_jemaat` (`id_jemaat`),
+  ADD KEY `idx_tim_pembina` (`tim_pembina`),
+  ADD KEY `idx_wilayah_rohani` (`wilayah_rohani`),
   ADD KEY `idx_jabatan` (`jabatan`),
-  ADD KEY `idx_created_at` (`created_at`);
+  ADD KEY `idx_tahun` (`tahun`),
+  ADD KEY `idx_nama_peserta` (`nama_peserta`);
 
 --
 -- Indexes for table `wilayah_rohani`
@@ -1294,19 +1413,19 @@ ALTER TABLE `api_service_config`
 -- AUTO_INCREMENT for table `aset`
 --
 ALTER TABLE `aset`
-  MODIFY `id_aset` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id_aset` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `buku_kronik`
 --
 ALTER TABLE `buku_kronik`
-  MODIFY `id_kronik` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id_kronik` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT for table `client_connections`
 --
 ALTER TABLE `client_connections`
-  MODIFY `id_connection` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=82;
+  MODIFY `id_connection` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=86;
 
 --
 -- AUTO_INCREMENT for table `dokumen`
@@ -1318,13 +1437,13 @@ ALTER TABLE `dokumen`
 -- AUTO_INCREMENT for table `jemaat`
 --
 ALTER TABLE `jemaat`
-  MODIFY `id_jemaat` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=27;
+  MODIFY `id_jemaat` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=41;
 
 --
 -- AUTO_INCREMENT for table `kategorial`
 --
 ALTER TABLE `kategorial`
-  MODIFY `id_kategorial` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id_kategorial` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `kegiatan`
@@ -1336,13 +1455,13 @@ ALTER TABLE `kegiatan`
 -- AUTO_INCREMENT for table `kegiatan_wr`
 --
 ALTER TABLE `kegiatan_wr`
-  MODIFY `id_kegiatan_wr` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+  MODIFY `id_kegiatan_wr` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
 
 --
 -- AUTO_INCREMENT for table `keuangan`
 --
 ALTER TABLE `keuangan`
-  MODIFY `id_keuangan` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=29;
+  MODIFY `id_keuangan` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=30;
 
 --
 -- AUTO_INCREMENT for table `keuangan_kategorial`
@@ -1360,7 +1479,7 @@ ALTER TABLE `k_binaan`
 -- AUTO_INCREMENT for table `log_aktivitas`
 --
 ALTER TABLE `log_aktivitas`
-  MODIFY `id_log` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=212;
+  MODIFY `id_log` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=336;
 
 --
 -- AUTO_INCREMENT for table `pengguna`
@@ -1372,13 +1491,13 @@ ALTER TABLE `pengguna`
 -- AUTO_INCREMENT for table `pengumuman`
 --
 ALTER TABLE `pengumuman`
-  MODIFY `id_pengumuman` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=27;
+  MODIFY `id_pengumuman` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=29;
 
 --
 -- AUTO_INCREMENT for table `program_kerja`
 --
 ALTER TABLE `program_kerja`
-  MODIFY `id_program_kerja` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id_program_kerja` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT for table `program_kerja_k_kategorial`
@@ -1408,19 +1527,13 @@ ALTER TABLE `program_kerja_wr`
 -- AUTO_INCREMENT for table `struktur`
 --
 ALTER TABLE `struktur`
-  MODIFY `id_struktur` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
-
---
--- AUTO_INCREMENT for table `tim_pembina`
---
-ALTER TABLE `tim_pembina`
-  MODIFY `id_tim_pembina` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id_struktur` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
 --
 -- AUTO_INCREMENT for table `tim_pembina_peserta`
 --
 ALTER TABLE `tim_pembina_peserta`
-  MODIFY `id_peserta` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id_tim_pembina` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `wilayah_rohani`
@@ -1574,8 +1687,7 @@ ALTER TABLE `program_kerja_k_kategorial_evaluation`
 -- Constraints for table `tim_pembina_peserta`
 --
 ALTER TABLE `tim_pembina_peserta`
-  ADD CONSTRAINT `tim_pembina_peserta_ibfk_1` FOREIGN KEY (`id_tim_pembina`) REFERENCES `tim_pembina` (`id_tim_pembina`) ON DELETE CASCADE,
-  ADD CONSTRAINT `tim_pembina_peserta_ibfk_2` FOREIGN KEY (`id_jemaat`) REFERENCES `jemaat` (`id_jemaat`) ON DELETE CASCADE;
+  ADD CONSTRAINT `tim_pembina_peserta_ibfk_1` FOREIGN KEY (`id_jemaat`) REFERENCES `jemaat` (`id_jemaat`) ON DELETE SET NULL;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

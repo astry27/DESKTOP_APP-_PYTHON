@@ -403,16 +403,16 @@ class JemaatComponent(QWidget):
             "Wilayah Rohani", "Nama Keluarga", "No. KK", "Nama Lengkap", "NIK", "Tempat Lahir",
             "Tanggal Lahir", "Umur", "Status Kekatolikan", "Kategori", "J. Kelamin",
             "Hubungan Keluarga", "Pend. Terakhir", "Status Menikah", "Status Pekerjaan",
-            "Detail Pekerjaan", "Alamat", "Email/No.Hp",
-            # SAKRAMEN BABTIS (columns 18-21)
+            "Detail Pekerjaan", "Alamat", "Email", "No. Telepon",
+            # SAKRAMEN BABTIS (columns 19-22)
             "Status Babtis", "Tempat Babtis", "Tanggal Babtis", "Nama Babtis",
             # SAKRAMEN EKARISTI (columns 22-24)
             "Status Ekaristi", "Tempat Komuni", "Tanggal Komuni",
             # SAKRAMEN KRISMA (columns 25-27)
             "Status Krisma", "Tempat Krisma", "Tanggal Krisma",
-            # SAKRAMEN PERKAWINAN (columns 28-33)
+            # SAKRAMEN PERKAWINAN (columns 29-34)
             "Status Perkawinan", "Keuskupan", "Paroki", "Kota", "Tanggal Perkawinan", "Status Perkawinan Detail",
-            # STATUS (columns 34-37) - TOTAL 38 COLUMNS
+            # STATUS (columns 35-38) - TOTAL 39 COLUMNS
             "Status Keanggotaan", "WR Tujuan", "Paroki Tujuan", "Created By Pengguna"
         ]
 
@@ -520,23 +520,24 @@ class JemaatComponent(QWidget):
         table.setSizeAdjustPolicy(QAbstractItemView.AdjustToContents)
 
     def setup_column_widths(self):
-        """Set up column widths for better display (38 columns total with No. KK and NIK)"""
+        """Set up column widths for better display (39 columns total with No. KK, NIK, and No. Telepon)"""
         # Make important columns wider (adjusted indices for new columns)
         self.jemaat_table.setColumnWidth(1, 120)  # Nama Keluarga
         self.jemaat_table.setColumnWidth(2, 110)  # No. KK
         self.jemaat_table.setColumnWidth(3, 150)  # Nama Lengkap - wider
         self.jemaat_table.setColumnWidth(4, 110)  # NIK
         self.jemaat_table.setColumnWidth(16, 180)  # Alamat - wider
-        self.jemaat_table.setColumnWidth(17, 140)  # Kontak - wider
+        self.jemaat_table.setColumnWidth(17, 140)  # Email
+        self.jemaat_table.setColumnWidth(18, 120)  # No. Telepon
 
         # Set standard width for other columns
         for i in [0, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]:  # DATA columns
             self.jemaat_table.setColumnWidth(i, 110)
-        for i in range(18, 38):  # Sakramen and Status columns
+        for i in range(19, 39):  # Sakramen and Status columns
             self.jemaat_table.setColumnWidth(i, 100)
 
         # Make creator column slightly wider for names
-        self.jemaat_table.setColumnWidth(37, 160)
+        self.jemaat_table.setColumnWidth(38, 160)
 
     def populate_table(self):
         """Populate table with data rows (using normal headers)"""
@@ -563,32 +564,33 @@ class JemaatComponent(QWidget):
                 self.format_gender(row_data.get('jenis_kelamin')),
                 self.format_display(row_data.get('hubungan_keluarga')),
                 self.format_display(row_data.get('pendidikan_terakhir')),
-                self.format_display(row_data.get('status_pernikahan')),  # Fixed: use database column name
+                self.format_display(row_data.get('status_menikah')),  # Status Menikah
                 self.format_display(row_data.get('jenis_pekerjaan')),
                 self.format_display(row_data.get('detail_pekerjaan')),
                 self.format_display(row_data.get('alamat')),
                 self.format_display(row_data.get('email')),
-                # SAKRAMEN BABTIS (columns 18-21)
+                self.format_display(row_data.get('no_telepon')),
+                # SAKRAMEN BABTIS (columns 19-22)
                 self.format_display(row_data.get('status_babtis')),
                 self.format_display(row_data.get('tempat_babtis')),
                 self.format_date(row_data.get('tanggal_babtis')),
                 self.format_display(row_data.get('nama_babtis')),
-                # SAKRAMEN EKARISTI (columns 22-24)
+                # SAKRAMEN EKARISTI (columns 23-25)
                 self.format_display(row_data.get('status_ekaristi')),
                 self.format_display(row_data.get('tempat_komuni')),
                 self.format_date(row_data.get('tanggal_komuni')),
-                # SAKRAMEN KRISMA (columns 25-27)
+                # SAKRAMEN KRISMA (columns 26-28)
                 self.format_display(row_data.get('status_krisma')),
                 self.format_display(row_data.get('tempat_krisma')),
                 self.format_date(row_data.get('tanggal_krisma')),
-                # SAKRAMEN PERKAWINAN (columns 28-33)
+                # SAKRAMEN PERKAWINAN (columns 29-34)
                 self.format_display(row_data.get('status_perkawinan')),
                 self.format_display(row_data.get('keuskupan')),
                 self.format_display(row_data.get('paroki')),
                 self.format_display(row_data.get('kota_perkawinan')),
                 self.format_date(row_data.get('tanggal_perkawinan')),
                 self.format_display(row_data.get('status_perkawinan_detail')),
-                # STATUS (columns 34-37) - TOTAL 38 COLUMNS
+                # STATUS (columns 35-38) - TOTAL 39 COLUMNS
                 self.format_display(row_data.get('status_keanggotaan', 'Aktif')),
                 self.format_display(row_data.get('wr_tujuan')),
                 self.format_display(row_data.get('paroki_tujuan')),
@@ -645,16 +647,58 @@ class JemaatComponent(QWidget):
         return text
 
     def format_date(self, date_value):
-        """Format date for display in spreadsheet"""
+        """Format date for display in spreadsheet - DD/MM/YYYY only"""
         if not date_value:
             return '-'
+
+        # Handle datetime objects
         if hasattr(date_value, 'strftime'):
             return date_value.strftime('%d/%m/%Y')
+
+        # Handle string dates
         if isinstance(date_value, str):
             text = date_value.strip()
             if not text or text.lower() in ('none', 'null', 'nan'):
                 return '-'
+
+            # Try to parse various date formats
+            from datetime import datetime
+
+            # First try RFC 2822 format (from Flask API) - most common in this app
+            # Example: "Thu, 27 Nov 2025 00:00:00 GMT"
+            try:
+                # Remove day name and GMT suffix, parse the core date
+                import re
+                # Match pattern: "Day, DD Mon YYYY HH:MM:SS GMT"
+                match = re.match(r'^\w+,\s+(\d{1,2})\s+(\w+)\s+(\d{4})', text)
+                if match:
+                    day = match.group(1)
+                    month = match.group(2)
+                    year = match.group(3)
+                    # Parse using strptime
+                    parsed_date = datetime.strptime(f"{day} {month} {year}", '%d %b %Y')
+                    return parsed_date.strftime('%d/%m/%Y')
+            except (ValueError, AttributeError):
+                pass
+
+            # Try other common formats
+            date_formats = [
+                '%Y-%m-%d %H:%M:%S',  # 2025-11-22 14:30:00
+                '%Y-%m-%d',           # 2025-11-22
+                '%d/%m/%Y',           # 22/11/2025
+                '%d-%m-%Y',           # 22-11-2025
+            ]
+
+            for fmt in date_formats:
+                try:
+                    parsed_date = datetime.strptime(text.split('.')[0], fmt)
+                    return parsed_date.strftime('%d/%m/%Y')
+                except ValueError:
+                    continue
+
+            # If no format matched, return as-is (fallback)
             return text
+
         return self.format_display(date_value)
     
     def format_gender(self, gender):
@@ -857,11 +901,12 @@ class JemaatComponent(QWidget):
                 'jenis_kelamin': jenis_kelamin_full,
                 'hubungan_keluarga': data.get('hubungan_keluarga', ''),
                 'pendidikan_terakhir': data.get('pendidikan_terakhir', ''),
-                'status_menikah': data.get('status_menikah', ''),  # API maps to status_pernikahan
+                'status_menikah': data.get('status_menikah', ''),  # Status Menikah
                 'jenis_pekerjaan': data.get('jenis_pekerjaan', ''),
                 'detail_pekerjaan': data.get('detail_pekerjaan', ''),
                 'alamat': data.get('alamat', ''),
                 'email': data.get('email', ''),
+                'no_telepon': data.get('no_telepon', ''),
                 'status_babtis': data.get('status_babtis', ''),
                 'tempat_babtis': data.get('tempat_babtis', ''),
                 'tanggal_babtis': data.get('tanggal_babtis', ''),
@@ -879,8 +924,8 @@ class JemaatComponent(QWidget):
                 'tanggal_perkawinan': data.get('tanggal_perkawinan', ''),
                 'status_perkawinan_detail': data.get('status_perkawinan_detail', ''),
                 'status_keanggotaan': data.get('status_keanggotaan', ''),
-                'wr_tujuan': data.get('wilayah_rohani_pindah', ''),
-                'paroki_tujuan': data.get('paroki_pindah', '')
+                'wr_tujuan': data.get('wr_tujuan', ''),
+                'paroki_tujuan': data.get('paroki_tujuan', '')
             }
 
             success, result = self.db_manager.add_jemaat(filtered_data)
@@ -1021,11 +1066,12 @@ class JemaatComponent(QWidget):
                     'jenis_kelamin': jenis_kelamin_full,
                     'hubungan_keluarga': data.get('hubungan_keluarga', ''),
                     'pendidikan_terakhir': data.get('pendidikan_terakhir', ''),
-                    'status_menikah': data.get('status_menikah', ''),  # API maps to status_pernikahan
+                    'status_menikah': data.get('status_menikah', ''),  # Status Menikah
                     'jenis_pekerjaan': data.get('jenis_pekerjaan', ''),
                     'detail_pekerjaan': data.get('detail_pekerjaan', ''),
                     'alamat': data.get('alamat', ''),
                     'email': data.get('email', ''),
+                    'no_telepon': data.get('no_telepon', ''),
                     'status_babtis': data.get('status_babtis', ''),
                     'tempat_babtis': data.get('tempat_babtis', ''),
                     'tanggal_babtis': data.get('tanggal_babtis', ''),
@@ -1043,8 +1089,8 @@ class JemaatComponent(QWidget):
                     'tanggal_perkawinan': data.get('tanggal_perkawinan', ''),
                     'status_perkawinan_detail': data.get('status_perkawinan_detail', ''),
                     'status_keanggotaan': data.get('status_keanggotaan', ''),
-                    'wr_tujuan': data.get('wilayah_rohani_pindah', ''),
-                    'paroki_tujuan': data.get('paroki_pindah', '')
+                    'wr_tujuan': data.get('wr_tujuan', ''),
+                    'paroki_tujuan': data.get('paroki_tujuan', '')
                 }
 
                 id_jemaat = jemaat_data['id_jemaat']
@@ -1208,9 +1254,10 @@ class JemaatComponent(QWidget):
                             'Pendidikan Terakhir': self.format_display(data.get('pendidikan_terakhir')),
                             'Jenis Pekerjaan': self.format_display(data.get('jenis_pekerjaan')),
                             'Detail Pekerjaan': self.format_display(data.get('detail_pekerjaan')),
-                            'Status Menikah': self.format_display(data.get('status_pernikahan')),  # Fixed: use database column name
+                            'Status Menikah': self.format_display(data.get('status_menikah')),  # Status Menikah
                             'Alamat': self.format_display(data.get('alamat')),
                             'Email': self.format_display(data.get('email')),
+                            'No. Telepon': self.format_display(data.get('no_telepon')),
                             'Status Babtis': self.format_display(data.get('status_babtis')),
                             'Tempat Babtis': self.format_display(data.get('tempat_babtis')),
                             'Tanggal Babtis': self.format_date(data.get('tanggal_babtis')),
@@ -1228,6 +1275,8 @@ class JemaatComponent(QWidget):
                             'Tanggal Perkawinan': self.format_date(data.get('tanggal_perkawinan')),
                             'Status Perkawinan Detail': self.format_display(data.get('status_perkawinan_detail')),
                             'Status Keanggotaan': self.format_display(data.get('status_keanggotaan')),
+                            'WR Tujuan': self.format_display(data.get('wr_tujuan')),
+                            'Paroki Tujuan': self.format_display(data.get('paroki_tujuan')),
                             'Created By Pengguna': self.get_creator_display(data)
                         })
                 

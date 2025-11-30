@@ -240,18 +240,18 @@ def add_kegiatan():
         col_check = cursor.fetchone()
         has_user_id = col_check.get('col_exists', 0) > 0 if col_check else False  # type: ignore
 
-        # Support both old and new field names
+        # Support both old and new field names - use actual database column names from kegiatan table
         nama_kegiatan = data.get('nama_kegiatan')
-        deskripsi = data.get('deskripsi')
         lokasi = data.get('lokasi') or data.get('tempat')
         tanggal_kegiatan = data.get('tanggal_kegiatan') or data.get('tanggal')
-        NULL = data.get('NULL') or data.get('tanggal')
         waktu_kegiatan = data.get('waktu_kegiatan') or data.get('waktu')
-        waktu_selesai = data.get('waktu_selesai') or data.get('waktu')
-        penanggungjawab = data.get('penanggungjawab') or data.get('dibuat_oleh')
+        penanggung_jawab = data.get('penanggung_jawab') or data.get('penanggungjawab') or data.get('dibuat_oleh')
         kategori = data.get('kategori', 'Lainnya')
         status = data.get('status', 'Direncanakan')
         user_id = data.get('user_id')
+        sasaran_kegiatan = data.get('sasaran_kegiatan')
+        biaya = data.get('biaya', 0)
+        keterangan = data.get('keterangan')
 
         # Validate required fields
         if not nama_kegiatan:
@@ -259,52 +259,45 @@ def add_kegiatan():
         if not tanggal_kegiatan:
             return jsonify({'status': 'error', 'message': 'tanggal_kegiatan is required'}), 400
 
-        # Build query based on column existence
+        # Build query based on column existence - use actual kegiatan table columns
         if has_user_id:
             query = """
-            INSERT INTO kegiatan (nama_kegiatan, deskripsi, lokasi, tanggal_kegiatan,
-                                 NULL, waktu_kegiatan, waktu_selesai,
-                                 penanggungjawab, kategori, status, max_peserta, biaya, keterangan, user_id)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO kegiatan (nama_kegiatan, lokasi, tanggal_kegiatan, waktu_kegiatan,
+                                 penanggung_jawab, kategori, status, biaya, keterangan,
+                                 created_by_pengguna, sasaran_kegiatan)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """
             params = (
                 nama_kegiatan,
-                deskripsi,
                 lokasi,
                 tanggal_kegiatan,
-                NULL,
                 waktu_kegiatan,
-                waktu_selesai,
-                penanggungjawab,
+                penanggung_jawab,
                 kategori,
                 status,
-                data.get('max_peserta'),
-                data.get('biaya', 0),
-                data.get('keterangan'),
-                user_id
+                biaya,
+                keterangan,
+                user_id,
+                sasaran_kegiatan
             )
         else:
-            # Without user_id column
+            # Without user_id/created_by_pengguna column
             query = """
-            INSERT INTO kegiatan (nama_kegiatan, deskripsi, lokasi, tanggal_kegiatan,
-                                 NULL, waktu_kegiatan, waktu_selesai,
-                                 penanggungjawab, kategori, status, max_peserta, biaya, keterangan)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO kegiatan (nama_kegiatan, lokasi, tanggal_kegiatan, waktu_kegiatan,
+                                 penanggung_jawab, kategori, status, biaya, keterangan, sasaran_kegiatan)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """
             params = (
                 nama_kegiatan,
-                deskripsi,
                 lokasi,
                 tanggal_kegiatan,
-                NULL,
                 waktu_kegiatan,
-                waktu_selesai,
-                penanggungjawab,
+                penanggung_jawab,
                 kategori,
                 status,
-                data.get('max_peserta'),
-                data.get('biaya', 0),
-                data.get('keterangan')
+                biaya,
+                keterangan,
+                sasaran_kegiatan
             )
 
         cursor.execute(query, params)
@@ -390,41 +383,37 @@ def update_kegiatan(kegiatan_id):
     try:
         cursor = connection.cursor()
 
-        # Support both old and new field names
+        # Support both old and new field names - use actual database column names from kegiatan table
         nama_kegiatan = data.get('nama_kegiatan')
-        deskripsi = data.get('deskripsi')
         lokasi = data.get('lokasi') or data.get('tempat')
         tanggal_kegiatan = data.get('tanggal_kegiatan') or data.get('tanggal')
-        NULL = data.get('NULL') or data.get('tanggal')
         waktu_kegiatan = data.get('waktu_kegiatan') or data.get('waktu')
-        waktu_selesai = data.get('waktu_selesai') or data.get('waktu')
-        penanggungjawab = data.get('penanggungjawab') or data.get('dibuat_oleh')
+        penanggung_jawab = data.get('penanggung_jawab') or data.get('penanggungjawab') or data.get('dibuat_oleh')
         kategori = data.get('kategori')
         status = data.get('status', 'Direncanakan')
+        sasaran_kegiatan = data.get('sasaran_kegiatan')
+        biaya = data.get('biaya')
+        keterangan = data.get('keterangan')
 
         query = """
         UPDATE kegiatan SET
-            nama_kegiatan = %s, deskripsi = %s, lokasi = %s,
-            tanggal_kegiatan = %s, NULL = %s, waktu_kegiatan = %s,
-            waktu_selesai = %s, penanggungjawab = %s, kategori = %s,
-            status = %s, max_peserta = %s, biaya = %s, keterangan = %s,
+            nama_kegiatan = %s, lokasi = %s, tanggal_kegiatan = %s,
+            waktu_kegiatan = %s, penanggung_jawab = %s, kategori = %s,
+            status = %s, biaya = %s, keterangan = %s, sasaran_kegiatan = %s,
             updated_at = %s
         WHERE id_kegiatan = %s
         """
         params = (
             nama_kegiatan,
-            deskripsi,
             lokasi,
             tanggal_kegiatan,
-            NULL,
             waktu_kegiatan,
-            waktu_selesai,
-            penanggungjawab,
+            penanggung_jawab,
             kategori,
             status,
-            data.get('max_peserta'),
-            data.get('biaya'),
-            data.get('keterangan'),
+            biaya,
+            keterangan,
+            sasaran_kegiatan,
             datetime.datetime.now(),
             kegiatan_id
         )

@@ -15,7 +15,7 @@ class SidebarButton(QPushButton):
         self.setCheckable(True)
         self.setFixedHeight(45)
 
-        # Set style dengan bold font untuk menu utama
+        # Set style dengan bold font untuk menu utama - background putih, teks profesional
         self.setStyleSheet("""
             QPushButton {
                 border: none;
@@ -23,17 +23,17 @@ class SidebarButton(QPushButton):
                 padding: 10px 15px;
                 font-size: 13px;
                 font-weight: bold;
-                background-color: #12101E;
-                color: #FFFFFF;
+                background-color: #FFFFFF;
+                color: #2C3E50;
                 margin: 0px;
             }
             QPushButton:hover {
-                background-color: #1E1C2E;
-                color: #FFFFFF;
+                background-color: #ECF0F1;
+                color: #1A252F;
             }
             QPushButton:checked {
-                background-color: #FFFFFF;
-                color: #12101E;
+                background-color: #2C3E50;
+                color: #FFFFFF;
                 font-weight: bold;
                 margin: 0px;
             }
@@ -80,8 +80,8 @@ class SidebarWidget(QWidget):
         self.setFixedWidth(250)
         self.db_manager = None
 
-        # Set style untuk sidebar utama
-        self.setStyleSheet("background-color: #12101E;")
+        # Set style untuk sidebar utama - background putih
+        self.setStyleSheet("background-color: #FFFFFF;")
 
         # Layout utama
         layout = QVBoxLayout(self)
@@ -99,18 +99,18 @@ class SidebarWidget(QWidget):
         scroll_area.setStyleSheet("""
             QScrollArea {
                 border: none;
-                background-color: #12101E;
+                background-color: #FFFFFF;
             }
             QScrollBar:vertical {
                 width: 8px;
-                background-color: #12101E;
+                background-color: #FFFFFF;
             }
             QScrollBar::handle:vertical {
-                background-color: #2D2B3F;
+                background-color: #BDC3C7;
                 border-radius: 4px;
             }
             QScrollBar::handle:vertical:hover {
-                background-color: #3D3B52;
+                background-color: #95A5A6;
             }
             QScrollBar:horizontal {
                 height: 0px;
@@ -119,7 +119,7 @@ class SidebarWidget(QWidget):
 
         # Container untuk menu navigasi
         menu_container = QWidget()
-        menu_container.setStyleSheet("background-color: #12101E;")
+        menu_container.setStyleSheet("background-color: #FFFFFF;")
         self.menu_layout = QVBoxLayout(menu_container)
         self.menu_layout.setContentsMargins(0, 0, 0, 0)
         self.menu_layout.setSpacing(0)  # Spacing ditangani oleh margin di button
@@ -441,7 +441,7 @@ class SidebarWidget(QWidget):
         """Buat container untuk status API"""
         status_container = QWidget()
         status_container.setFixedHeight(80)
-        status_container.setStyleSheet("background-color: #0D0C15; border-top: 1px solid #2D2B3F;")
+        status_container.setStyleSheet("background-color: #F8F9FA; border-top: 1px solid #E0E0E0;")
 
         status_layout = QVBoxLayout(status_container)
         status_layout.setContentsMargins(15, 8, 15, 8)

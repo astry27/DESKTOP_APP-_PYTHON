@@ -39,34 +39,6 @@ class StrukturComponent(QWidget):
         """Setup UI untuk halaman struktur organisasi dengan tabs"""
         layout = QVBoxLayout(self)
 
-        # Improved header with professional styling
-        header_frame = QFrame()
-        header_frame.setStyleSheet("""
-            QFrame {
-                background-color: white;
-                border-bottom: 2px solid #ecf0f1;
-                padding: 10px 0px;
-            }
-        """)
-        header_layout = QHBoxLayout(header_frame)
-        header_layout.setContentsMargins(10, 0, 10, 0)
-
-        title_label = QLabel("Struktur Organisasi Gereja")
-        title_font = QFont("Arial", 18, QFont.Bold)
-        title_label.setFont(title_font)
-        title_label.setStyleSheet("""
-            QLabel {
-                color: #2c3e50;
-                padding: 2px;
-                background-color: transparent;
-                border: none;
-            }
-        """)
-        header_layout.addWidget(title_label)
-        header_layout.addStretch()
-
-        layout.addWidget(header_frame)
-
         # Create tab widget
         self.tab_widget = QTabWidget()
 

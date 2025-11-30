@@ -149,7 +149,7 @@ def add_jemaat():
             'email': 'email',
             'tanggal_lahir': 'tanggal_lahir',
             'jenis_kelamin': 'jenis_kelamin',
-            'status_menikah': 'status_pernikahan',  # Note: database uses status_pernikahan
+            'status_menikah': 'status_menikah',
 
             # Fields from migration (added via update_jemaat_schema.sql)
             'wilayah_rohani': 'wilayah_rohani',
@@ -308,7 +308,7 @@ def update_jemaat(jemaat_id):
             'kategori': 'kategori',
             'hubungan_keluarga': 'hubungan_keluarga',
             'pendidikan_terakhir': 'pendidikan_terakhir',
-            'status_menikah': 'status_pernikahan',
+            'status_menikah': 'status_menikah',
             'jenis_pekerjaan': 'jenis_pekerjaan',
             'detail_pekerjaan': 'detail_pekerjaan',
             'status_babtis': 'status_babtis',

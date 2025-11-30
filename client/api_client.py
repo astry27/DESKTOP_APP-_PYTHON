@@ -477,8 +477,23 @@ class ApiClient:
 
             response = requests.get(f"{self.base_url}/kegiatan-wr/my", params=params, timeout=self.timeout)
             response.raise_for_status()
-            return {"success": True, "data": response.json()}
+            response_data = response.json()
+
+            # Handle berbagai format response
+            if isinstance(response_data, dict):
+                if response_data.get('success'):
+                    # Format baru: {"success": True, "data": [...]}
+                    return {"success": True, "data": response_data.get('data', [])}
+                else:
+                    # Format error
+                    return {"success": False, "data": response_data.get('error', 'Unknown error')}
+            elif isinstance(response_data, list):
+                # Format lama: list langsung
+                return {"success": True, "data": response_data}
+            else:
+                return {"success": True, "data": []}
         except requests.exceptions.RequestException as e:
+            print(f"[DEBUG] get_my_kegiatan_wr error: {e}")
             return {"success": False, "data": f"Gagal mengambil data kegiatan WR: {e}"}
 
     def add_kegiatan_wr(self, data):
@@ -490,24 +505,31 @@ class ApiClient:
             # Add user_id to data
             data['user_id'] = self.user_data.get('id_pengguna')
 
+            print(f"[DEBUG] Mengirim kegiatan_wr data: {data}")
+
             response = requests.post(f"{self.base_url}/kegiatan-wr",
                                    json=data,
                                    timeout=self.timeout,
                                    headers={'Content-Type': 'application/json'})
 
+            print(f"[DEBUG] Response status: {response.status_code}")
             response.raise_for_status()
             result = response.json()
+            print(f"[DEBUG] Response data: {result}")
             return {"success": True, "data": result}
         except requests.exceptions.HTTPError as e:
             error_msg = f"HTTP Error {e.response.status_code}"
             try:
                 error_detail = e.response.json()
-                error_msg += f": {error_detail.get('message', e.response.text)}"
+                error_msg += f": {error_detail.get('error', error_detail.get('message', e.response.text))}"
             except:
                 error_msg += f": {e.response.text}"
+            print(f"[DEBUG] HTTP Error: {error_msg}")
             return {"success": False, "data": error_msg}
         except requests.exceptions.RequestException as e:
-            return {"success": False, "data": f"Gagal menambahkan kegiatan WR: {e}"}
+            error_msg = f"Gagal menambahkan kegiatan WR: {e}"
+            print(f"[DEBUG] Request error: {error_msg}")
+            return {"success": False, "data": error_msg}
 
     def update_kegiatan_wr(self, kegiatan_id, data):
         """Update kegiatan WR"""

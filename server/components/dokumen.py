@@ -159,16 +159,16 @@ class UploadDialog(QDialog):
         self.type_combo = QComboBox()
         self.type_combo.addItem("-- Pilih Kategori Dokumen --")  # Default non-selectable placeholder
         self.type_combo.addItems([
-            "Dokumen Sakramental & Liturgi",
-            "Dokumen Data Umat (Pastoral)",
-            "Dokumen Administrasi & Surat-Menyurat",
-            "Dokumen Keuangan",
-            "Dokumen Aset & Inventaris",
-            "Dokumen Organisasi & Program Pastoral",
-            "Dokumen Katekese & Pembinaan",
-            "Dokumen Kegiatan & Dokumentasi",
-            "Dokumen Arsip Digital & Media",
-            "Dokumen Lainnya"
+            "Sakramental & Liturgi",
+            "Data Umat (Pastoral)",
+            "Administrasi & Surat-Menyurat",
+            "Keuangan",
+            "Aset & Inventaris",
+            "Organisasi & Program Pastoral",
+            "Katekese & Pembinaan",
+            "Kegiatan & Dokumentasi",
+            "Arsip Digital & Media",
+            "Lainnya"
         ])
         self.type_combo.setCurrentIndex(0)  # Set to placeholder
         form_layout.addRow(jenis_label, self.type_combo)
@@ -426,13 +426,13 @@ class DokumenComponent(QWidget):
         layout.addWidget(header)
         
         toolbar_layout = QHBoxLayout()
-        
+
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("Cari dokumen...")
         self.search_input.textChanged.connect(self.filter_data)
         toolbar_layout.addWidget(QLabel("Cari:"))
         toolbar_layout.addWidget(self.search_input)
-        
+
         self.upload_button = QPushButton("Upload Dokumen")
         self.upload_button.clicked.connect(self.upload_document)
         # Add upload icon
@@ -455,33 +455,75 @@ class DokumenComponent(QWidget):
         """)
         toolbar_layout.addWidget(self.upload_button)
 
-        # Filter Jenis Dokumen menggunakan QComboBox
-        toolbar_layout.addWidget(QLabel("Filter Jenis:"))
-        self.filter_doc_type = QComboBox()
-        self.filter_doc_type.addItems([
+        # Filter Kategori Dokumen menggunakan QComboBox
+        toolbar_layout.addWidget(QLabel("Kategori:"))
+        self.filter_kategori = QComboBox()
+        self.filter_kategori.addItems([
             "Semua",
-            "Dokumen Sakramental & Liturgi",
-            "Dokumen Data Umat (Pastoral)",
-            "Dokumen Administrasi & Surat-Menyurat",
-            "Dokumen Keuangan",
-            "Dokumen Aset & Inventaris",
-            "Dokumen Organisasi & Program Pastoral",
-            "Dokumen Katekese & Pembinaan",
-            "Dokumen Kegiatan & Dokumentasi",
-            "Dokumen Arsip Digital & Media",
-            "Dokumen Lainnya"
+            "Sakramental & Liturgi",
+            "Data Umat (Pastoral)",
+            "Administrasi & Surat-Menyurat",
+            "Keuangan",
+            "Aset & Inventaris",
+            "Organisasi & Program Pastoral",
+            "Katekese & Pembinaan",
+            "Kegiatan & Dokumentasi",
+            "Arsip Digital & Media",
+            "Lainnya"
         ])
-        self.filter_doc_type.setFixedWidth(220)
-        self.filter_doc_type.currentTextChanged.connect(self.apply_filters)
-        toolbar_layout.addWidget(self.filter_doc_type)
+        self.filter_kategori.setFixedWidth(200)
+        self.filter_kategori.currentTextChanged.connect(self.apply_filters)
+        toolbar_layout.addWidget(self.filter_kategori)
 
-        # Filter Jenis File menggunakan QComboBox
-        toolbar_layout.addWidget(QLabel("Filter File:"))
-        self.filter_file_type = QComboBox()
-        self.filter_file_type.addItems(["Semua", ".DOCX", ".PDF", ".TXT", ".XLS", ".PPT", ".JPG", ".JPEG", ".PNG", "Lainnya"])
-        self.filter_file_type.setFixedWidth(120)
-        self.filter_file_type.currentTextChanged.connect(self.apply_filters)
-        toolbar_layout.addWidget(self.filter_file_type)
+        # Filter Bentuk Dokumen menggunakan QComboBox
+        toolbar_layout.addWidget(QLabel("Bentuk:"))
+        self.filter_bentuk = QComboBox()
+        self.filter_bentuk.addItems([
+            "Semua",
+            "Surat Masuk",
+            "Surat Keluar",
+            "Proposal",
+            "Laporan",
+            "Laporan Pertanggungjawaban (LPJ)",
+            "Notulen",
+            "Daftar Hadir",
+            "Formulir",
+            "Sertifikat/Piagam",
+            "Jadwal/Agenda/Calendar",
+            "Panduan/Pedoman",
+            "SOP (Standar Operasional Prosedur)",
+            "Rencana Anggaran",
+            "Kuitansi",
+            "Invoice/Faktur",
+            "Bukti Pembayaran/Bukti Transfer",
+            "Daftar Inventaris",
+            "Dokumen Kontrak/Perjanjian",
+            "Dokumen Legal Aset",
+            "Arsip Dokumentasi",
+            "Publikasi/Media (poster, brosur, banner, konten medsos)",
+            "Database/Spreadsheet Data (arsip digital)",
+            "Lainnya"
+        ])
+        self.filter_bentuk.setFixedWidth(180)
+        self.filter_bentuk.currentTextChanged.connect(self.apply_filters)
+        toolbar_layout.addWidget(self.filter_bentuk)
+
+        # Filter Format File (berdasarkan ekstensi) menggunakan QComboBox
+        toolbar_layout.addWidget(QLabel("Format:"))
+        self.filter_format = QComboBox()
+        self.filter_format.addItems([
+            "Semua",
+            "PDF",
+            "Word (DOCX)",
+            "Excel (XLSX)",
+            "PowerPoint (PPT)",
+            "Image (JPG, PNG)",
+            "Text (TXT)",
+            "Lainnya"
+        ])
+        self.filter_format.setFixedWidth(150)
+        self.filter_format.currentTextChanged.connect(self.apply_filters)
+        toolbar_layout.addWidget(self.filter_format)
 
         toolbar_layout.addStretch()
         layout.addLayout(toolbar_layout)
@@ -527,21 +569,21 @@ class DokumenComponent(QWidget):
         table.setHorizontalHeader(custom_header)
 
         table.setHorizontalHeaderLabels([
-            "Nama Dokumen", "Jenis Dokumen", "Keterangan", "Ukuran", "Tipe File", "Upload By", "Tanggal Upload", "Aksi"
+            "Nama Dokumen", "Kategori", "Bentuk", "Ukuran", "Keterangan", "Upload By", "Tanggal Upload", "Aksi"
         ])
 
         # Apply professional table styling matching struktur.py
         self.apply_professional_table_style(table)
 
         # Set initial column widths with better proportions for full layout
-        table.setColumnWidth(0, 200)   # Nama Dokumen - wider for content
-        table.setColumnWidth(1, 130)   # Jenis Dokumen
-        table.setColumnWidth(2, 180)   # Keterangan - wider for description text
-        table.setColumnWidth(3, 80)    # Ukuran
-        table.setColumnWidth(4, 100)   # Tipe File
+        table.setColumnWidth(0, 200)   # Nama Dokumen
+        table.setColumnWidth(1, 140)   # Kategori Dokumen
+        table.setColumnWidth(2, 140)   # Bentuk Dokumen
+        table.setColumnWidth(3, 100)   # Ukuran File
+        table.setColumnWidth(4, 150)   # Keterangan
         table.setColumnWidth(5, 120)   # Upload By
-        table.setColumnWidth(6, 130)   # Tanggal Upload
-        table.setColumnWidth(7, 100)   # Aksi
+        table.setColumnWidth(6, 140)   # Tanggal Upload
+        table.setColumnWidth(7, 80)    # Aksi
 
         # Excel-like column resizing - all columns can be resized
         header = table.horizontalHeader()
@@ -676,27 +718,57 @@ class DokumenComponent(QWidget):
     def apply_filters(self):
         """Terapkan filter ke dokumen berdasarkan dropdown selections"""
         # Get current filter values from dropdowns
-        filter_doc_type = self.filter_doc_type.currentText() if hasattr(self, 'filter_doc_type') else "Semua"
-        filter_file_type = self.filter_file_type.currentText() if hasattr(self, 'filter_file_type') else "Semua"
+        filter_kategori = self.filter_kategori.currentText() if hasattr(self, 'filter_kategori') else "Semua"
+        filter_bentuk = self.filter_bentuk.currentText() if hasattr(self, 'filter_bentuk') else "Semua"
+        filter_format = self.filter_format.currentText() if hasattr(self, 'filter_format') else "Semua"
 
         filtered_docs = self.all_documents.copy()
 
-        # Filter berdasarkan jenis dokumen
-        if filter_doc_type != "Semua":
+        # Filter berdasarkan kategori dokumen
+        if filter_kategori != "Semua":
             filtered_docs = [doc for doc in filtered_docs
-                           if (doc.get('jenis_dokumen', '') == filter_doc_type or
-                               doc.get('document_type', '') == filter_doc_type or
-                               doc.get('category', '') == filter_doc_type)]
+                           if doc.get('kategori_file', '') == filter_kategori]
 
-        # Filter berdasarkan jenis file
-        if filter_file_type != "Semua":
-            if filter_file_type == "Lainnya":
-                common_types = ['.DOCX', '.PDF', '.TXT', '.XLS', '.PPT', '.JPG', '.JPEG', '.PNG']
-                filtered_docs = [doc for doc in filtered_docs
-                               if not any(doc.get('nama_dokumen', '').upper().endswith(ext) for ext in common_types)]
-            else:
-                filtered_docs = [doc for doc in filtered_docs
-                               if doc.get('nama_dokumen', '').upper().endswith(filter_file_type)]
+        # Filter berdasarkan bentuk dokumen
+        if filter_bentuk != "Semua":
+            filtered_docs = [doc for doc in filtered_docs
+                           if (doc.get('bentuk_dokumen', '') == filter_bentuk or
+                               doc.get('bentuk', '') == filter_bentuk or
+                               doc.get('kategori_file', '') == filter_bentuk)]
+
+        # Filter berdasarkan format file (ekstensi)
+        if filter_format != "Semua":
+            filtered_docs_by_format = []
+            for doc in filtered_docs:
+                nama_dokumen = doc.get('nama_dokumen', '').upper()
+
+                if filter_format == "PDF":
+                    if nama_dokumen.endswith('.PDF'):
+                        filtered_docs_by_format.append(doc)
+                elif filter_format == "Word (DOCX)":
+                    if nama_dokumen.endswith('.DOCX') or nama_dokumen.endswith('.DOC'):
+                        filtered_docs_by_format.append(doc)
+                elif filter_format == "Excel (XLSX)":
+                    if nama_dokumen.endswith('.XLSX') or nama_dokumen.endswith('.XLS'):
+                        filtered_docs_by_format.append(doc)
+                elif filter_format == "PowerPoint (PPT)":
+                    if nama_dokumen.endswith('.PPT') or nama_dokumen.endswith('.PPTX'):
+                        filtered_docs_by_format.append(doc)
+                elif filter_format == "Image (JPG, PNG)":
+                    if (nama_dokumen.endswith('.JPG') or nama_dokumen.endswith('.JPEG') or
+                        nama_dokumen.endswith('.PNG') or nama_dokumen.endswith('.GIF') or
+                        nama_dokumen.endswith('.BMP')):
+                        filtered_docs_by_format.append(doc)
+                elif filter_format == "Text (TXT)":
+                    if nama_dokumen.endswith('.TXT') or nama_dokumen.endswith('.LOG') or nama_dokumen.endswith('.CSV'):
+                        filtered_docs_by_format.append(doc)
+                elif filter_format == "Lainnya":
+                    common_types = ['.PDF', '.DOCX', '.DOC', '.XLSX', '.XLS', '.PPT', '.PPTX',
+                                   '.JPG', '.JPEG', '.PNG', '.GIF', '.BMP', '.TXT', '.LOG', '.CSV']
+                    if not any(nama_dokumen.endswith(ext) for ext in common_types):
+                        filtered_docs_by_format.append(doc)
+
+            filtered_docs = filtered_docs_by_format
 
         self.filtered_documents = filtered_docs
         self.update_table_display(self.filtered_documents)
@@ -779,15 +851,20 @@ class DokumenComponent(QWidget):
                 self.filtered_documents = self.all_documents.copy()
 
                 # Reset filter dropdowns ke "Semua"
-                if hasattr(self, 'filter_doc_type'):
-                    self.filter_doc_type.blockSignals(True)
-                    self.filter_doc_type.setCurrentText("Semua")
-                    self.filter_doc_type.blockSignals(False)
+                if hasattr(self, 'filter_kategori'):
+                    self.filter_kategori.blockSignals(True)
+                    self.filter_kategori.setCurrentText("Semua")
+                    self.filter_kategori.blockSignals(False)
 
-                if hasattr(self, 'filter_file_type'):
-                    self.filter_file_type.blockSignals(True)
-                    self.filter_file_type.setCurrentText("Semua")
-                    self.filter_file_type.blockSignals(False)
+                if hasattr(self, 'filter_bentuk'):
+                    self.filter_bentuk.blockSignals(True)
+                    self.filter_bentuk.setCurrentText("Semua")
+                    self.filter_bentuk.blockSignals(False)
+
+                if hasattr(self, 'filter_format'):
+                    self.filter_format.blockSignals(True)
+                    self.filter_format.setCurrentText("Semua")
+                    self.filter_format.blockSignals(False)
 
                 self.update_table_display(self.filtered_documents)
                 self.update_statistics()
@@ -829,40 +906,22 @@ class DokumenComponent(QWidget):
                     nama_dokumen = 'Unknown Document'
 
             self.table_widget.setItem(i, 0, QTableWidgetItem(str(nama_dokumen)))
-            
-            # Jenis dokumen - diambil dari input saat upload dengan fallback yang lebih lengkap
-            jenis_dokumen = (doc.get('jenis_dokumen', '') or 
-                           doc.get('document_type', '') or 
-                           doc.get('category', '') or 
-                           doc.get('type', '') or 
-                           doc.get('doc_type', '') or
-                           doc.get('file_category', '') or
-                           doc.get('document_category', '') or '')
-            
-            # Debug logging untuk jenis dokumen
-            if i == 0 and not jenis_dokumen:  # Hanya log jika document type kosong
-                self.log_message.emit(f"WARNING: Document type empty for first document")
-                available_keys = [k for k in doc.keys() if 'jenis' in k.lower() or 'dokumen' in k.lower() or 'document' in k.lower() or 'type' in k.lower() or 'category' in k.lower()]
-                if available_keys:
-                    self.log_message.emit(f"Available type-related keys: {available_keys}")
-                    for key in available_keys:
-                        value = doc.get(key, '')
-                        self.log_message.emit(f"  {key}: '{value}'")
-            
-            self.table_widget.setItem(i, 1, QTableWidgetItem(str(jenis_dokumen)))
 
-            # Keterangan
-            keterangan = doc.get('keterangan', '') or ''
-            # Truncate long description for table display
-            if len(keterangan) > 50:
-                keterangan_display = keterangan[:47] + "..."
-            else:
-                keterangan_display = keterangan
-            keterangan_item = QTableWidgetItem(str(keterangan_display))
-            keterangan_item.setToolTip(str(keterangan))  # Show full text on hover
-            self.table_widget.setItem(i, 2, keterangan_item)
+            # [1] Kategori Dokumen - diambil dari kategori_file atau bentuk_dokumen
+            kategori_dokumen = (doc.get('kategori_file', '') or
+                              doc.get('bentuk_dokumen', '') or
+                              doc.get('jenis_dokumen', '') or
+                              doc.get('document_type', '') or
+                              doc.get('category', '') or '')
+            self.table_widget.setItem(i, 1, QTableWidgetItem(str(kategori_dokumen)))
 
-            # Ukuran file
+            # [2] Bentuk Dokumen - dari bentuk_dokumen atau kategori_file
+            bentuk_dokumen = (doc.get('bentuk_dokumen', '') or
+                            doc.get('bentuk', '') or
+                            doc.get('kategori_file', '') or '')
+            self.table_widget.setItem(i, 2, QTableWidgetItem(str(bentuk_dokumen)))
+
+            # [3] Ukuran file
             size_bytes = doc.get('ukuran_file', 0) or doc.get('file_size', 0) or doc.get('size', 0) or 0
             try:
                 size_bytes = int(size_bytes)
@@ -876,62 +935,38 @@ class DokumenComponent(QWidget):
                 size_str = "0 B"
             self.table_widget.setItem(i, 3, QTableWidgetItem(size_str))
 
-            # Tipe file - diambil dari ekstensi file
-            file_type = doc.get('tipe_file', '') or doc.get('mime_type', '') or doc.get('content_type', '') or ''
-            file_name = doc.get('nama_dokumen', '') or doc.get('file_name', '') or doc.get('filename', '') or ''
-            
-            # Jika file_type kosong, coba ambil dari ekstensi file
-            if not file_type and file_name:
-                file_extension = file_name.split('.')[-1].lower() if '.' in file_name else ''
-                if file_extension == 'pdf':
-                    type_display = "PDF"
-                elif file_extension in ['docx', 'doc']:
-                    type_display = "Word"
-                elif file_extension in ['xlsx', 'xls']:
-                    type_display = "Excel"
-                elif file_extension in ['pptx', 'ppt']:
-                    type_display = "PowerPoint"
-                elif file_extension in ['jpg', 'jpeg', 'png', 'gif']:
-                    type_display = "Image"
-                elif file_extension == 'txt':
-                    type_display = "Text"
-                else:
-                    type_display = file_extension.upper() if file_extension else "Unknown"
+            # [4] Keterangan singkat (dari keterangan field)
+            keterangan = doc.get('keterangan', '') or ''
+            if len(keterangan) > 50:
+                keterangan_display = keterangan[:47] + "..."
             else:
-                # Parse dari mime type
-                if 'pdf' in file_type.lower():
-                    type_display = "PDF"
-                elif 'word' in file_type.lower() or 'document' in file_type.lower():
-                    type_display = "Word"
-                elif 'excel' in file_type.lower() or 'sheet' in file_type.lower():
-                    type_display = "Excel"
-                elif 'powerpoint' in file_type.lower() or 'presentation' in file_type.lower():
-                    type_display = "PowerPoint"
-                elif 'image' in file_type.lower():
-                    type_display = "Image"
-                elif 'text' in file_type.lower():
-                    type_display = "Text"
-                else:
-                    type_display = file_type.split('/')[-1].upper() if '/' in file_type else file_type or "Unknown"
+                keterangan_display = keterangan
+            keterangan_item = QTableWidgetItem(str(keterangan_display))
+            keterangan_item.setToolTip(str(keterangan))
+            self.table_widget.setItem(i, 4, keterangan_item)
 
-            self.table_widget.setItem(i, 4, QTableWidgetItem(type_display))
-
-            # Upload by - gunakan method get_uploader_name untuk lookup yang benar
+            # [5] Upload by
             upload_by = self.get_uploader_name(doc)
             self.table_widget.setItem(i, 5, QTableWidgetItem(str(upload_by)))
-            
-            # Tanggal upload
-            upload_date = (doc.get('upload_date', '') or 
-                          doc.get('tanggal_upload', '') or 
-                          doc.get('created_at', '') or 
-                          doc.get('date_uploaded', '') or '')
+
+            # [6] Tanggal Upload
+            upload_date = (doc.get('upload_date', '') or
+                          doc.get('tanggal_upload', '') or
+                          doc.get('created_at', '') or '')
             if upload_date:
                 if isinstance(upload_date, str):
                     try:
+                        # Try ISO format first (2025-11-26T22:18:08)
                         parsed_date = datetime.datetime.fromisoformat(upload_date.replace('Z', '+00:00'))
                         date_str = parsed_date.strftime('%d/%m/%Y %H:%M')
                     except:
-                        date_str = str(upload_date)
+                        try:
+                            # Try HTTP date format (Wed, 26 Nov 2025 22:18:08 GMT)
+                            parsed_date = datetime.datetime.strptime(upload_date, '%a, %d %b %Y %H:%M:%S %Z')
+                            date_str = parsed_date.strftime('%d/%m/%Y %H:%M')
+                        except:
+                            # Fallback: show as is
+                            date_str = str(upload_date)[:20]  # Truncate to 20 chars
                 else:
                     date_str = str(upload_date)
             else:
@@ -1405,30 +1440,18 @@ class DokumenComponent(QWidget):
 
             self.log_message.emit("Memanggil database_manager.upload_file...")
 
+            # Get admin ID if available
+            admin_id = self.current_admin.get('id_admin') if self.current_admin else None
+
             # Upload file melalui API dengan informasi tambahan
-            try:
-                # Try with new parameters first (including bentuk and keterangan)
-                success, result = self.database_manager.upload_file(
-                    file_path,
-                    document_name=document_name,
-                    document_type=document_type,
-                    keterangan=keterangan,
-                    bentuk=bentuk
-                )
-                self.log_message.emit(f"DEBUG Upload - API call dengan parameter berhasil")
-            except TypeError:
-                # Fallback to old method if new parameters not supported
-                self.log_message.emit("Database manager belum mendukung parameter keterangan, mencoba tanpa keterangan...")
-                try:
-                    success, result = self.database_manager.upload_file(
-                        file_path,
-                        document_name=document_name,
-                        document_type=document_type
-                    )
-                except TypeError:
-                    # Final fallback to basic method
-                    self.log_message.emit("Database manager belum mendukung parameter baru, menggunakan method lama...")
-                    success, result = self.database_manager.upload_file(file_path)
+            success, result = self.database_manager.upload_file(
+                file_path,
+                document_name=document_name,
+                document_type=document_type,
+                keterangan=keterangan,
+                kategori=bentuk,
+                admin_id=admin_id
+            )
             
             self.progress_bar.setValue(75)
             QApplication.processEvents()

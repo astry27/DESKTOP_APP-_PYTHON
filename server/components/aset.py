@@ -5,12 +5,54 @@ import csv
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                             QPushButton, QTableWidget, QTableWidgetItem,
                             QHeaderView, QGroupBox, QMessageBox,
-                            QFileDialog, QAbstractItemView, QFrame, QLineEdit, QComboBox)
+                            QFileDialog, QAbstractItemView, QFrame, QLineEdit, QComboBox,
+                            QStyle, QStyledItemDelegate)
 from PyQt5.QtCore import pyqtSignal, QDate, Qt, QSize, QRect, QTimer
 from PyQt5.QtGui import QIcon, QFont, QColor, QBrush, QPainter
 
 # Import dialog aset yang sudah diupgrade
 from .dialogs import AsetDialog
+
+# Custom delegate untuk preserve warna cell saat selection
+class ColorPreservingDelegate(QStyledItemDelegate):
+    """Custom delegate yang mempertahankan warna cell bahkan saat selected"""
+    def paint(self, painter, option, index):
+        # Get the background and foreground colors from the item data
+        bg_color = index.data(Qt.BackgroundRole)
+        fg_color = index.data(Qt.ForegroundRole)
+
+        # If we have custom colors, use them
+        if bg_color and fg_color:
+            # Paint background
+            painter.save()
+            painter.fillRect(option.rect, bg_color)
+
+            # Paint text - extract color from brush if needed
+            if isinstance(fg_color, QBrush):
+                painter.setPen(fg_color.color())
+            else:
+                painter.setPen(fg_color)
+
+            text = index.data(Qt.DisplayRole)
+            font = index.data(Qt.FontRole)
+            if font:
+                painter.setFont(font)
+
+            # Center alignment for text
+            painter.drawText(option.rect, Qt.AlignCenter | Qt.AlignVCenter, str(text))
+
+            # Draw focus border if focused
+            if option.state & QStyle.State_HasFocus:
+                pen = painter.pen()
+                pen.setColor(QColor(0, 120, 212))  # #0078d4
+                pen.setWidth(2)
+                painter.setPen(pen)
+                painter.drawRect(option.rect.adjusted(0, 0, -1, -1))
+
+            painter.restore()
+        else:
+            # Use default delegate for non-colored cells
+            super().paint(painter, option, index)
 
 class WordWrapHeaderView(QHeaderView):
     """Custom header view with word wrap and center alignment support"""
@@ -358,13 +400,12 @@ class AsetComponent(QWidget):
         header.setMinimumSectionSize(50)
         header.setMaximumSectionSize(500)
 
-        # Excel-style table body styling
+        # Excel-style table body styling - carefully tuned to preserve colored cells
         table.setStyleSheet("""
             QTableWidget {
                 gridline-color: #d4d4d4;
                 background-color: white;
                 border: 1px solid #d4d4d4;
-                selection-background-color: #cce7ff;
                 font-family: 'Calibri', 'Segoe UI', Arial, sans-serif;
                 font-size: 9pt;
                 outline: none;
@@ -375,13 +416,18 @@ class AsetComponent(QWidget):
                 min-height: 18px;
             }
             QTableWidget::item:selected {
-                background-color: #cce7ff;
-                color: black;
+                border: 2px solid #0078d4;
+                outline: none;
             }
             QTableWidget::item:focus {
-                border: 1px solid #0078d4;
+                border: 2px solid #0078d4;
+                outline: none;
             }
         """)
+
+        # Apply custom delegate untuk preserve colored cells
+        delegate = ColorPreservingDelegate(table)
+        table.setItemDelegate(delegate)
 
         # Excel-style settings
         header = table.horizontalHeader()
@@ -613,34 +659,10 @@ class AsetComponent(QWidget):
             nilai_item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
             self.aset_table.setItem(row_pos, 7, nilai_item)
 
-            # Kondisi dengan styling - Center aligned
+            # Kondisi - Center aligned, no styling
             kondisi = str(row_data.get('kondisi', '')).strip()
             kondisi_item = QTableWidgetItem(kondisi)
             kondisi_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter)
-            # Make this cell non-editable so the styled text is always displayed
-            kondisi_item.setFlags(kondisi_item.flags() & ~Qt.ItemIsEditable)
-
-            # Apply bold font for better visibility
-            font = QFont()
-            font.setBold(True)
-            font.setPointSize(9)
-            kondisi_item.setFont(font)
-
-            # Set background and foreground colors based on kondisi value
-            if kondisi == 'Baik':
-                kondisi_item.setBackground(QBrush(QColor(39, 174, 96)))  # Green
-                kondisi_item.setForeground(QBrush(QColor(255, 255, 255)))  # White text
-            elif kondisi in ['Rusak Ringan', 'Rusak Berat']:
-                kondisi_item.setBackground(QBrush(QColor(231, 76, 60)))  # Red
-                kondisi_item.setForeground(QBrush(QColor(255, 255, 255)))  # White text
-            elif kondisi == 'Tidak Terpakai':
-                kondisi_item.setBackground(QBrush(QColor(192, 57, 43)))  # Dark Red
-                kondisi_item.setForeground(QBrush(QColor(255, 255, 255)))  # White text
-            else:
-                # Default - light gray background with dark text for visibility
-                kondisi_item.setBackground(QBrush(QColor(230, 230, 230)))
-                kondisi_item.setForeground(QBrush(QColor(0, 0, 0)))
-
             self.aset_table.setItem(row_pos, 8, kondisi_item)
 
             # Lokasi - Left aligned
@@ -648,34 +670,10 @@ class AsetComponent(QWidget):
             lokasi_item.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
             self.aset_table.setItem(row_pos, 9, lokasi_item)
 
-            # Status dengan styling - Center aligned
+            # Status - Center aligned, no styling
             status = str(row_data.get('status', '')).strip()
             status_item = QTableWidgetItem(status)
             status_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter)
-            # Make this cell non-editable so the styled text is always displayed
-            status_item.setFlags(status_item.flags() & ~Qt.ItemIsEditable)
-
-            # Apply bold font for better visibility
-            font = QFont()
-            font.setBold(True)
-            font.setPointSize(9)
-            status_item.setFont(font)
-
-            # Set background and foreground colors based on status value
-            if status == 'Aktif':
-                status_item.setBackground(QBrush(QColor(39, 174, 96)))  # Green
-                status_item.setForeground(QBrush(QColor(255, 255, 255)))  # White text
-            elif status == 'Dalam Perbaikan':
-                status_item.setBackground(QBrush(QColor(243, 156, 18)))  # Orange
-                status_item.setForeground(QBrush(QColor(255, 255, 255)))  # White text
-            elif status in ['Tidak Aktif', 'Dijual/Dihapus']:
-                status_item.setBackground(QBrush(QColor(192, 57, 43)))  # Dark Red
-                status_item.setForeground(QBrush(QColor(255, 255, 255)))  # White text
-            else:
-                # Default - light gray background with dark text for visibility
-                status_item.setBackground(QBrush(QColor(230, 230, 230)))
-                status_item.setForeground(QBrush(QColor(0, 0, 0)))
-
             self.aset_table.setItem(row_pos, 10, status_item)
 
             # Penanggung Jawab - Left aligned

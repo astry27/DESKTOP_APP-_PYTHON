@@ -11,7 +11,18 @@
       "Bash(done)",
       "Bash(timeout 15 python:*)",
       "Bash(timeout 5 bash -c 'sleep 3 && curl -s \"\"http://localhost:5000/dokumen/files\"\" | head -100')",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(grep:*)",
+      "Bash(timeout 5 bash -c 'sleep 2 && curl -s \"\"http://localhost:5000/dokumen/files\"\" | head -50')",
+      "Bash(timeout 10 curl -v \"https://enternal.my.id/flask/dokumen/upload\")",
+      "Bash(timeout:*)",
+      "Bash(powershell -Command:*)",
+      "Bash(del:*)",
+      "Bash(mysql:*)",
+      "Bash(git log:*)",
+      "Bash(taskkill /F /IM python.exe)",
+      "Bash(git diff:*)",
+      "Bash(git restore:*)"
     ],
     "deny": [],
     "ask": []

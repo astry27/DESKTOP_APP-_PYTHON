@@ -146,31 +146,34 @@ class KegiatanWRWidget(QWidget):
         table_layout.setContentsMargins(0, 0, 0, 0)
         table_layout.setSpacing(0)
 
-        self.kegiatan_table = QTableWidget(0, 9)
+        self.kegiatan_table = QTableWidget(0, 12)
 
         # Set custom header with word wrap and center alignment
         custom_header_kegiatan = WordWrapHeaderView(Qt.Horizontal, self.kegiatan_table)
         self.kegiatan_table.setHorizontalHeader(custom_header_kegiatan)
 
-        # New column order: Kategori, Nama Kegiatan, Keterangan, Lokasi, Tanggal, Waktu, Biaya, Penanggung Jawab, Status
+        # Column order sesuai client: Kategori, Nama Kegiatan, Sasaran Kegiatan, Tujuan Kegiatan, Tempat Kegiatan, Tanggal Pelaksanaan, Waktu Pelaksanaan, Penanggung Jawab, User, Status Kegiatan, Keterangan
         self.kegiatan_table.setHorizontalHeaderLabels([
-            "Kategori", "Nama Kegiatan", "Keterangan", "Lokasi", "Tanggal Kegiatan",
-            "Waktu Kegiatan", "Biaya", "Penanggung Jawab", "Status"
+            "Kategori", "Nama Kegiatan", "Sasaran Kegiatan", "Tujuan Kegiatan",
+            "Tempat Kegiatan", "Tanggal Pelaksanaan",
+            "Waktu Pelaksanaan", "Penanggung Jawab", "User", "Status Kegiatan", "Keterangan"
         ])
 
         # Apply professional table styling
         self.apply_professional_table_style(self.kegiatan_table)
 
-        # Set column widths - sesuai new order
+        # Set column widths - sesuai client order
         self.kegiatan_table.setColumnWidth(0, 100)   # Kategori
-        self.kegiatan_table.setColumnWidth(1, 180)   # Nama Kegiatan
-        self.kegiatan_table.setColumnWidth(2, 150)   # Keterangan
-        self.kegiatan_table.setColumnWidth(3, 120)   # Lokasi
-        self.kegiatan_table.setColumnWidth(4, 120)   # Tanggal Kegiatan
-        self.kegiatan_table.setColumnWidth(5, 110)   # Waktu Kegiatan
-        self.kegiatan_table.setColumnWidth(6, 100)   # Biaya
-        self.kegiatan_table.setColumnWidth(7, 130)   # Penanggung Jawab
-        self.kegiatan_table.setColumnWidth(8, 100)   # Status
+        self.kegiatan_table.setColumnWidth(1, 200)   # Nama Kegiatan
+        self.kegiatan_table.setColumnWidth(2, 180)   # Sasaran Kegiatan
+        self.kegiatan_table.setColumnWidth(3, 180)   # Tujuan Kegiatan
+        self.kegiatan_table.setColumnWidth(4, 150)   # Tempat Kegiatan
+        self.kegiatan_table.setColumnWidth(5, 150)   # Tanggal Pelaksanaan
+        self.kegiatan_table.setColumnWidth(6, 150)   # Waktu Pelaksanaan
+        self.kegiatan_table.setColumnWidth(7, 120)   # Penanggung Jawab
+        self.kegiatan_table.setColumnWidth(8, 120)   # User
+        self.kegiatan_table.setColumnWidth(9, 120)   # Status Kegiatan
+        self.kegiatan_table.setColumnWidth(10, 200)  # Keterangan
 
         header = self.kegiatan_table.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.Interactive)
@@ -438,77 +441,72 @@ class KegiatanWRWidget(QWidget):
 
 
     def populate_table(self, kegiatan_list):
-        """Populate table with kegiatan data - sesuai struktur database yang sebenarnya"""
+        """Populate table - sesuai struktur client + kolom User"""
         self.kegiatan_table.setRowCount(0)
 
         for row_idx, kegiatan in enumerate(kegiatan_list):
             self.kegiatan_table.insertRow(row_idx)
 
-            # Column 0: Kategori (database field: kategori)
-            kategori_item = QTableWidgetItem(kegiatan.get('kategori', 'N/A'))
+            # 0. Kategori
+            kategori_item = QTableWidgetItem(kegiatan.get('kategori', 'Lainnya'))
+            kategori_item.setTextAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+            kategori_item.setData(Qt.UserRole, kegiatan)
 
-            # Column 1: Nama Kegiatan (database field: nama_kegiatan)
-            nama = kegiatan.get('nama_kegiatan', 'N/A')
-            nama_item = QTableWidgetItem(nama)
+            # 1. Nama Kegiatan
+            nama_item = QTableWidgetItem(kegiatan.get('nama_kegiatan', 'N/A'))
 
-            # Column 2: Keterangan (database field: keterangan only)
-            keterangan = kegiatan.get('keterangan', '')
-            keterangan_item = QTableWidgetItem(str(keterangan))
+            # 2. Sasaran Kegiatan
+            sasaran_item = QTableWidgetItem(kegiatan.get('sasaran_kegiatan', '-'))
 
-            # Column 3: Lokasi (database field: lokasi - renamed from tempat_kegiatan)
-            lokasi = kegiatan.get('lokasi', 'N/A')
-            lokasi_item = QTableWidgetItem(str(lokasi))
+            # 3. Tujuan Kegiatan
+            tujuan_item = QTableWidgetItem(kegiatan.get('tujuan_kegiatan', '-'))
 
-            # Column 4: Tanggal Kegiatan (database field: tanggal_pelaksanaan)
-            tanggal_mulai = kegiatan.get('tanggal_pelaksanaan', 'N/A')
+            # 4. Tempat Kegiatan
+            tempat_item = QTableWidgetItem(kegiatan.get('tempat_kegiatan', 'N/A'))
+
+            # 5. Tanggal Pelaksanaan
+            tanggal_str = kegiatan.get('tanggal_pelaksanaan', 'N/A')
             try:
-                if tanggal_mulai and tanggal_mulai != 'N/A':
-                    if isinstance(tanggal_mulai, str):
-                        # Handle ISO format dengan 'T'
-                        if 'T' in tanggal_mulai:
-                            date_obj = datetime.datetime.fromisoformat(tanggal_mulai.replace('Z', '+00:00')).date()
-                        else:
-                            date_obj = datetime.datetime.strptime(tanggal_mulai.split(' ')[0], '%Y-%m-%d').date()
+                if tanggal_str and tanggal_str != 'N/A':
+                    if 'T' in str(tanggal_str):
+                        dt = datetime.datetime.fromisoformat(str(tanggal_str).replace('Z', '+00:00'))
                     else:
-                        date_obj = tanggal_mulai
-                    formatted_date = date_obj.strftime('%d/%m/%Y')
+                        dt = datetime.datetime.strptime(str(tanggal_str), '%Y-%m-%d')
+                    tanggal_formatted = dt.strftime('%d/%m/%Y')
                 else:
-                    formatted_date = 'N/A'
-            except Exception as e:
-                formatted_date = str(tanggal_mulai)
-            tanggal_item = QTableWidgetItem(formatted_date)
+                    tanggal_formatted = 'N/A'
+            except:
+                tanggal_formatted = str(tanggal_str)
+            tanggal_item = QTableWidgetItem(tanggal_formatted)
+            tanggal_item.setTextAlignment(Qt.AlignCenter | Qt.AlignVCenter)
 
-            # Column 5: Waktu Kegiatan (database field: waktu_mulai)
-            waktu_mulai = kegiatan.get('waktu_mulai', 'N/A')
-            if waktu_mulai and waktu_mulai != 'N/A':
+            # 6. Waktu Pelaksanaan
+            waktu_str = kegiatan.get('waktu_mulai', 'N/A')
+            if waktu_str and waktu_str != 'N/A':
                 try:
-                    if isinstance(waktu_mulai, str) and len(waktu_mulai) > 5:
-                        waktu_mulai = waktu_mulai[:5]
+                    if len(waktu_str) > 5:
+                        waktu_str = waktu_str[:5]
+                    waktu_formatted = f"{waktu_str.replace(':', '.')} WITA - selesai"
                 except:
-                    pass
-            waktu_item = QTableWidgetItem(str(waktu_mulai))
-
-            # Column 6: Biaya (database field: biaya)
-            biaya = kegiatan.get('biaya', '')
-            if biaya and biaya != '':
-                try:
-                    amount = float(str(biaya).replace(',', '').replace('.', ''))
-                    biaya_formatted = f"Rp {amount:,.0f}".replace(',', '.')
-                except:
-                    biaya_formatted = str(biaya)
+                    waktu_formatted = str(waktu_str)
             else:
-                biaya_formatted = '-'
-            biaya_item = QTableWidgetItem(biaya_formatted)
+                waktu_formatted = 'N/A'
+            waktu_item = QTableWidgetItem(waktu_formatted)
+            waktu_item.setTextAlignment(Qt.AlignCenter | Qt.AlignVCenter)
 
-            # Column 7: Penanggung Jawab (database field: penanggung_jawab)
-            penanggung_jawab = kegiatan.get('penanggung_jawab', 'N/A')
-            penanggung_jawab_item = QTableWidgetItem(str(penanggung_jawab))
+            # 7. Penanggung Jawab
+            penanggung_jawab_item = QTableWidgetItem(kegiatan.get('penanggung_jawab', 'N/A'))
 
-            # Column 8: Status (database field: status)
-            status = kegiatan.get('status', 'Direncanakan')
+            # 8. User (username yang input)
+            user_name = kegiatan.get('username', 'Tidak Ada')
+            user_item = QTableWidgetItem(str(user_name))
+            user_item.setTextAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+
+            # 9. Status Kegiatan
+            status = kegiatan.get('status_kegiatan', 'Direncanakan')
             status_item = QTableWidgetItem(str(status))
+            status_item.setTextAlignment(Qt.AlignCenter | Qt.AlignVCenter)
 
-            # Color code status berdasarkan status database
             if status == "Direncanakan":
                 status_item.setBackground(QBrush(QColor("#3498db")))
                 status_item.setForeground(QBrush(QColor("white")))
@@ -521,24 +519,23 @@ class KegiatanWRWidget(QWidget):
             elif status == "Dibatalkan":
                 status_item.setBackground(QBrush(QColor("#e74c3c")))
                 status_item.setForeground(QBrush(QColor("white")))
-            else:
-                status_item.setForeground(QBrush(QColor(0, 0, 0)))  # Black text
 
-            # Store kegiatan data in first column
-            kategori_item.setData(Qt.UserRole, kegiatan)
+            # 10. Keterangan
+            keterangan_item = QTableWidgetItem(kegiatan.get('keterangan', ''))
 
-            # Set items in table - kolom sesuai database yang sebenarnya
+            # Set items ke tabel
             self.kegiatan_table.setItem(row_idx, 0, kategori_item)
             self.kegiatan_table.setItem(row_idx, 1, nama_item)
-            self.kegiatan_table.setItem(row_idx, 2, keterangan_item)
-            self.kegiatan_table.setItem(row_idx, 3, lokasi_item)
-            self.kegiatan_table.setItem(row_idx, 4, tanggal_item)
-            self.kegiatan_table.setItem(row_idx, 5, waktu_item)
-            self.kegiatan_table.setItem(row_idx, 6, biaya_item)
+            self.kegiatan_table.setItem(row_idx, 2, sasaran_item)
+            self.kegiatan_table.setItem(row_idx, 3, tujuan_item)
+            self.kegiatan_table.setItem(row_idx, 4, tempat_item)
+            self.kegiatan_table.setItem(row_idx, 5, tanggal_item)
+            self.kegiatan_table.setItem(row_idx, 6, waktu_item)
             self.kegiatan_table.setItem(row_idx, 7, penanggung_jawab_item)
-            self.kegiatan_table.setItem(row_idx, 8, status_item)
+            self.kegiatan_table.setItem(row_idx, 8, user_item)
+            self.kegiatan_table.setItem(row_idx, 9, status_item)
+            self.kegiatan_table.setItem(row_idx, 10, keterangan_item)
 
-        # Select first row if available
         if kegiatan_list and self.kegiatan_table.rowCount() > 0:
             self.kegiatan_table.selectRow(0)
 

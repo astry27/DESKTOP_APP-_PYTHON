@@ -90,11 +90,20 @@ class KegiatanDialog(QDialog):
 
         # 1. Kategori - sesuai dengan ENUM di database
         self.kategori_input = QComboBox()
+        self.kategori_input.addItem("-- Pilih Kategori --")
         self.kategori_input.addItems([
             "Misa", "Doa", "Sosial", "Pendidikan",
             "Ibadah", "Katekese", "Rohani",
             "Administratif", "Lainnya"
         ])
+        self.kategori_input.setCurrentIndex(0)
+        self.kategori_input.setMinimumHeight(32)
+        # Style placeholder item dengan warna abu-abu
+        self.kategori_input.setStyleSheet("""
+            QComboBox {
+                padding: 4px;
+            }
+        """)
         form_layout.addRow("Kategori: *", self.kategori_input)
 
         # 2. Nama Kegiatan
@@ -151,9 +160,18 @@ class KegiatanDialog(QDialog):
 
         # 7. Status Kegiatan
         self.status_input = QComboBox()
+        self.status_input.addItem("-- Pilih Status --")
         self.status_input.addItems([
             "Direncanakan", "Berlangsung", "Selesai", "Dibatalkan"
         ])
+        self.status_input.setCurrentIndex(0)
+        self.status_input.setMinimumHeight(32)
+        # Style placeholder item dengan warna abu-abu
+        self.status_input.setStyleSheet("""
+            QComboBox {
+                padding: 4px;
+            }
+        """)
         form_layout.addRow("Status Kegiatan: *", self.status_input)
 
         # Keterangan (opsional)
@@ -285,6 +303,10 @@ class KegiatanDialog(QDialog):
 
     def validate(self):
         """Validate form data"""
+        if self.kategori_input.currentIndex() == 0 or self.kategori_input.currentText().startswith("--"):
+            QMessageBox.warning(self, "Validasi", "Kategori harus dipilih")
+            return False
+
         if not self.nama_input.text().strip():
             QMessageBox.warning(self, "Validasi", "Nama kegiatan tidak boleh kosong")
             return False
@@ -295,6 +317,10 @@ class KegiatanDialog(QDialog):
 
         if not self.penanggungjawab_input.text().strip():
             QMessageBox.warning(self, "Validasi", "Penanggung jawab tidak boleh kosong")
+            return False
+
+        if self.status_input.currentIndex() == 0 or self.status_input.currentText().startswith("--"):
+            QMessageBox.warning(self, "Validasi", "Status kegiatan harus dipilih")
             return False
 
         return True
@@ -319,22 +345,20 @@ class KegiatanClientComponent(QWidget):
 
     def load_user_kegiatan_data(self):
         """Load kegiatan WR data from API - user-specific only"""
-        # Clear semua data lama
-        self.kegiatan_data = []
-        self.filtered_data = []
-        self.table_widget.setRowCount(0)
-
         try:
             result = self.api_client.get_my_kegiatan_wr()
+
             if result.get('success'):
-                response_data = result.get('data', {})
-                if isinstance(response_data, dict) and response_data.get('status') == 'success':
-                    self.kegiatan_data = response_data.get('data', [])
-                elif isinstance(response_data, list):
+                response_data = result.get('data')
+
+                # API mengembalikan list langsung
+                if isinstance(response_data, list):
                     self.kegiatan_data = response_data
                 else:
                     self.kegiatan_data = []
             else:
+                error_msg = result.get('data', 'Unknown error')
+                self.log_message.emit(f"Gagal memuat kegiatan WR: {error_msg}")
                 self.kegiatan_data = []
 
             self.filtered_data = self.kegiatan_data.copy()
@@ -344,7 +368,9 @@ class KegiatanClientComponent(QWidget):
             self.log_message.emit(f"Data kegiatan WR berhasil dimuat: {len(self.kegiatan_data)} kegiatan")
 
         except Exception as e:
+            import traceback
             self.log_message.emit(f"Error loading kegiatan WR data: {str(e)}")
+            print(f"[DEBUG] kegiatan_component load_user_kegiatan_data error: {traceback.format_exc()}")
             self.kegiatan_data = []
             self.filtered_data = []
             self.update_table()
