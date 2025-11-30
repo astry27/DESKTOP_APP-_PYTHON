@@ -19,23 +19,25 @@ class VerticalSubMenuButton(QPushButton):
         self.setStyleSheet("""
             QPushButton {
                 border: none;
-                border-radius: 6px;
+                border-radius: 4px;
                 text-align: left;
-                padding: 6px 12px 6px 40px;
+                padding: 8px 12px 8px 40px;
                 font-size: 12px;
                 font-weight: 400;
-                background-color: #F5F6FA;
+                background-color: #FFFFFF;
                 color: #7F8C8D;
-                margin: 0px 8px;
+                margin: 3px 8px;
             }
             QPushButton:hover {
                 background-color: #ECF0F1;
                 color: #2C3E50;
+                font-weight: 500;
             }
             QPushButton:checked {
                 background-color: #3498DB;
                 color: #FFFFFF;
                 font-weight: 500;
+                border-radius: 4px;
             }
         """)
 
@@ -65,11 +67,15 @@ class VerticalSubMenu(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setStyleSheet("background-color: #FFFFFF;")
+        self.setStyleSheet("""
+            QWidget {
+                background-color: #FFFFFF;
+            }
+        """)
 
-        # Layout utama vertikal
+        # Layout utama vertikal dengan padding untuk rounded corners submenu
         self.layout = QVBoxLayout(self)
-        self.layout.setContentsMargins(0, 0, 0, 0)
+        self.layout.setContentsMargins(0, 4, 0, 4)
         self.layout.setSpacing(0)
 
         self.buttons = {}

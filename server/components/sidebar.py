@@ -19,13 +19,14 @@ class SidebarButton(QPushButton):
         self.setStyleSheet("""
             QPushButton {
                 border: none;
+                border-radius: 6px;
                 text-align: left;
                 padding: 10px 15px;
                 font-size: 13px;
                 font-weight: bold;
                 background-color: #FFFFFF;
                 color: #2C3E50;
-                margin: 0px;
+                margin: 4px 8px;
             }
             QPushButton:hover {
                 background-color: #ECF0F1;
@@ -35,7 +36,8 @@ class SidebarButton(QPushButton):
                 background-color: #2C3E50;
                 color: #FFFFFF;
                 font-weight: bold;
-                margin: 0px;
+                border-radius: 6px;
+                margin: 4px 8px;
             }
         """)
 
