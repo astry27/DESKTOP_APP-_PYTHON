@@ -133,7 +133,7 @@ class KegiatanWRWidget(QWidget):
         return filter_group
 
     def create_table(self):
-        """Create table for kegiatan paroki with new column order"""
+        """Create table for kegiatan WR with 11 columns"""
         table_container = QFrame()
         table_container.setStyleSheet("""
             QFrame {
@@ -146,34 +146,34 @@ class KegiatanWRWidget(QWidget):
         table_layout.setContentsMargins(0, 0, 0, 0)
         table_layout.setSpacing(0)
 
-        self.kegiatan_table = QTableWidget(0, 12)
+        self.kegiatan_table = QTableWidget(0, 11)
 
         # Set custom header with word wrap and center alignment
         custom_header_kegiatan = WordWrapHeaderView(Qt.Horizontal, self.kegiatan_table)
         self.kegiatan_table.setHorizontalHeader(custom_header_kegiatan)
 
-        # Column order sesuai client: Kategori, Nama Kegiatan, Sasaran Kegiatan, Tujuan Kegiatan, Tempat Kegiatan, Tanggal Pelaksanaan, Waktu Pelaksanaan, Penanggung Jawab, User, Status Kegiatan, Keterangan
+        # Column order: Kategori, Nama Kegiatan, Sasaran, Tujuan, Tempat, Tanggal, Waktu, Penanggung Jawab, Status Kegiatan, Keterangan, User (terakhir)
         self.kegiatan_table.setHorizontalHeaderLabels([
             "Kategori", "Nama Kegiatan", "Sasaran Kegiatan", "Tujuan Kegiatan",
-            "Tempat Kegiatan", "Tanggal Pelaksanaan",
-            "Waktu Pelaksanaan", "Penanggung Jawab", "User", "Status Kegiatan", "Keterangan"
+            "Tempat Kegiatan", "Tanggal Pelaksanaan", "Waktu Pelaksanaan",
+            "Penanggung Jawab", "Status Kegiatan", "Keterangan", "User"
         ])
 
         # Apply professional table styling
         self.apply_professional_table_style(self.kegiatan_table)
 
-        # Set column widths - sesuai client order
+        # Set column widths
         self.kegiatan_table.setColumnWidth(0, 100)   # Kategori
         self.kegiatan_table.setColumnWidth(1, 200)   # Nama Kegiatan
-        self.kegiatan_table.setColumnWidth(2, 180)   # Sasaran Kegiatan
-        self.kegiatan_table.setColumnWidth(3, 180)   # Tujuan Kegiatan
-        self.kegiatan_table.setColumnWidth(4, 150)   # Tempat Kegiatan
-        self.kegiatan_table.setColumnWidth(5, 150)   # Tanggal Pelaksanaan
-        self.kegiatan_table.setColumnWidth(6, 150)   # Waktu Pelaksanaan
+        self.kegiatan_table.setColumnWidth(2, 150)   # Sasaran Kegiatan
+        self.kegiatan_table.setColumnWidth(3, 150)   # Tujuan Kegiatan
+        self.kegiatan_table.setColumnWidth(4, 130)   # Tempat Kegiatan
+        self.kegiatan_table.setColumnWidth(5, 130)   # Tanggal Pelaksanaan
+        self.kegiatan_table.setColumnWidth(6, 130)   # Waktu Pelaksanaan
         self.kegiatan_table.setColumnWidth(7, 120)   # Penanggung Jawab
-        self.kegiatan_table.setColumnWidth(8, 120)   # User
-        self.kegiatan_table.setColumnWidth(9, 120)   # Status Kegiatan
-        self.kegiatan_table.setColumnWidth(10, 200)  # Keterangan
+        self.kegiatan_table.setColumnWidth(8, 120)   # Status Kegiatan
+        self.kegiatan_table.setColumnWidth(9, 150)   # Keterangan
+        self.kegiatan_table.setColumnWidth(10, 100)  # User (terakhir)
 
         header = self.kegiatan_table.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.Interactive)
@@ -441,7 +441,7 @@ class KegiatanWRWidget(QWidget):
 
 
     def populate_table(self, kegiatan_list):
-        """Populate table - sesuai struktur client + kolom User"""
+        """Populate table dengan 11 kolom - User di posisi terakhir"""
         self.kegiatan_table.setRowCount(0)
 
         for row_idx, kegiatan in enumerate(kegiatan_list):
@@ -497,12 +497,7 @@ class KegiatanWRWidget(QWidget):
             # 7. Penanggung Jawab
             penanggung_jawab_item = QTableWidgetItem(kegiatan.get('penanggung_jawab', 'N/A'))
 
-            # 8. User (username yang input)
-            user_name = kegiatan.get('username', 'Tidak Ada')
-            user_item = QTableWidgetItem(str(user_name))
-            user_item.setTextAlignment(Qt.AlignCenter | Qt.AlignVCenter)
-
-            # 9. Status Kegiatan
+            # 8. Status Kegiatan
             status = kegiatan.get('status_kegiatan', 'Direncanakan')
             status_item = QTableWidgetItem(str(status))
             status_item.setTextAlignment(Qt.AlignCenter | Qt.AlignVCenter)
@@ -520,10 +515,15 @@ class KegiatanWRWidget(QWidget):
                 status_item.setBackground(QBrush(QColor("#e74c3c")))
                 status_item.setForeground(QBrush(QColor("white")))
 
-            # 10. Keterangan
+            # 9. Keterangan
             keterangan_item = QTableWidgetItem(kegiatan.get('keterangan', ''))
 
-            # Set items ke tabel
+            # 10. User (username - KOLOM TERAKHIR)
+            user_name = kegiatan.get('username', 'Tidak Ada')
+            user_item = QTableWidgetItem(str(user_name))
+            user_item.setTextAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+
+            # Set items ke tabel dengan urutan baru
             self.kegiatan_table.setItem(row_idx, 0, kategori_item)
             self.kegiatan_table.setItem(row_idx, 1, nama_item)
             self.kegiatan_table.setItem(row_idx, 2, sasaran_item)
@@ -532,9 +532,9 @@ class KegiatanWRWidget(QWidget):
             self.kegiatan_table.setItem(row_idx, 5, tanggal_item)
             self.kegiatan_table.setItem(row_idx, 6, waktu_item)
             self.kegiatan_table.setItem(row_idx, 7, penanggung_jawab_item)
-            self.kegiatan_table.setItem(row_idx, 8, user_item)
-            self.kegiatan_table.setItem(row_idx, 9, status_item)
-            self.kegiatan_table.setItem(row_idx, 10, keterangan_item)
+            self.kegiatan_table.setItem(row_idx, 8, status_item)
+            self.kegiatan_table.setItem(row_idx, 9, keterangan_item)
+            self.kegiatan_table.setItem(row_idx, 10, user_item)
 
         if kegiatan_list and self.kegiatan_table.rowCount() > 0:
             self.kegiatan_table.selectRow(0)
