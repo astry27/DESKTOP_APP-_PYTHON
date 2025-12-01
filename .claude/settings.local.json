@@ -22,7 +22,9 @@
       "Bash(git log:*)",
       "Bash(taskkill /F /IM python.exe)",
       "Bash(git diff:*)",
-      "Bash(git restore:*)"
+      "Bash(git restore:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []

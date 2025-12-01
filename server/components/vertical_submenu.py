@@ -34,7 +34,7 @@ class VerticalSubMenuButton(QPushButton):
                 font-weight: 500;
             }
             QPushButton:checked {
-                background-color: #3498DB;
+                background-color: #12101E;
                 color: #FFFFFF;
                 font-weight: 500;
                 border-radius: 4px;

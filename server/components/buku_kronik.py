@@ -148,8 +148,8 @@ class BukuKronikComponent(QWidget):
         # Container untuk daftar peristiwa
         self.kronik_container = QWidget()
         self.kronik_layout = QVBoxLayout(self.kronik_container)
-        self.kronik_layout.setContentsMargins(5, 5, 5, 5)
-        self.kronik_layout.setSpacing(15)
+        self.kronik_layout.setContentsMargins(10, 10, 10, 10)
+        self.kronik_layout.setSpacing(0)  # No spacing, separator handles visual separation
 
         scroll_area.setWidget(self.kronik_container)
         layout.addWidget(scroll_area, 1)
@@ -173,7 +173,7 @@ class BukuKronikComponent(QWidget):
 
         header_layout.addStretch()
 
-        add_button = QPushButton("+ Tambah Peristiwa")
+        add_button = QPushButton("➕ Tambah Peristiwa")
         add_button.setStyleSheet("""
             QPushButton {
                 background-color: #27ae60;
@@ -195,8 +195,15 @@ class BukuKronikComponent(QWidget):
     def create_filter_section(self):
         """Create filter section for search and date range"""
         filter_group = QGroupBox()
+        filter_group.setStyleSheet("""
+            QGroupBox {
+                border: none;
+                background-color: transparent;
+                padding: 5px;
+            }
+        """)
         filter_layout = QHBoxLayout(filter_group)
-        filter_layout.setContentsMargins(10, 10, 10, 10)
+        filter_layout.setContentsMargins(5, 5, 5, 10)
 
         # Search label and input
         search_label = QLabel("Cari:")
@@ -205,6 +212,7 @@ class BukuKronikComponent(QWidget):
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("Cari peristiwa atau keterangan...")
         self.search_input.setMaximumWidth(300)
+        self.search_input.setMinimumHeight(32)
         self.search_input.textChanged.connect(self.on_search_changed)
         filter_layout.addWidget(self.search_input)
 
@@ -238,8 +246,8 @@ class BukuKronikComponent(QWidget):
         action_layout.addStretch()
 
         # Clear search button
-        clear_button = QPushButton("Hapus Filter")
-        clear_button.setMaximumWidth(120)
+        clear_button = QPushButton("🔄 Hapus Filter")
+        clear_button.setMaximumWidth(140)
         clear_button.setStyleSheet("""
             QPushButton {
                 background-color: #95a5a6;
@@ -258,20 +266,24 @@ class BukuKronikComponent(QWidget):
         return action_layout
 
     def create_peristiwa_card(self, peristiwa):
-        """Create a visual card for each peristiwa"""
-        card = QFrame()
-        card.setStyleSheet("""
-            QFrame {
-                border: 1px solid #e0e0e0;
-                border-radius: 5px;
-                background-color: #f8f9fa;
-                padding: 10px;
+        """Create a clean row layout for each peristiwa with separator line"""
+        # Main container
+        container = QWidget()
+        container_layout = QVBoxLayout(container)
+        container_layout.setContentsMargins(0, 0, 0, 0)
+        container_layout.setSpacing(0)
+
+        # Content widget (with white background)
+        content_widget = QWidget()
+        content_widget.setStyleSheet("""
+            QWidget {
+                background-color: white;
+                border: none;
             }
         """)
-
-        card_layout = QVBoxLayout(card)
-        card_layout.setContentsMargins(15, 10, 15, 10)
-        card_layout.setSpacing(5)
+        content_layout = QVBoxLayout(content_widget)
+        content_layout.setContentsMargins(10, 12, 10, 12)
+        content_layout.setSpacing(6)
 
         # Tanggal (bold and larger)
         tanggal_str = peristiwa.get('tanggal', 'N/A')
@@ -290,20 +302,21 @@ class BukuKronikComponent(QWidget):
 
         tanggal_label = QLabel(tanggal_display)
         tanggal_font = QFont()
-        tanggal_font.setPointSize(11)
+        tanggal_font.setPointSize(10)
         tanggal_font.setBold(True)
         tanggal_label.setFont(tanggal_font)
-        tanggal_label.setStyleSheet("color: #2c3e50;")
-        card_layout.addWidget(tanggal_label)
+        tanggal_label.setStyleSheet("color: #3498db; background-color: transparent;")
+        content_layout.addWidget(tanggal_label)
 
         # Peristiwa
         peristiwa_label = QLabel(peristiwa.get('peristiwa', 'Peristiwa tidak ada'))
         peristiwa_font = QFont()
-        peristiwa_font.setPointSize(10)
+        peristiwa_font.setPointSize(11)
+        peristiwa_font.setBold(True)
         peristiwa_label.setFont(peristiwa_font)
         peristiwa_label.setWordWrap(True)
-        peristiwa_label.setStyleSheet("color: #34495e;")
-        card_layout.addWidget(peristiwa_label)
+        peristiwa_label.setStyleSheet("color: #2c3e50; background-color: transparent;")
+        content_layout.addWidget(peristiwa_label)
 
         # Keterangan (jika ada)
         keterangan = peristiwa.get('keterangan', '')
@@ -311,47 +324,48 @@ class BukuKronikComponent(QWidget):
             keterangan_label = QLabel(keterangan)
             keterangan_font = QFont()
             keterangan_font.setPointSize(9)
-            keterangan_font.setItalic(True)
             keterangan_label.setFont(keterangan_font)
             keterangan_label.setWordWrap(True)
-            keterangan_label.setStyleSheet("color: #7f8c8d;")
-            card_layout.addWidget(keterangan_label)
+            keterangan_label.setStyleSheet("color: #7f8c8d; background-color: transparent;")
+            content_layout.addWidget(keterangan_label)
 
-        # Action buttons layout
+        # Action buttons layout (in horizontal line)
         button_layout = QHBoxLayout()
         button_layout.setContentsMargins(0, 8, 0, 0)
-        button_layout.setSpacing(5)
+        button_layout.setSpacing(8)
 
-        # Edit button
+        # Edit button (kuning dengan ikon)
         edit_btn = QPushButton("✏️ Edit")
-        edit_btn.setMaximumWidth(80)
+        edit_btn.setFixedSize(80, 28)
         edit_btn.setStyleSheet("""
             QPushButton {
-                background-color: #3498db;
+                background-color: #f39c12;
                 color: white;
-                padding: 4px 8px;
+                padding: 4px 10px;
                 border: none;
                 border-radius: 3px;
                 font-size: 9pt;
+                font-weight: 500;
             }
             QPushButton:hover {
-                background-color: #2980b9;
+                background-color: #e67e22;
             }
         """)
         edit_btn.clicked.connect(lambda: self.edit_peristiwa(peristiwa))
         button_layout.addWidget(edit_btn)
 
-        # Delete button
+        # Delete button (merah dengan ikon)
         delete_btn = QPushButton("🗑️ Hapus")
-        delete_btn.setMaximumWidth(80)
+        delete_btn.setFixedSize(85, 28)
         delete_btn.setStyleSheet("""
             QPushButton {
                 background-color: #e74c3c;
                 color: white;
-                padding: 4px 8px;
+                padding: 4px 10px;
                 border: none;
                 border-radius: 3px;
                 font-size: 9pt;
+                font-weight: 500;
             }
             QPushButton:hover {
                 background-color: #c0392b;
@@ -362,9 +376,17 @@ class BukuKronikComponent(QWidget):
 
         button_layout.addStretch()
 
-        card_layout.addLayout(button_layout)
+        content_layout.addLayout(button_layout)
+        container_layout.addWidget(content_widget)
 
-        return card
+        # Separator line (garis pemisah)
+        separator = QFrame()
+        separator.setFrameShape(QFrame.HLine)
+        separator.setFrameShadow(QFrame.Plain)
+        separator.setStyleSheet("background-color: #e0e0e0; min-height: 1px; max-height: 1px;")
+        container_layout.addWidget(separator)
+
+        return container
 
     def load_data(self):
         """Load data from database manager - called only when needed"""

@@ -120,12 +120,57 @@ class ClientMainWindow(QMainWindow):
         
         # Header
         header_frame = QFrame()
-        header_frame.setStyleSheet("background-color: #2c3e50; color: white; padding: 10px;")
+        header_frame.setMinimumHeight(90)
+        header_frame.setStyleSheet("""
+            QFrame {
+                background-color: #12101E;
+            }
+        """)
         header_layout = QHBoxLayout(header_frame)
-        
-        self.title_label = QLabel("Sistem Informasi Gereja Katolik - Client API")
-        self.title_label.setFont(QFont("Arial", 14, QFont.Bold))
-        self.title_label.setStyleSheet("color: white;")
+        header_layout.setContentsMargins(15, 10, 15, 10)
+        header_layout.setSpacing(12)
+
+        # Logo gereja
+        logo_label = QLabel()
+        logo_path = "client/assets/logo_gereja.png"
+        if os.path.exists(logo_path):
+            try:
+                from PyQt5.QtGui import QPixmap
+                pixmap = QPixmap(logo_path)
+                if not pixmap.isNull():
+                    logo_label.setPixmap(pixmap.scaled(65, 65, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+                    logo_label.setFixedSize(65, 65)
+                else:
+                    logo_label.setText("")
+            except Exception:
+                logo_label.setText("")
+        else:
+            logo_label.setText("")
+        logo_label.setAlignment(Qt.AlignCenter)
+        header_layout.addWidget(logo_label)
+
+        # Title and subtitle container
+        title_container = QWidget()
+        title_layout = QVBoxLayout(title_container)
+        title_layout.setContentsMargins(0, 0, 0, 0)
+        title_layout.setSpacing(5)
+        title_layout.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+
+        # Main title - 1 baris
+        title_label = QLabel("PAROKI SANTA MARIA RATU DAMAI, ULUINDANO")
+        title_label.setFont(QFont("Arial", 12, QFont.Bold))
+        title_label.setStyleSheet("color: #ecf0f1; background-color: transparent;")
+        title_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        title_layout.addWidget(title_label)
+
+        # Subtitle
+        subtitle_label = QLabel("Panel Wilayah Rohani (Client)")
+        subtitle_label.setFont(QFont("Arial", 9))
+        subtitle_label.setStyleSheet("color: #bdc3c7; background-color: transparent;")
+        subtitle_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        title_layout.addWidget(subtitle_label)
+
+        header_layout.addWidget(title_container, 1)
 
         # Icon layout for right side
         icons_layout = QHBoxLayout()
@@ -135,7 +180,6 @@ class ClientMainWindow(QMainWindow):
         self.activity_icon.setFixedSize(35, 35)
 
         # Try to load notification icon
-        import os
         notification_icon_path = os.path.join(os.path.dirname(__file__), 'assets', 'notification.png')
         if os.path.exists(notification_icon_path):
             try:
@@ -216,7 +260,6 @@ class ClientMainWindow(QMainWindow):
         icons_layout.addWidget(self.profile_icon)
 
         # Add to header layout
-        header_layout.addWidget(self.title_label)
         header_layout.addStretch()
         header_layout.addLayout(icons_layout)
         
@@ -1082,7 +1125,7 @@ class ClientMainWindow(QMainWindow):
         if hasattr(self, 'kegiatan_component') and self.kegiatan_component:
             self.kegiatan_component.kegiatan_data = []
             if hasattr(self.kegiatan_component, 'populate_table'):
-                self.kegiatan_component.populate_table()
+                self.kegiatan_component.populate_table([])
 
         # Clear pengumuman data
         if hasattr(self, 'pengumuman_component') and self.pengumuman_component:

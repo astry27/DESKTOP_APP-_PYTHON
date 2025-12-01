@@ -33,7 +33,7 @@ class SidebarButton(QPushButton):
                 color: #1A252F;
             }
             QPushButton:checked {
-                background-color: #2C3E50;
+                background-color: #002B36;
                 color: #FFFFFF;
                 font-weight: bold;
                 border-radius: 6px;
@@ -189,6 +189,7 @@ class SidebarWidget(QWidget):
         self.submenu_kelompok_kategorial.menu_clicked.connect(self.on_submenu_clicked)
 
         # ============ MENU BUKU KRONIK ============
+        # Icon akan switch otomatis antara book_icon.png (tidak aktif) dan book_active_icon.png (aktif)
         self.menu_buku_kronik = SidebarButton("Buku Kronik", os.path.join(assets_path, "book_icon.png"))
         self.menu_buku_kronik.clicked.connect(self.on_buku_kronik_clicked)
         self.menu_layout.addWidget(self.menu_buku_kronik)
@@ -223,32 +224,92 @@ class SidebarWidget(QWidget):
         """Handle Dashboard menu click"""
         # Deselect semua menu expandable dan sembunyikan submenu
         self.deselect_all_expandable_menus()
+        # Deselect semua menu utama lain
+        self.menu_buku_kronik.setChecked(False)
+        self.menu_riwayat.setChecked(False)
+        self.menu_pengaturan.setChecked(False)
+        # Reset semua submenu
+        self.submenu_pusat_paroki.reset_buttons()
+        self.submenu_wilayah_rohani.reset_buttons()
+        self.submenu_kelompok_kategorial.reset_buttons()
         # Dashboard tetap selected
         self.menu_dashboard.setChecked(True)
+
+        # Update icon untuk semua menu
+        self.menu_dashboard.update_icon_state()
+        self.menu_buku_kronik.update_icon_state()
+        self.menu_riwayat.update_icon_state()
+        self.menu_pengaturan.update_icon_state()
+
         self.menu_selected.emit("dashboard")
 
     def on_buku_kronik_clicked(self):
         """Handle Buku Kronik menu click"""
         # Deselect semua menu expandable dan sembunyikan submenu
         self.deselect_all_expandable_menus()
+        # Deselect semua menu utama lain
+        self.menu_dashboard.setChecked(False)
+        self.menu_riwayat.setChecked(False)
+        self.menu_pengaturan.setChecked(False)
+        # Reset semua submenu
+        self.submenu_pusat_paroki.reset_buttons()
+        self.submenu_wilayah_rohani.reset_buttons()
+        self.submenu_kelompok_kategorial.reset_buttons()
         # Buku Kronik tetap selected
         self.menu_buku_kronik.setChecked(True)
+
+        # Update icon untuk semua menu (pastikan icon berubah sesuai state)
+        self.menu_dashboard.update_icon_state()
+        self.menu_buku_kronik.update_icon_state()
+        self.menu_riwayat.update_icon_state()
+        self.menu_pengaturan.update_icon_state()
+
         self.menu_selected.emit("buku_kronik")
 
     def on_riwayat_clicked(self):
         """Handle Riwayat menu click"""
         # Deselect semua menu expandable dan sembunyikan submenu
         self.deselect_all_expandable_menus()
+        # Deselect semua menu utama lain
+        self.menu_dashboard.setChecked(False)
+        self.menu_buku_kronik.setChecked(False)
+        self.menu_pengaturan.setChecked(False)
+        # Reset semua submenu
+        self.submenu_pusat_paroki.reset_buttons()
+        self.submenu_wilayah_rohani.reset_buttons()
+        self.submenu_kelompok_kategorial.reset_buttons()
         # Riwayat tetap selected
         self.menu_riwayat.setChecked(True)
+
+        # Update icon untuk semua menu
+        self.menu_dashboard.update_icon_state()
+        self.menu_buku_kronik.update_icon_state()
+        self.menu_riwayat.update_icon_state()
+        self.menu_pengaturan.update_icon_state()
+
         self.menu_selected.emit("riwayat")
 
     def on_pengaturan_clicked(self):
         """Handle Pengaturan Sistem menu click"""
         # Deselect semua menu expandable dan sembunyikan submenu
         self.deselect_all_expandable_menus()
+        # Deselect semua menu utama lain
+        self.menu_dashboard.setChecked(False)
+        self.menu_buku_kronik.setChecked(False)
+        self.menu_riwayat.setChecked(False)
+        # Reset semua submenu
+        self.submenu_pusat_paroki.reset_buttons()
+        self.submenu_wilayah_rohani.reset_buttons()
+        self.submenu_kelompok_kategorial.reset_buttons()
         # Pengaturan tetap selected
         self.menu_pengaturan.setChecked(True)
+
+        # Update icon untuk semua menu
+        self.menu_dashboard.update_icon_state()
+        self.menu_buku_kronik.update_icon_state()
+        self.menu_riwayat.update_icon_state()
+        self.menu_pengaturan.update_icon_state()
+
         self.menu_selected.emit("pengaturan_sistem")
 
     def on_pusat_paroki_toggled(self, expanded):
@@ -256,36 +317,57 @@ class SidebarWidget(QWidget):
         if expanded:
             # Deselect semua regular menu
             self.deselect_all_regular_menus()
+            # Deselect menu expandable lain
+            self.menu_wilayah_rohani.setChecked(False)
+            self.menu_kelompok_kategorial.setChecked(False)
+            # Reset semua submenu lain
+            self.submenu_wilayah_rohani.reset_buttons()
+            self.submenu_kelompok_kategorial.reset_buttons()
             # Pastikan menu Pusat Paroki tetap checked (highlighted)
             self.menu_pusat_paroki.setChecked(True)
-            # Show submenu Pusat Paroki (JANGAN hide submenu lain - biarkan semua terbuka)
+            # Show submenu Pusat Paroki
             self.submenu_pusat_paroki.show_submenu()
         else:
             self.submenu_pusat_paroki.hide_submenu()
+            self.submenu_pusat_paroki.reset_buttons()
 
     def on_wilayah_rohani_toggled(self, expanded):
         """Handle Wilayah Rohani toggle"""
         if expanded:
             # Deselect semua regular menu
             self.deselect_all_regular_menus()
+            # Deselect menu expandable lain
+            self.menu_pusat_paroki.setChecked(False)
+            self.menu_kelompok_kategorial.setChecked(False)
+            # Reset semua submenu lain
+            self.submenu_pusat_paroki.reset_buttons()
+            self.submenu_kelompok_kategorial.reset_buttons()
             # Pastikan menu Wilayah Rohani tetap checked (highlighted)
             self.menu_wilayah_rohani.setChecked(True)
-            # Show submenu Wilayah Rohani (JANGAN hide submenu lain - biarkan semua terbuka)
+            # Show submenu Wilayah Rohani
             self.submenu_wilayah_rohani.show_submenu()
         else:
             self.submenu_wilayah_rohani.hide_submenu()
+            self.submenu_wilayah_rohani.reset_buttons()
 
     def on_kelompok_kategorial_toggled(self, expanded):
         """Handle Kelompok Kategorial toggle"""
         if expanded:
             # Deselect semua regular menu
             self.deselect_all_regular_menus()
+            # Deselect menu expandable lain
+            self.menu_pusat_paroki.setChecked(False)
+            self.menu_wilayah_rohani.setChecked(False)
+            # Reset semua submenu lain
+            self.submenu_pusat_paroki.reset_buttons()
+            self.submenu_wilayah_rohani.reset_buttons()
             # Pastikan menu Kelompok Kategorial tetap checked (highlighted)
             self.menu_kelompok_kategorial.setChecked(True)
-            # Show submenu Kelompok Kategorial (JANGAN hide submenu lain - biarkan semua terbuka)
+            # Show submenu Kelompok Kategorial
             self.submenu_kelompok_kategorial.show_submenu()
         else:
             self.submenu_kelompok_kategorial.hide_submenu()
+            self.submenu_kelompok_kategorial.reset_buttons()
 
     def deselect_all_regular_menus(self):
         """Deselect semua regular menu (non-expandable)"""
@@ -325,23 +407,32 @@ class SidebarWidget(QWidget):
         # Tentukan parent menu mana yang diklik dan pastikan tetap checked
         # Jika submenu_pusat_paroki yang diklik
         if menu_id in ["struktur_dpp", "proker_dpp",
-                       "kegiatan_paroki", "database_umat", "aset", "dokumen", "pengumuman"]:
+                       "kegiatan_paroki", "database_umat", "aset", "dokumen", "pengumuman", "tim_pembina"]:
             self.menu_pusat_paroki.setChecked(True)
             # Deselect menu expandable lain
             self.menu_wilayah_rohani.setChecked(False)
             self.menu_kelompok_kategorial.setChecked(False)
+            # Reset submenu lain
+            self.submenu_wilayah_rohani.reset_buttons()
+            self.submenu_kelompok_kategorial.reset_buttons()
         # Jika submenu_wilayah_rohani yang diklik
         elif menu_id in ["struktur_wr", "keuangan_wr", "proker_wr", "kegiatan_wr"]:
             self.menu_wilayah_rohani.setChecked(True)
             # Deselect menu expandable lain
             self.menu_pusat_paroki.setChecked(False)
             self.menu_kelompok_kategorial.setChecked(False)
+            # Reset submenu lain
+            self.submenu_pusat_paroki.reset_buttons()
+            self.submenu_kelompok_kategorial.reset_buttons()
         # Jika submenu_kelompok_kategorial yang diklik
-        elif menu_id in ["struktur_kategorial", "keuangan_kategorial"]:
+        elif menu_id in ["struktur_kategorial", "keuangan_kategorial", "proker_kategorial"]:
             self.menu_kelompok_kategorial.setChecked(True)
             # Deselect menu expandable lain
             self.menu_pusat_paroki.setChecked(False)
             self.menu_wilayah_rohani.setChecked(False)
+            # Reset submenu lain
+            self.submenu_pusat_paroki.reset_buttons()
+            self.submenu_wilayah_rohani.reset_buttons()
 
         self.menu_selected.emit(menu_id)
 
@@ -363,7 +454,7 @@ class SidebarWidget(QWidget):
         """Buat header sidebar dengan logo dan judul"""
         header = QWidget()
         header.setMinimumHeight(90)
-        header.setStyleSheet("background-color: #12101E; border-bottom: 1px solid #2D2B3F;")
+        header.setStyleSheet("background-color: #002B36; border-bottom: 1px solid #2D2B3F;")
 
         header_layout = QHBoxLayout(header)
         header_layout.setContentsMargins(10, 8, 10, 8)

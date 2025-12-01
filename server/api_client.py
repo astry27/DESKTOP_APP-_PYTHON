@@ -264,26 +264,26 @@ class ApiClient:
     # ========== KEUANGAN KATEGORIAL METHODS ==========
     def get_keuangan_kategorial(self):
         """Get all keuangan_kategorial records"""
-        return self._make_request('GET', f"{self.base_url}/keuangan/kategorial?limit=1000")
+        return self._make_request('GET', f"{self.base_url}/keuangan-kategorial?limit=1000")
 
     def add_keuangan_kategorial(self, data, admin_id=None):
         """Add new keuangan_kategorial record"""
         # Add created_by_admin field if provided (required by API)
         if admin_id:
             data['created_by_admin'] = admin_id
-        return self._make_request('POST', f"{self.base_url}/keuangan/kategorial",
+        return self._make_request('POST', f"{self.base_url}/keuangan-kategorial",
                                json=data,
                                headers={'Content-Type': 'application/json'})
 
     def update_keuangan_kategorial(self, keuangan_id, data):
         """Update existing keuangan_kategorial record"""
-        return self._make_request('PUT', f"{self.base_url}/keuangan/kategorial/{keuangan_id}",
+        return self._make_request('PUT', f"{self.base_url}/keuangan-kategorial/{keuangan_id}",
                               json=data,
                               headers={'Content-Type': 'application/json'})
 
     def delete_keuangan_kategorial(self, keuangan_id):
         """Delete keuangan_kategorial record"""
-        return self._make_request('DELETE', f"{self.base_url}/keuangan/kategorial/{keuangan_id}")
+        return self._make_request('DELETE', f"{self.base_url}/keuangan-kategorial/{keuangan_id}")
 
     # ========== FILES METHODS ==========
     def get_files(self):

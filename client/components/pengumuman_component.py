@@ -2,8 +2,9 @@
 
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QListWidget, QTextBrowser,
                              QMessageBox, QSplitter, QLabel, QHBoxLayout, QPushButton, QFrame)
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QFont
+from PyQt5.QtCore import Qt, QSize
+from PyQt5.QtGui import QFont, QIcon
+import os
 
 class PengumumanComponent(QWidget):
     
@@ -16,21 +17,19 @@ class PengumumanComponent(QWidget):
 
     def init_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(5)
 
-        # Title section with professional styling (matching dokumen_component.py style)
-        title_frame = QFrame()
-        title_frame.setStyleSheet("""
+        # Header with title (matching dokumen_component.py style)
+        header = QFrame()
+        header.setStyleSheet("""
             QFrame {
                 background-color: white;
-                border-bottom: 2px solid #ecf0f1;
                 padding: 10px 0px;
             }
         """)
-        title_layout = QHBoxLayout(title_frame)
-        title_layout.setContentsMargins(10, 0, 10, 0)
-        title_layout.setSpacing(0)
+        header_layout = QHBoxLayout(header)
+        header_layout.setContentsMargins(10, 0, 10, 0)
 
         title_label = QLabel("Pengumuman Gereja")
         title_font = QFont("Arial", 18, QFont.Bold)
@@ -43,31 +42,33 @@ class PengumumanComponent(QWidget):
                 border: none;
             }
         """)
-        title_layout.addWidget(title_label)
-        title_layout.addStretch()
+        header_layout.addWidget(title_label)
+        header_layout.addStretch()
 
-        refresh_button = QPushButton("Refresh")
+        refresh_button = QPushButton(" Refresh")
         refresh_button.clicked.connect(self.load_pengumuman)
+
+        # Add refresh icon
+        refresh_icon_path = os.path.join(os.path.dirname(__file__), "..", "assets", "refresh.png")
+        if os.path.exists(refresh_icon_path):
+            refresh_button.setIcon(QIcon(refresh_icon_path))
+            refresh_button.setIconSize(QSize(16, 16))
+
         refresh_button.setStyleSheet("""
             QPushButton {
                 background-color: #27ae60;
                 color: white;
                 padding: 8px 16px;
                 border: none;
-                border-radius: 4px;
+                border-radius: 3px;
                 font-weight: bold;
             }
             QPushButton:hover {
                 background-color: #2ecc71;
             }
         """)
-        title_layout.addWidget(refresh_button)
-        layout.addWidget(title_frame)
-
-        # Main content area with proper spacing
-        content_layout = QVBoxLayout()
-        content_layout.setContentsMargins(10, 10, 10, 10)
-        content_layout.setSpacing(6)
+        header_layout.addWidget(refresh_button)
+        layout.addWidget(header, 0)
 
         # Splitter untuk list dan detail pengumuman
         splitter = QSplitter(Qt.Orientation.Horizontal)
@@ -75,30 +76,47 @@ class PengumumanComponent(QWidget):
         # Panel kiri - List pengumuman
         left_panel = QWidget()
         left_layout = QVBoxLayout(left_panel)
-        left_layout.setContentsMargins(0, 0, 0, 0)
-        left_layout.setSpacing(0)
+        left_layout.setContentsMargins(10, 5, 5, 10)
+        left_layout.setSpacing(3)
 
         # List title
         list_title = QLabel("Daftar Pengumuman")
         list_title_font = QFont("Arial", 10, QFont.Bold)
         list_title.setFont(list_title_font)
-        list_title.setStyleSheet("color: #34495e; padding: 5px 0px;")
+        list_title.setStyleSheet("""
+            QLabel {
+                color: #34495e;
+                padding: 0px;
+                background-color: transparent;
+            }
+        """)
         left_layout.addWidget(list_title)
 
         self.list_widget = QListWidget()
         self.list_widget.currentRowChanged.connect(self.display_pengumuman)
         self.list_widget.setStyleSheet("""
             QListWidget {
-                border: 1px solid #bdc3c7;
-                border-radius: 3px;
-                background-color: white;
+                border: 1px solid #d1d5db;
+                border-radius: 6px;
+                background-color: #ffffff;
+                padding: 2px;
             }
             QListWidget::item {
-                padding: 6px 8px;
+                padding: 12px 15px;
+                border-bottom: 1px solid #e5e7eb;
+                margin: 3px 2px;
+                border-radius: 0px;
+                background-color: transparent;
+            }
+            QListWidget::item:hover {
+                background-color: #e8f4f8;
+                border-left: 3px solid #3498db;
             }
             QListWidget::item:selected {
                 background-color: #3498db;
                 color: white;
+                border: none;
+                font-weight: 500;
             }
         """)
         left_layout.addWidget(self.list_widget)
@@ -106,33 +124,50 @@ class PengumumanComponent(QWidget):
         # Panel kanan - Detail pengumuman
         right_panel = QWidget()
         right_layout = QVBoxLayout(right_panel)
-        right_layout.setContentsMargins(0, 0, 0, 0)
-        right_layout.setSpacing(5)
+        right_layout.setContentsMargins(5, 5, 10, 10)
+        right_layout.setSpacing(3)
 
         detail_title = QLabel("Detail Pengumuman")
         detail_title_font = QFont("Arial", 10, QFont.Bold)
         detail_title.setFont(detail_title_font)
-        detail_title.setStyleSheet("color: #34495e; padding: 5px 0px;")
+        detail_title.setStyleSheet("""
+            QLabel {
+                color: #34495e;
+                padding: 0px;
+                background-color: transparent;
+            }
+        """)
         right_layout.addWidget(detail_title)
 
         self.detail_browser = QTextBrowser()
         self.detail_browser.setStyleSheet("""
             QTextBrowser {
-                border: 1px solid #bdc3c7;
-                border-radius: 3px;
-                background-color: white;
+                border: 1px solid #d1d5db;
+                border-radius: 4px;
+                background-color: #ffffff;
+                padding: 2px;
             }
         """)
         right_layout.addWidget(self.detail_browser)
 
         splitter.addWidget(left_panel)
         splitter.addWidget(right_panel)
-        splitter.setSizes([280, 520])
+        splitter.setSizes([300, 500])
         splitter.setCollapsible(0, False)
         splitter.setCollapsible(1, False)
 
-        content_layout.addWidget(splitter)
-        layout.addLayout(content_layout)
+        # Style splitter handle
+        splitter.setStyleSheet("""
+            QSplitter::handle {
+                background-color: #e5e7eb;
+                width: 2px;
+            }
+            QSplitter::handle:hover {
+                background-color: #9ca3af;
+            }
+        """)
+
+        layout.addWidget(splitter, 1)
 
     def load_pengumuman(self):
         """Load pengumuman resmi dari API"""
@@ -243,26 +278,61 @@ class PengumumanComponent(QWidget):
                 body {{
                     font-family: Arial, sans-serif;
                     line-height: 1.6;
+                    margin: 0;
+                    padding: 0;
+                }}
+                .title {{
+                    color: #2c3e50;
+                    font-size: 20px;
+                    font-weight: bold;
+                    margin: 0 0 20px 0;
+                    padding-bottom: 2px;
+                    border-bottom: 2px solid #3498db;
+                }}
+                .info-row {{
+                    margin: 10px 0;
+                    padding: 8px 0;
+                    border-bottom: 1px solid #ecf0f1;
                 }}
                 .detail-label {{
                     font-weight: bold;
+                    color: #34495e;
                     display: inline-block;
-                    min-width: 150px;
+                    min-width: 140px;
+                }}
+                .detail-value {{
+                    color: #2c3e50;
+                }}
+                .content-section {{
+                    margin-top: 20px;
+                    padding-top: 2px;
+                    border-top: 2px solid #ecf0f1;
+                }}
+                .content-title {{
+                    font-weight: bold;
+                    color: #2c3e50;
+                    font-size: 14px;
+                    margin-bottom: 12px;
                 }}
                 .detail-content {{
                     white-space: pre-wrap;
                     word-wrap: break-word;
+                    padding: 2px;
+                    background-color: #f8f9fa;
+                    border-left: 4px solid #3498db;
+                    border-radius: 4px;
+                    line-height: 1.8;
+                    color: #2c3e50;
                 }}
             </style>
-            <h3 style="color: #2c3e50; margin-bottom: 15px;">{item.get('judul', 'Tanpa Judul')}</h3>
-            <p><span class="detail-label">Tanggal:</span> {periode}</p>
-            <p><span class="detail-label">Pembuat:</span> {pembuat}</p>
-            <p><span class="detail-label">Penanggung Jawab:</span> {penanggung_jawab}</p>
-            <p><span class="detail-label">Sasaran/Tujuan:</span> {sasaran}</p>
-            <hr style="border: 1px solid #ddd; margin: 15px 0;">
-            <p style="margin-bottom: 8px;"><span class="detail-label">Isi Pengumuman:</span></p>
-            <div class="detail-content" style="padding: 10px; background-color: #f9f9f9; border-left: 3px solid #2c3e50; margin-top: 5px;">
-                {isi_formatted}
+            <div class="title">{item.get('judul', 'Tanpa Judul')}</div>
+            <div class="info-row"><span class="detail-label">Tanggal:</span> <span class="detail-value">{periode}</span></div>
+            <div class="info-row"><span class="detail-label">Pembuat:</span> <span class="detail-value">{pembuat}</span></div>
+            <div class="info-row"><span class="detail-label">Penanggung Jawab:</span> <span class="detail-value">{penanggung_jawab}</span></div>
+            <div class="info-row" style="border-bottom: none;"><span class="detail-label">Sasaran/Tujuan:</span> <span class="detail-value">{sasaran}</span></div>
+            <div class="content-section">
+                <div class="content-title">Isi Pengumuman:</div>
+                <div class="detail-content">{isi_formatted}</div>
             </div>
             """
             self.detail_browser.setHtml(html)

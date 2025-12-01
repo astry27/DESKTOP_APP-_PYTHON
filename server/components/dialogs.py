@@ -2782,7 +2782,8 @@ class ProgramKerjaKategorialDialog(QDialog):
         layout = QVBoxLayout(self)
 
         # Create scroll area for form
-        from PyQt5.QtWidgets import QScrollArea
+        from PyQt5.QtWidgets import QScrollArea, QDateEdit
+        from PyQt5.QtCore import QDate
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
 
@@ -2795,49 +2796,62 @@ class ProgramKerjaKategorialDialog(QDialog):
         self.program_kerja_input = QLineEdit()
         self.program_kerja_input.setPlaceholderText("Nama program kerja kategorial")
         self.program_kerja_input.setMinimumWidth(500)
-        form_layout.addRow("Program Kerja*:", self.program_kerja_input)
+        self.program_kerja_input.setMinimumHeight(32)
+        form_layout.addRow("Program Kerja:", self.program_kerja_input)
 
-        # Kategori
+        # Kategori - dengan placeholder
         self.kategori_input = QComboBox()
+        self.kategori_input.addItem("-- Pilih Kategori --", "")
         self.kategori_input.addItems([
             "Ibadah", "Doa", "Katekese", "Sosial",
             "Rohani", "Administratif", "Perayaan", "Lainnya"
         ])
-        form_layout.addRow("Kategori*:", self.kategori_input)
+        self.kategori_input.setCurrentIndex(0)
+        self.kategori_input.setMinimumHeight(32)
+        form_layout.addRow("Kategori:", self.kategori_input)
 
         # Subyek/Sasaran
         self.subyek_sasaran_input = QLineEdit()
         self.subyek_sasaran_input.setPlaceholderText("Sasaran atau subjek program")
+        self.subyek_sasaran_input.setMinimumHeight(32)
         form_layout.addRow("Subyek/Sasaran:", self.subyek_sasaran_input)
 
         # Indikator Pencapaian
         self.indikator_input = QLineEdit()
         self.indikator_input.setPlaceholderText("Indikator pencapaian program")
+        self.indikator_input.setMinimumHeight(32)
         form_layout.addRow("Indikator Pencapaian:", self.indikator_input)
 
         # Model/Bentuk/Metode
         self.model_bentuk_input = QLineEdit()
         self.model_bentuk_input.setPlaceholderText("Model, bentuk, atau metode pelaksanaan")
+        self.model_bentuk_input.setMinimumHeight(32)
         form_layout.addRow("Model/Bentuk/Metode:", self.model_bentuk_input)
 
         # Materi
         self.materi_input = QLineEdit()
         self.materi_input.setPlaceholderText("Materi yang akan disampaikan")
+        self.materi_input.setMinimumHeight(32)
         form_layout.addRow("Materi:", self.materi_input)
 
         # Tempat
         self.tempat_input = QLineEdit()
         self.tempat_input.setPlaceholderText("Lokasi pelaksanaan program")
+        self.tempat_input.setMinimumHeight(32)
         form_layout.addRow("Tempat:", self.tempat_input)
 
-        # Waktu
-        self.waktu_input = QLineEdit()
-        self.waktu_input.setPlaceholderText("Tanggal dan waktu pelaksanaan")
+        # Waktu - Menggunakan QDateEdit dengan format dd/MM/yyyy
+        self.waktu_input = QDateEdit()
+        self.waktu_input.setCalendarPopup(True)
+        self.waktu_input.setDisplayFormat("dd/MM/yyyy")
+        self.waktu_input.setDate(QDate.currentDate())
+        self.waktu_input.setMinimumHeight(32)
         form_layout.addRow("Waktu:", self.waktu_input)
 
         # PIC (Person In Charge)
         self.pic_input = QLineEdit()
         self.pic_input.setPlaceholderText("Penanggung jawab program")
+        self.pic_input.setMinimumHeight(32)
         form_layout.addRow("PIC:", self.pic_input)
 
         # Perincian
@@ -2849,22 +2863,26 @@ class ProgramKerjaKategorialDialog(QDialog):
         # Quantity
         self.quantity_input = QLineEdit()
         self.quantity_input.setPlaceholderText("Jumlah/kuantitas")
+        self.quantity_input.setMinimumHeight(32)
         form_layout.addRow("Quantity:", self.quantity_input)
 
         # Satuan
         self.satuan_input = QLineEdit()
         self.satuan_input.setPlaceholderText("Satuan (orang, paket, dll)")
+        self.satuan_input.setMinimumHeight(32)
         form_layout.addRow("Satuan:", self.satuan_input)
 
         # Harga Satuan
         self.harga_satuan_input = QLineEdit()
         self.harga_satuan_input.setPlaceholderText("Harga per satuan (Rp)")
+        self.harga_satuan_input.setMinimumHeight(32)
         form_layout.addRow("Harga Satuan:", self.harga_satuan_input)
 
         # Frekuensi
         self.frekuensi_input = QLineEdit()
         self.frekuensi_input.setPlaceholderText("Berapa kali dilaksanakan")
         self.frekuensi_input.setText("1")
+        self.frekuensi_input.setMinimumHeight(32)
         form_layout.addRow("Frekuensi:", self.frekuensi_input)
 
         # Keterangan
@@ -2889,14 +2907,45 @@ class ProgramKerjaKategorialDialog(QDialog):
         if not self.program_data:
             return
 
+        from PyQt5.QtCore import QDate
+
         self.program_kerja_input.setText(self.program_data.get('program_kerja', ''))
-        self.kategori_input.setCurrentText(self.program_data.get('kategori', 'Lainnya'))
+
+        # Set kategori - skip placeholder
+        kategori = self.program_data.get('kategori', '')
+        if kategori:
+            # Find index of kategori (skip index 0 which is placeholder)
+            index = self.kategori_input.findText(kategori)
+            if index >= 0:
+                self.kategori_input.setCurrentIndex(index)
+
         self.subyek_sasaran_input.setText(self.program_data.get('subyek_sasaran', ''))
         self.indikator_input.setText(self.program_data.get('indikator_pencapaian', ''))
         self.model_bentuk_input.setText(self.program_data.get('model_bentuk_metode', ''))
         self.materi_input.setText(self.program_data.get('materi', ''))
         self.tempat_input.setText(self.program_data.get('tempat', ''))
-        self.waktu_input.setText(self.program_data.get('waktu', ''))
+
+        # Set waktu - Parse date string to QDate
+        waktu = self.program_data.get('waktu', '')
+        if waktu:
+            try:
+                # Try parsing different formats: dd/MM/yyyy or YYYY-MM-DD
+                if '/' in waktu:
+                    # Format: dd/MM/yyyy
+                    parts = waktu.split('/')
+                    if len(parts) == 3:
+                        day, month, year = parts
+                        self.waktu_input.setDate(QDate(int(year), int(month), int(day)))
+                elif '-' in waktu:
+                    # Format: YYYY-MM-DD
+                    parts = waktu.split('-')
+                    if len(parts) == 3:
+                        year, month, day = parts
+                        self.waktu_input.setDate(QDate(int(year), int(month), int(day)))
+            except:
+                # If parsing fails, use current date
+                self.waktu_input.setDate(QDate.currentDate())
+
         self.pic_input.setText(self.program_data.get('pic', ''))
         self.perincian_input.setPlainText(self.program_data.get('perincian', ''))
         self.quantity_input.setText(str(self.program_data.get('quantity', '')))
@@ -2907,15 +2956,23 @@ class ProgramKerjaKategorialDialog(QDialog):
 
     def get_data(self):
         """Get form data"""
+        # Get kategori (skip placeholder)
+        kategori = self.kategori_input.currentText()
+        if kategori.startswith("--"):
+            kategori = ""
+
+        # Get waktu in dd/MM/yyyy format
+        waktu = self.waktu_input.date().toString("dd/MM/yyyy")
+
         return {
             'program_kerja': self.program_kerja_input.text().strip(),
-            'kategori': self.kategori_input.currentText(),
+            'kategori': kategori,
             'subyek_sasaran': self.subyek_sasaran_input.text().strip(),
             'indikator_pencapaian': self.indikator_input.text().strip(),
             'model_bentuk_metode': self.model_bentuk_input.text().strip(),
             'materi': self.materi_input.text().strip(),
             'tempat': self.tempat_input.text().strip(),
-            'waktu': self.waktu_input.text().strip(),
+            'waktu': waktu,
             'pic': self.pic_input.text().strip(),
             'perincian': self.perincian_input.toPlainText().strip(),
             'quantity': self.quantity_input.text().strip(),

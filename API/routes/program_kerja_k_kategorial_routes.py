@@ -1,25 +1,39 @@
 # Path: routes/program_kerja_k_kategorial_routes.py
 # Routes untuk Program Kerja K. Kategorial
 
-from flask import Blueprint, request, jsonify, session
+from flask import Blueprint, request, jsonify
 from typing import Tuple, Dict, Any
 import datetime
+import os
 
 # Blueprint
 program_kerja_k_kategorial_bp = Blueprint('program_kerja_k_kategorial', __name__, url_prefix='/program-kerja-k-kategorial')
 
+API_STATUS_FILE = 'api_status.txt'
 
 # ========== HELPER FUNCTIONS ==========
-def check_user_logged_in():
-    """Check if user is logged in"""
-    if 'user_id' not in session:
-        return False
-    return True
+def get_api_status():
+    """Get API enabled/disabled status"""
+    try:
+        if os.path.exists(API_STATUS_FILE):
+            with open(API_STATUS_FILE, 'r') as f:
+                content = f.read().strip()
+                return content == 'enabled'
+        else:
+            return True
+    except Exception as e:
+        print(f"Error reading API status: {e}")
+        return True
 
 
-def get_current_user_id():
-    """Get current user ID from session"""
-    return session.get('user_id')
+def check_api_enabled():
+    """Check if API is enabled"""
+    if not get_api_status():
+        return jsonify({
+            'status': 'error',
+            'message': 'API sedang dinonaktifkan'
+        }), 503
+    return None
 
 
 def success_response(data=None, message="Success"):
@@ -44,14 +58,17 @@ def error_response(message="Error", status_code=400):
 @program_kerja_k_kategorial_bp.route('', methods=['GET'])
 def get_program_kerja_k_kategorial_list():
     """Get list of program kerja K. Kategorial"""
+    status_check = check_api_enabled()
+    if status_check:
+        return status_check
+
     try:
-        if not check_user_logged_in():
-            return error_response("User tidak terautentikasi", 401)
+        from config import get_db_connection
+        connection = get_db_connection()
 
-        from config import get_db
-        db = get_db()
+        if not connection:
+            return error_response("Database tidak tersedia", 500)
 
-        user_id = get_current_user_id()
         search = request.args.get('search', '')
 
         query = """
@@ -77,9 +94,9 @@ def get_program_kerja_k_kategorial_list():
                 created_at,
                 updated_at
             FROM program_kerja_k_kategorial
-            WHERE created_by = %s
+            WHERE 1=1
         """
-        params = [user_id]
+        params = []
 
         if search:
             query += " AND (program_kerja LIKE %s OR subyek_sasaran LIKE %s)"
@@ -87,40 +104,55 @@ def get_program_kerja_k_kategorial_list():
 
         query += " ORDER BY created_at DESC"
 
-        cursor = db.cursor()
+        cursor = connection.cursor(dictionary=True)
         cursor.execute(query, params)
         rows = cursor.fetchall()
 
         # Format hasil
         programs = []
         for row in rows:
+            # Safely convert numeric fields
+            def safe_float(value, default=0):
+                """Safely convert value to float"""
+                if value is None:
+                    return default
+                try:
+                    return float(value)
+                except (ValueError, TypeError):
+                    return default
+
             program = {
-                'id_program_kerja_k_kategorial': row[0],
-                'program_kerja': row[1],
-                'subyek_sasaran': row[2],
-                'indikator_pencapaian': row[3],
-                'model_bentuk_metode': row[4],
-                'materi': row[5],
-                'tempat': row[6],
-                'waktu': row[7],
-                'pic': row[8],
-                'perincian': row[9],
-                'quantity': row[10],
-                'satuan': row[11],
-                'harga_satuan': float(row[12]) if row[12] else 0,
-                'frekuensi': row[13],
-                'jumlah': float(row[14]) if row[14] else 0,
-                'total': float(row[15]) if row[15] else 0,
-                'keterangan': row[16],
-                'created_by': row[17],
-                'created_at': row[18].isoformat() if row[18] else None,
-                'updated_at': row[19].isoformat() if row[19] else None
+                'id_program_kerja_k_kategorial': row.get('id_program_kerja_k_kategorial'),
+                'program_kerja': row.get('program_kerja', ''),
+                'subyek_sasaran': row.get('subyek_sasaran', ''),
+                'indikator_pencapaian': row.get('indikator_pencapaian', ''),
+                'model_bentuk_metode': row.get('model_bentuk_metode', ''),
+                'materi': row.get('materi', ''),
+                'tempat': row.get('tempat', ''),
+                'waktu': row.get('waktu', ''),
+                'pic': row.get('pic', ''),
+                'perincian': row.get('perincian', ''),
+                'quantity': row.get('quantity', ''),
+                'satuan': row.get('satuan', ''),
+                'harga_satuan': safe_float(row.get('harga_satuan')),
+                'frekuensi': row.get('frekuensi', 1),
+                'jumlah': safe_float(row.get('jumlah')),
+                'total': safe_float(row.get('total')),
+                'keterangan': row.get('keterangan', ''),
+                'created_by': row.get('created_by'),
+                'created_at': row.get('created_at').isoformat() if row.get('created_at') else None,
+                'updated_at': row.get('updated_at').isoformat() if row.get('updated_at') else None
             }
             programs.append(program)
 
         cursor.close()
+        connection.close()
 
-        return success_response({"data": programs}, "Program kerja K. Kategorial berhasil dimuat")
+        return jsonify({
+            "status": "success",
+            "data": {"data": programs},
+            "message": "Program kerja K. Kategorial berhasil dimuat"
+        }), 200
 
     except Exception as e:
         return error_response(f"Error: {str(e)}", 500)
@@ -214,26 +246,43 @@ def get_program_evaluation(program_id):
 @program_kerja_k_kategorial_bp.route('', methods=['POST'])
 def add_program_kerja_k_kategorial():
     """Add new program kerja K. Kategorial with budget and evaluation"""
+    status_check = check_api_enabled()
+    if status_check:
+        return status_check
+
     try:
-        if not check_user_logged_in():
-            return error_response("User tidak terautentikasi", 401)
+        from config import get_db_connection
+        connection = get_db_connection()
 
-        from config import get_db
-        db = get_db()
+        if not connection:
+            return error_response("Database tidak tersedia", 500)
 
-        user_id = get_current_user_id()
         data = request.get_json()
 
         # Validasi input
         if not data.get('program_kerja'):
             return error_response("Program kerja tidak boleh kosong")
 
+        # Admin tidak perlu created_by dari session, bisa null atau dari data
+        created_by = data.get('created_by', None)
+
         # Hitung jumlah dan total
         quantity = data.get('quantity', 0)
         frekuensi = data.get('frekuensi', 1)
         harga_satuan = data.get('harga_satuan', 0)
-        jumlah = quantity * frekuensi if quantity and frekuensi else 0
-        total = jumlah * harga_satuan if jumlah and harga_satuan else 0
+
+        # Convert to numeric
+        try:
+            quantity = float(quantity) if quantity else 0
+            frekuensi = int(frekuensi) if frekuensi else 1
+            harga_satuan = float(harga_satuan) if harga_satuan else 0
+        except (ValueError, TypeError):
+            quantity = 0
+            frekuensi = 1
+            harga_satuan = 0
+
+        jumlah = quantity * frekuensi
+        total = jumlah * harga_satuan
 
         # Insert program ke database
         query = """
@@ -261,10 +310,10 @@ def add_program_kerja_k_kategorial():
             jumlah,
             total,
             data.get('keterangan', ''),
-            user_id
+            created_by
         )
 
-        cursor = db.cursor()
+        cursor = connection.cursor()
         cursor.execute(query, params)
         program_id = cursor.lastrowid
 
@@ -306,12 +355,13 @@ def add_program_kerja_k_kategorial():
             )
             cursor.execute(eval_query, eval_params)
 
-        db.commit()
+        connection.commit()
         cursor.close()
+        connection.close()
 
         return jsonify({
-            "success": True,
-            "data": None,
+            "status": "success",
+            "data": {"id": program_id},
             "message": "Program kerja K. Kategorial berhasil ditambahkan"
         }), 201
 
@@ -322,35 +372,46 @@ def add_program_kerja_k_kategorial():
 @program_kerja_k_kategorial_bp.route('/<int:program_id>', methods=['PUT'])
 def update_program_kerja_k_kategorial(program_id):
     """Update program kerja K. Kategorial"""
+    status_check = check_api_enabled()
+    if status_check:
+        return status_check
+
     try:
-        if not check_user_logged_in():
-            return error_response("User tidak terautentikasi", 401)
+        from config import get_db_connection
+        connection = get_db_connection()
 
-        from config import get_db
-        db = get_db()
+        if not connection:
+            return error_response("Database tidak tersedia", 500)
 
-        user_id = get_current_user_id()
         data = request.get_json()
 
-        # Check ownership
-        cursor = db.cursor()
-        cursor.execute("SELECT created_by FROM program_kerja_k_kategorial WHERE id_program_kerja_k_kategorial = %s", (program_id,))
+        # Check if program exists
+        cursor = connection.cursor(dictionary=True)
+        cursor.execute("SELECT id_program_kerja_k_kategorial FROM program_kerja_k_kategorial WHERE id_program_kerja_k_kategorial = %s", (program_id,))
         result = cursor.fetchone()
 
         if not result:
             cursor.close()
+            connection.close()
             return error_response("Program kerja tidak ditemukan", 404)
-
-        if result[0] != user_id:
-            cursor.close()
-            return error_response("Anda hanya dapat mengedit program kerja yang Anda buat", 403)
 
         # Hitung jumlah dan total
         quantity = data.get('quantity', 0)
         frekuensi = data.get('frekuensi', 1)
         harga_satuan = data.get('harga_satuan', 0)
-        jumlah = quantity * frekuensi if quantity and frekuensi else 0
-        total = jumlah * harga_satuan if jumlah and harga_satuan else 0
+
+        # Convert to numeric
+        try:
+            quantity = float(quantity) if quantity else 0
+            frekuensi = int(frekuensi) if frekuensi else 1
+            harga_satuan = float(harga_satuan) if harga_satuan else 0
+        except (ValueError, TypeError):
+            quantity = 0
+            frekuensi = 1
+            harga_satuan = 0
+
+        jumlah = quantity * frekuensi
+        total = jumlah * harga_satuan
 
         # Update program
         query = """
@@ -426,10 +487,15 @@ def update_program_kerja_k_kategorial(program_id):
             )
             cursor.execute(eval_query, eval_params)
 
-        db.commit()
+        connection.commit()
         cursor.close()
+        connection.close()
 
-        return success_response(None, "Program kerja K. Kategorial berhasil diperbarui")
+        return jsonify({
+            "status": "success",
+            "data": None,
+            "message": "Program kerja K. Kategorial berhasil diperbarui"
+        }), 200
 
     except Exception as e:
         return error_response(f"Error: {str(e)}", 500)
@@ -438,34 +504,38 @@ def update_program_kerja_k_kategorial(program_id):
 @program_kerja_k_kategorial_bp.route('/<int:program_id>', methods=['DELETE'])
 def delete_program_kerja_k_kategorial(program_id):
     """Delete program kerja K. Kategorial"""
+    status_check = check_api_enabled()
+    if status_check:
+        return status_check
+
     try:
-        if not check_user_logged_in():
-            return error_response("User tidak terautentikasi", 401)
+        from config import get_db_connection
+        connection = get_db_connection()
 
-        from config import get_db
-        db = get_db()
+        if not connection:
+            return error_response("Database tidak tersedia", 500)
 
-        user_id = get_current_user_id()
-
-        # Check ownership
-        cursor = db.cursor()
-        cursor.execute("SELECT created_by FROM program_kerja_k_kategorial WHERE id_program_kerja_k_kategorial = %s", (program_id,))
+        # Check if program exists
+        cursor = connection.cursor(dictionary=True)
+        cursor.execute("SELECT id_program_kerja_k_kategorial FROM program_kerja_k_kategorial WHERE id_program_kerja_k_kategorial = %s", (program_id,))
         result = cursor.fetchone()
 
         if not result:
             cursor.close()
+            connection.close()
             return error_response("Program kerja tidak ditemukan", 404)
 
-        if result[0] != user_id:
-            cursor.close()
-            return error_response("Anda hanya dapat menghapus program kerja yang Anda buat", 403)
-
-        # Delete (cascade akan menghapus budget dan evaluation juga)
+        # Delete (cascade akan menghapus budget dan evaluation juga jika ada ON DELETE CASCADE)
         cursor.execute("DELETE FROM program_kerja_k_kategorial WHERE id_program_kerja_k_kategorial = %s", (program_id,))
-        db.commit()
+        connection.commit()
         cursor.close()
+        connection.close()
 
-        return success_response(None, "Program kerja K. Kategorial berhasil dihapus")
+        return jsonify({
+            "status": "success",
+            "data": None,
+            "message": "Program kerja K. Kategorial berhasil dihapus"
+        }), 200
 
     except Exception as e:
         return error_response(f"Error: {str(e)}", 500)

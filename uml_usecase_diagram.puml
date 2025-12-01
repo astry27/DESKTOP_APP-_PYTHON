@@ -1,0 +1,222 @@
+@startuml
+
+' background diagram
+skinparam backgroundColor white
+skinparam shadowing false
+
+' USE CASE (oval)
+skinparam usecase {
+  BackgroundColor white
+  BorderColor black
+}
+
+
+title Use Case Diagram - Admin
+
+left to right direction
+
+actor "Admin" as admin
+
+rectangle "         " {
+
+    ' ===== login =====
+    usecase "Login" as UC_Login
+    usecase "Validasi Kredensial" as UC_Validasi
+    
+    ' ===== kontrol server =====
+    usecase "Server Control" as UC_ServerControl
+    usecase "Lihat Client Terhubung" as UC_ClientTerhubung
+    usecase "Log Aktivitas" as UC_LogAktivitas
+    usecase "Kontrol API" as UC_ControlAPI
+    
+    '===== log activity ====='
+    usecase "Log Aktivitas" as UC_LogAktivitas
+    usecase "Bersihkan Log" as UC_LogClear
+    usecase "Simpan Log" as UC_LogSave
+    
+    ' ===== kontrol API =====
+    usecase "Kontrol API" as UC_ControlAPI
+    usecase "Enable API" as UC_EnableApi
+    usecase "Disable API" as UC_DisableApi
+    
+    ' ===== Dashboard & Monitoring =====
+    usecase "Dashboard" as UC_Dashboard
+    usecase "Lihat Statistik Data Umat" as UC_StatistikUmat
+    usecase "Lihat Aktivitas Terbaru" as UC_Aktivitas
+    usecase "Lihat Pengumuman Terbaru" as UC_PengumumanTerbaru
+    usecase "Lihat Kegiatan Mendatang" as UC_KegiatanMendatang
+
+    ' ===== Kelola Database Umat =====
+    usecase "Kelola Database Umat" as UC_UmatMain
+    usecase "CRUD Data Umat" as UC_CRUDUmat
+
+    ' ===== Kelola Data Keuangan =====
+    usecase "Kelola Keuangan" as UC_KeuanganMain
+    usecase "CRUD Keuangan Paroki" as UC_CRUDKeuangan
+    usecase "Lihat Keuangan WR" as UC_LihatKeuanganWR
+    usecase "Lihat Keuangan Kategorial" as UC_LihatKeuanganKategorial
+
+    ' ===== Kelola Kegiatan =====
+    usecase "Kelola Kegiatan" as UC_KegiatanMain
+    usecase "CRUD Kegiatan Paroki" as UC_CRUDKegiatan
+    usecase "Lihat Kegiatan WR" as UC_LihatKegiatanWR
+    
+    ' ===== Kelola Pengumuman =====
+    usecase "Kelola Pengumuman" as UC_PengumumanMain
+    usecase "CRUD Pengumuman" as UC_CRUDPengumuman
+    usecase "Broadcast Pengumuman" as UC_BroadcastPengumuman
+
+    ' ===== Kelola Dokumen =====
+    usecase "Kelola Dokumen" as UC_DokumenMain
+    usecase "Upload Dokumen" as UC_UploadDokumen
+    usecase "Delete Dokumen" as UC_DeleteDokumen
+    usecase "Download Dokumen" as UC_DownloadDokumen
+
+    ' ===== Kelola Program Kerja =====
+    usecase "Kelola Program Kerja" as UC_ProkerMain
+    usecase "CRUD Program Kerja DPP" as UC_CRUDProkerDPP
+    usecase "Lihat Program Kerja WR" as UC_LihatProkerWR
+    usecase "CRUD Program Kerja Kategorial" as UC_CRUDProkerKategorial
+
+    ' ===== Kelola Struktur Organisasi =====
+    usecase "Kelola Struktur Organisasi" as UC_StrukturMain
+    usecase "CRUD Struktur DPP" as UC_CRUDStrukturDPP
+    usecase "CRUD Struktur WR" as UC_CRUDStrukturWR
+    usecase "CRUD Struktur K.Kategorial" as UC_CRUDKategorial
+    usecase "CRUD Struktur K.Binaan" as UC_CRUDBinaan
+    
+    ' ===== Kelola Tim Pembina =====
+    usecase "Kelola Tim Pembina" as UC_TimPembinaMain
+    usecase "CRUD Tim Pembina" as UC_CRUDTimPembina
+
+    ' ===== Kelola Buku Kronik =====
+    usecase "Kelola Buku Kronik" as UC_BukuKronikMain
+    usecase "CRUD Peristiwa" as UC_CRUDBukuKronik
+
+    ' ===== Kelola Riwayat =====
+    usecase "Riwayat AKtivitas" as UC_HistoryActivity
+    usecase "Lihat Aktivitas Admin" as UC_HistoryAdmin
+    usecase "Lihat AKtivitas Client" as UC_HistoryClient
+
+    ' ===== Kelola Aset =====
+    usecase "Kelola Aset" as UC_AsetMain
+    usecase "CRUD Aset" as UC_CRUDAset
+
+    ' ===== Kelola Pengguna =====
+    usecase "Kelola Pengguna" as UC_PenggunaMain
+    usecase "CRUD Pengguna" as UC_CRUDPengguna
+    usecase "Atur Hak Akses" as UC_AturHakAkses
+
+    ' ===== Pengaturan Sistem =====
+    usecase "Kelola Pengaturan" as UC_Pengaturan
+    usecase "Atur Konfigurasi API" as UC_KonfigurasiAPI
+    usecase "Backup Database" as UC_BackupDB
+    
+    ' ===== Relasi Include untuk Login Admin=====
+    UC_Login ..> UC_Validasi : <<include>>
+    
+    ' ===== Relasi Include untuk server ctrl=====
+    UC_ServerControl ..> UC_ClientTerhubung : <<extend>>
+    UC_ServerControl ..> UC_LogAktivitas : <<include>>
+    UC_ServerControl ..> UC_ControlAPI : <<include>>
+    
+    
+    
+    '===== Relasi Include untuk kontrol API=====
+    UC_ControlAPI ..> UC_EnableApi : <<extend>>
+    UC_ControlAPI ..> UC_DisableApi : <<extend>>
+    
+    '===== Relasi Include untuk Log Activity=====
+    UC_LogAktivitas ..> UC_LogClear : <<extend>>
+    UC_LogAktivitas ..> UC_LogSave : <<extend>>
+    
+    ' ===== Relasi Include untuk Dashboard =====
+    UC_Dashboard ..> UC_StatistikUmat : <<include>>
+    UC_Dashboard ..> UC_Aktivitas: <<include>>
+    UC_Dashboard ..> UC_PengumumanTerbaru : <<include>>
+    UC_Dashboard ..> UC_KegiatanMendatang : <<include>>
+
+    ' ===== Relasi Extend untuk Jemaat =====
+    UC_UmatMain <.. UC_CRUDUmat : <<extend>>
+
+    ' ===== Relasi Extend untuk Keuangan =====
+    UC_KeuanganMain <.. UC_CRUDKeuangan : <<extend>>
+    UC_KeuanganMain <.. UC_LihatKeuanganWR : <<extend>>
+    UC_KeuanganMain <.. UC_LihatKeuanganKategorial : <<extend>>
+
+    ' ===== Relasi Extend untuk Kegiatan =====
+    UC_KegiatanMain <.. UC_CRUDKegiatan : <<extend>>
+    UC_KegiatanMain <.. UC_LihatKegiatanWR : <<extend>>
+
+    ' ===== Relasi Extend untuk Pengumuman =====
+    UC_PengumumanMain <.. UC_CRUDPengumuman : <<extend>>
+    UC_PengumumanMain <.. UC_BroadcastPengumuman : <<extend>>
+
+    ' ===== Relasi Extend untuk Dokumen =====
+    UC_DokumenMain <.. UC_UploadDokumen : <<extend>>
+    UC_DokumenMain <.. UC_DeleteDokumen : <<extend>>
+    UC_DokumenMain <.. UC_DownloadDokumen : <<extend>>
+
+    ' ===== Relasi Extend untuk Program Kerja =====
+    UC_ProkerMain <.. UC_CRUDProkerDPP : <<extend>>
+    UC_ProkerMain <.. UC_LihatProkerWR : <<extend>>
+    UC_ProkerMain <.. UC_CRUDProkerKategorial : <<extend>>
+
+    ' ===== Relasi Extend untuk Struktur =====
+    UC_StrukturMain <.. UC_CRUDStrukturDPP : <<extend>>
+    UC_StrukturMain <.. UC_CRUDStrukturWR : <<extend>>
+    UC_StrukturMain <.. UC_CRUDKategorial: <<extend>>
+    UC_StrukturMain <.. UC_CRUDBinaan : <<extend>>
+    
+    ' ===== Relasi Extend untuk Tim Pembina =====
+    UC_TimPembinaMain <.. UC_CRUDTimPembina : <<extend>>
+
+    ' ===== Relasi Extend untuk Buku Kronik =====
+    UC_BukuKronikMain <.. UC_CRUDBukuKronik : <<extend>>
+   
+    ' ===== Relasi Extend untuk Buku Kronik =====
+    UC_HistoryActivity <.. UC_HistoryAdmin: <<extend>>
+    UC_HistoryActivity <.. UC_HistoryClient: <<extend>>
+
+    ' ===== Relasi Extend untuk Aset =====
+    UC_AsetMain <.. UC_CRUDAset : <<extend>>
+
+    ' ===== Relasi Extend untuk Pengguna =====
+    UC_PenggunaMain <.. UC_CRUDPengguna : <<extend>>
+    UC_PenggunaMain <.. UC_AturHakAkses : <<extend>>
+
+    ' ===== Relasi Extend untuk Pengaturan =====
+    UC_Pengaturan <.. UC_KonfigurasiAPI : <<extend>>
+    UC_Pengaturan <.. UC_BackupDB : <<extend>>
+    
+    ' ===== Aktor ke Use Case =====
+    
+    admin --> UC_Login
+    '==== Login ke Use Case ====
+    UC_Login --> UC_ServerControl
+    UC_Login --> UC_Dashboard
+    UC_Login --> UC_UmatMain
+    UC_Login --> UC_KeuanganMain
+    UC_Login --> UC_KegiatanMain
+    UC_Login --> UC_PengumumanMain
+    UC_Login --> UC_DokumenMain
+    UC_Login --> UC_ProkerMain
+    UC_Login --> UC_StrukturMain
+    UC_Login --> UC_TimPembinaMain
+    UC_Login --> UC_BukuKronikMain
+    UC_Login --> UC_HistoryActivity
+    UC_Login --> UC_AsetMain
+    UC_Login --> UC_PenggunaMain
+    UC_Login --> UC_Pengaturan
+    
+    ' ===== usecase ke Use Case =====
+    UC_ControlAPI --> UC_EnableApi
+    UC_ControlAPI --> UC_DisableApi
+    
+    ' ===== usecase ke Use Case =====
+    UC_LogAktivitas --> UC_LogClear
+    UC_LogAktivitas --> UC_LogSave
+
+}
+
+@enduml

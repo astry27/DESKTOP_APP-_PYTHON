@@ -58,9 +58,9 @@ app.register_blueprint(auth_bp)
 app.register_blueprint(jemaat_bp)
 app.register_blueprint(kegiatan_bp)
 app.register_blueprint(keuangan_bp)
-app.register_blueprint(keuangan_kategorial_bp)
 app.register_blueprint(pengumuman_bp)
 app.register_blueprint(dokumen_bp)
+app.register_blueprint(keuangan_kategorial_bp)
 app.register_blueprint(struktur_bp)
 app.register_blueprint(aset_bp)
 app.register_blueprint(program_kerja_bp)
@@ -106,7 +106,7 @@ def home():
             'aset': '/aset',
             'program_kerja': '/program-kerja',
             'program_kerja_wr': '/program-kerja-wr',
-            'program_kerja_kategorial': '/program-kerja-kategorial',
+            'program_kerja_k_kategorial': '/program-kerja-k-kategorial',
             'pengguna': '/pengguna',
             'client': '/client',
             'pesan': '/pesan',
@@ -129,32 +129,85 @@ def health_check():
 
 @app.route('/test-db')
 def test_database():
-    connection = get_db_connection()
-    if connection:
-        try:
-            cursor = connection.cursor()
-            cursor.execute("SELECT VERSION()")
-            version_row = cursor.fetchone()
-            cursor.close()
-            connection.close()
-            if version_row:
-                version_str = str(version_row[0]) if isinstance(version_row, (list, tuple)) else str(version_row)  # type: ignore
-            else:
-                version_str = 'Unknown'
-            return jsonify({
-                'status': 'success',
-                'message': 'Database terhubung',
-                'version': version_str
-            })
-        except Exception as e:
+    print("=" * 50)
+    print("DEBUG: Starting database test...")
+    
+    try:
+        connection = get_db_connection()
+        print(f"DEBUG: Connection object: {connection}")
+        print(f"DEBUG: Connection type: {type(connection)}")
+        
+        if connection:
+            print("DEBUG: Connection successful, attempting query...")
+            try:
+                cursor = connection.cursor()
+                print("DEBUG: Cursor created successfully")
+                
+                cursor.execute("SELECT VERSION()")
+                print("DEBUG: Query executed successfully")
+                
+                version_row = cursor.fetchone()
+                print(f"DEBUG: Fetched row: {version_row}")
+                print(f"DEBUG: Row type: {type(version_row)}")
+                
+                cursor.close()
+                print("DEBUG: Cursor closed")
+                
+                connection.close()
+                print("DEBUG: Connection closed")
+                
+                if version_row:
+                    version_str = str(version_row[0]) if isinstance(version_row, (list, tuple)) else str(version_row)
+                    print(f"DEBUG: Version string: {version_str}")
+                else:
+                    version_str = 'Unknown'
+                    print("DEBUG: No version row returned")
+                
+                print("DEBUG: Test completed successfully")
+                print("=" * 50)
+                
+                return jsonify({
+                    'status': 'success',
+                    'message': 'Database terhubung',
+                    'version': version_str
+                })
+                
+            except Exception as e:
+                print(f"DEBUG: Error during query execution")
+                print(f"DEBUG: Error type: {type(e).__name__}")
+                print(f"DEBUG: Error message: {str(e)}")
+                print(f"DEBUG: Full error: {repr(e)}")
+                import traceback
+                print(f"DEBUG: Traceback:\n{traceback.format_exc()}")
+                print("=" * 50)
+                
+                return jsonify({
+                    'status': 'error',
+                    'message': f'Query error: {str(e)}',
+                    'error_type': type(e).__name__
+                }), 500
+                
+        else:
+            print("DEBUG: Connection is None or False")
+            print("=" * 50)
+            
             return jsonify({
                 'status': 'error',
-                'message': str(e)
+                'message': 'Gagal terhubung database - connection is None'
             }), 500
-    else:
+            
+    except Exception as e:
+        print(f"DEBUG: Error at connection level")
+        print(f"DEBUG: Error type: {type(e).__name__}")
+        print(f"DEBUG: Error message: {str(e)}")
+        import traceback
+        print(f"DEBUG: Traceback:\n{traceback.format_exc()}")
+        print("=" * 50)
+        
         return jsonify({
             'status': 'error',
-            'message': 'Gagal terhubung database'
+            'message': f'Connection error: {str(e)}',
+            'error_type': type(e).__name__
         }), 500
 
 @app.route('/debug/check-routes')

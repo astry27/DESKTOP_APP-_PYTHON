@@ -701,7 +701,7 @@ class KegiatanClientComponent(QWidget):
             }
         """)
         try:
-            detail_icon = QIcon(os.path.join(os.path.dirname(__file__), '..', 'assets', 'view.png'))
+            detail_icon = QIcon("client/assets/view.png")
             if not detail_icon.isNull():
                 detail_button.setIcon(detail_icon)
                 detail_button.setIconSize(QSize(14, 14))
@@ -730,7 +730,7 @@ class KegiatanClientComponent(QWidget):
             }
         """)
         try:
-            edit_icon = QIcon(os.path.join(os.path.dirname(__file__), '..', 'assets', 'edit.png'))
+            edit_icon = QIcon("client/assets/edit.png")
             if not edit_icon.isNull():
                 edit_button.setIcon(edit_icon)
                 edit_button.setIconSize(QSize(14, 14))
@@ -817,16 +817,14 @@ class KegiatanClientComponent(QWidget):
             }
         """)
         try:
-            pdf_icon = QIcon(os.path.join(os.path.dirname(__file__), '..', 'assets', 'pdf.png'))
-            if not pdf_icon.isNull():
-                export_pdf_button.setIcon(pdf_icon)
+            export_icon = QIcon(os.path.join(os.path.dirname(__file__), '..', 'assets', 'export.png'))
+            if not export_icon.isNull():
+                export_pdf_button.setIcon(export_icon)
                 export_pdf_button.setIconSize(QSize(14, 14))
         except:
             pass
         export_pdf_button.clicked.connect(self.export_kegiatan_pdf)
         button_layout.addWidget(export_pdf_button)
-
-        button_layout.addStretch()
 
         return button_layout
 

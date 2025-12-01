@@ -18,8 +18,8 @@ from PyQt5.QtWidgets import (
     QAbstractItemView,
     QFrame,
 )
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QFont
+from PyQt5.QtCore import Qt, QSize
+from PyQt5.QtGui import QFont, QIcon
 
 
 class DokumenComponent(QWidget):
@@ -37,18 +37,19 @@ class DokumenComponent(QWidget):
 
     def init_ui(self):
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(5)
 
-        # Title section with professional styling
-        title_frame = QFrame()
-        title_frame.setStyleSheet("""
+        # Header with title (matching proker_component.py style)
+        header = QFrame()
+        header.setStyleSheet("""
             QFrame {
                 background-color: white;
-                border-bottom: 2px solid #ecf0f1;
                 padding: 10px 0px;
             }
         """)
-        title_layout = QHBoxLayout(title_frame)
-        title_layout.setContentsMargins(10, 0, 10, 0)
+        header_layout = QHBoxLayout(header)
+        header_layout.setContentsMargins(10, 0, 10, 0)
 
         title_label = QLabel("Manajemen Dokumen")
         title_font = QFont("Arial", 18, QFont.Bold)
@@ -61,24 +62,27 @@ class DokumenComponent(QWidget):
                 border: none;
             }
         """)
-        title_layout.addWidget(title_label)
-        title_layout.addStretch()
-        layout.addWidget(title_frame)
+        header_layout.addWidget(title_label)
+        header_layout.addStretch()
 
-        # Header layout untuk buttons
-        header_layout = QHBoxLayout()
-        header_layout.setContentsMargins(10, 10, 10, 0)
-
-        self.download_button = QPushButton("Download")
+        # Download button with icon
+        self.download_button = QPushButton(" Download")
         self.download_button.setEnabled(False)
         self.download_button.clicked.connect(self.download_selected_file)
+        try:
+            download_icon = QIcon(os.path.join(os.path.dirname(__file__), '..', 'assets', 'unduh.png'))
+            if not download_icon.isNull():
+                self.download_button.setIcon(download_icon)
+                self.download_button.setIconSize(QSize(16, 16))
+        except:
+            pass
         self.download_button.setStyleSheet("""
             QPushButton {
                 background-color: #3498db;
                 color: white;
                 padding: 8px 16px;
                 border: none;
-                border-radius: 4px;
+                border-radius: 3px;
                 font-weight: bold;
             }
             QPushButton:disabled {
@@ -89,18 +93,25 @@ class DokumenComponent(QWidget):
                 background-color: #2980b9;
             }
         """)
-        header_layout.addStretch()
         header_layout.addWidget(self.download_button)
 
-        refresh_button = QPushButton("Refresh")
+        # Refresh button with icon
+        refresh_button = QPushButton(" Refresh")
         refresh_button.clicked.connect(self.load_files)
+        try:
+            refresh_icon = QIcon(os.path.join(os.path.dirname(__file__), '..', 'assets', 'refresh.png'))
+            if not refresh_icon.isNull():
+                refresh_button.setIcon(refresh_icon)
+                refresh_button.setIconSize(QSize(16, 16))
+        except:
+            pass
         refresh_button.setStyleSheet("""
             QPushButton {
                 background-color: #27ae60;
                 color: white;
                 padding: 8px 16px;
                 border: none;
-                border-radius: 4px;
+                border-radius: 3px;
                 font-weight: bold;
             }
             QPushButton:hover {
@@ -108,16 +119,16 @@ class DokumenComponent(QWidget):
             }
         """)
         header_layout.addWidget(refresh_button)
-        layout.addLayout(header_layout)
+        layout.addWidget(header)
 
         self.table_widget = QTableWidget()
         self.table_widget.setColumnCount(7)
         self.table_widget.setHorizontalHeaderLabels([
             "Nama Dokumen",
-            "Jenis Dokumen",
-            "Keterangan",
+            "Kategori",
+            "Bentuk",
             "Ukuran",
-            "Tipe File",
+            "Keterangan",
             "Upload By",
             "Tanggal Upload",
         ])
@@ -125,14 +136,14 @@ class DokumenComponent(QWidget):
         header.setSectionResizeMode(QHeaderView.Interactive)
         header.setStretchLastSection(True)
 
-        # Set preferred column widths
-        self.table_widget.setColumnWidth(0, 220)
+        # Set preferred column widths (matching server/components/dokumen.py)
+        self.table_widget.setColumnWidth(0, 200)
         self.table_widget.setColumnWidth(1, 140)
-        self.table_widget.setColumnWidth(2, 240)
-        self.table_widget.setColumnWidth(3, 110)
-        self.table_widget.setColumnWidth(4, 120)
-        self.table_widget.setColumnWidth(5, 160)
-        self.table_widget.setColumnWidth(6, 150)
+        self.table_widget.setColumnWidth(2, 140)
+        self.table_widget.setColumnWidth(3, 100)
+        self.table_widget.setColumnWidth(4, 150)
+        self.table_widget.setColumnWidth(5, 120)
+        self.table_widget.setColumnWidth(6, 140)
 
         self.table_widget.setFocusPolicy(Qt.StrongFocus)
         self.table_widget.setSelectionBehavior(QAbstractItemView.SelectRows)
@@ -177,35 +188,34 @@ class DokumenComponent(QWidget):
 
         for row, file_info in enumerate(self.files_data):
             document_name = self._resolve_document_name(file_info)
-            jenis_dokumen = self._resolve_document_category(file_info)
-            description_text, description_tooltip = self._resolve_description(file_info)
+            kategori_dokumen = self._resolve_document_category(file_info)
+            bentuk_dokumen = self._resolve_bentuk_dokumen(file_info)
             size_display = self._format_file_size(file_info)
-            type_display, raw_type = self._resolve_file_type(file_info)
+            description_text, description_tooltip = self._resolve_description(file_info)
             uploader = self._resolve_uploader(file_info)
             upload_date = self._resolve_upload_date(file_info)
 
+            # Column 0: Nama Dokumen
             self.table_widget.setItem(row, 0, self._create_item(document_name))
-            self.table_widget.setItem(row, 1, self._create_item(jenis_dokumen))
-            self.table_widget.setItem(
-                row,
-                2,
-                self._create_item(description_text, tooltip=description_tooltip)
-            )
+            # Column 1: Kategori (jenis dokumen)
+            self.table_widget.setItem(row, 1, self._create_item(kategori_dokumen))
+            # Column 2: Bentuk Dokumen
+            self.table_widget.setItem(row, 2, self._create_item(bentuk_dokumen))
+            # Column 3: Ukuran
             self.table_widget.setItem(
                 row,
                 3,
                 self._create_item(size_display, alignment=Qt.AlignRight | Qt.AlignVCenter)
             )
+            # Column 4: Keterangan
             self.table_widget.setItem(
                 row,
                 4,
-                self._create_item(
-                    type_display,
-                    alignment=Qt.AlignCenter | Qt.AlignVCenter,
-                    tooltip=f"MIME Type: {raw_type}" if raw_type else None
-                )
+                self._create_item(description_text, tooltip=description_tooltip)
             )
+            # Column 5: Upload By
             self.table_widget.setItem(row, 5, self._create_item(uploader))
+            # Column 6: Tanggal Upload
             self.table_widget.setItem(
                 row,
                 6,
@@ -331,10 +341,21 @@ class DokumenComponent(QWidget):
 
     def _resolve_document_category(self, file_info):
         category_keys = [
-            'jenis_dokumen', 'document_type', 'kategori', 'category',
+            'kategori_file', 'jenis_dokumen', 'document_type', 'kategori', 'category',
             'type', 'doc_type', 'document_category'
         ]
         for key in category_keys:
+            value = file_info.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+        return "-"
+
+    def _resolve_bentuk_dokumen(self, file_info):
+        bentuk_keys = [
+            'bentuk_dokumen', 'bentuk', 'form', 'document_form',
+            'kategori_file'
+        ]
+        for key in bentuk_keys:
             value = file_info.get(key)
             if isinstance(value, str) and value.strip():
                 return value.strip()

@@ -35,27 +35,30 @@ class PengumumanComponent(QWidget):
     def setup_ui(self):
         """Setup UI untuk halaman pengumuman"""
         layout = QVBoxLayout(self)
-        
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
         # Clean header without background (matching pengaturan style)
         header_frame = QWidget()
         header_layout = QHBoxLayout(header_frame)
-        header_layout.setContentsMargins(0, 0, 10, 0)
+        header_layout.setContentsMargins(10, 5, 10, 5)
+        header_layout.setSpacing(0)
 
         title_label = QLabel("Manajemen Pengumuman")
         title_label.setStyleSheet("font-size: 18px; font-weight: bold;")
         header_layout.addWidget(title_label)
         header_layout.addStretch()
 
-        layout.addWidget(header_frame)
-        
+        layout.addWidget(header_frame, 0)
+
         # Original header with buttons
         header = self.create_header()
-        layout.addWidget(header)
-        
+        layout.addWidget(header, 0)
+
         # Filter
         filter_group = self.create_filter()
-        layout.addWidget(filter_group)
-        
+        layout.addWidget(filter_group, 0)
+
         # Table view untuk daftar pengumuman with proper container
         table_container = QFrame()
         table_container.setStyleSheet("""
@@ -68,24 +71,25 @@ class PengumumanComponent(QWidget):
         table_layout = QVBoxLayout(table_container)
         table_layout.setContentsMargins(0, 0, 0, 0)
         table_layout.setSpacing(0)
-        
+
         self.pengumuman_table = self.create_professional_table()
         table_layout.addWidget(self.pengumuman_table)
-        
-        layout.addWidget(table_container)
-        
+
+        layout.addWidget(table_container, 1)
+
         # Tampilan detail pengumuman
         detail_group = QGroupBox("Detail Pengumuman")
         detail_layout = QVBoxLayout(detail_group)
-        
+        detail_layout.setContentsMargins(10, 5, 10, 5)
+
         self.pengumuman_detail = QTextBrowser()
         detail_layout.addWidget(self.pengumuman_detail)
-        
-        layout.addWidget(detail_group)
-        
+
+        layout.addWidget(detail_group, 1)
+
         # Tombol aksi
         action_layout = self.create_action_buttons()
-        layout.addLayout(action_layout)
+        layout.addLayout(action_layout, 0)
     
     def create_professional_table(self):
         """Create table with professional styling."""
@@ -233,27 +237,30 @@ class PengumumanComponent(QWidget):
         """Buat header dengan kontrol (tanpa title karena sudah ada di header frame)"""
         header = QWidget()
         header_layout = QHBoxLayout(header)
-        header_layout.setContentsMargins(0, 0, 10, 0)  # Add right margin for spacing
-        
+        header_layout.setContentsMargins(10, 3, 10, 3)
+        header_layout.setSpacing(5)
+
         header_layout.addStretch()
-        
+
         add_button = self.create_button("Tambah Pengumuman", "#27ae60", self.add_pengumuman, "server/assets/tambah.png")
         header_layout.addWidget(add_button)
-        
+
         return header
     
     def create_filter(self):
         """Buat filter pengumuman"""
         filter_group = QGroupBox("Filter Pengumuman")
         filter_layout = QHBoxLayout(filter_group)
-        
+        filter_layout.setContentsMargins(10, 3, 10, 3)
+        filter_layout.setSpacing(5)
+
         self.active_only = QCheckBox("Hanya Pengumuman Aktif")
         self.active_only.setChecked(False)  # Default show all announcements
         self.active_only.stateChanged.connect(self.load_data)
         filter_layout.addWidget(self.active_only)
-        
+
         filter_layout.addStretch()
-        
+
         return filter_group
     
     def create_action_buttons(self):

@@ -94,18 +94,40 @@ class ProgramKerjaKategorialWidget(QWidget):
         layout.addWidget(content_widget)
 
     def create_header(self):
-        """Create header with refresh and add buttons"""
+        """Create header with title and add button"""
         header = QWidget()
         header_layout = QHBoxLayout(header)
         header_layout.setContentsMargins(0, 5, 10, 5)
 
-        add_button = self.create_button("Tambah Program Kerja", "#27ae60", self.add_program, "server/assets/tambah.png")
-        header_layout.addWidget(add_button)
+        # Title (optional, karena sudah ada di title_frame)
+        # Bisa dihapus jika tidak diperlukan
 
         header_layout.addStretch()
 
-        refresh_button = self.create_button("Refresh Data", "#3498db", self.load_data, "server/assets/refresh.png")
-        header_layout.addWidget(refresh_button)
+        # Add button - posisi di kanan dengan ikon
+        add_button = QPushButton(" Tambah Program Kerja")
+        try:
+            icon = QIcon("server/assets/tambah.png")
+            if not icon.isNull():
+                add_button.setIcon(icon)
+                add_button.setIconSize(QSize(20, 20))
+        except Exception:
+            pass
+        add_button.setStyleSheet("""
+            QPushButton {
+                background-color: #27ae60;
+                color: white;
+                padding: 8px 16px;
+                border: none;
+                border-radius: 3px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #2ecc71;
+            }
+        """)
+        add_button.clicked.connect(self.add_program)
+        header_layout.addWidget(add_button)
 
         return header
 
@@ -132,17 +154,10 @@ class ProgramKerjaKategorialWidget(QWidget):
         filter_group = QGroupBox()
         filter_layout = QHBoxLayout(filter_group)
 
-        # Category filter
-        category_label = QLabel("Kategori:")
-        filter_layout.addWidget(category_label)
-
-        self.category_filter = QComboBox()
-        self.category_filter.addItems([
-            "Semua", "Ibadah", "Doa", "Katekese", "Sosial",
-            "Rohani", "Administratif", "Perayaan", "Lainnya"
-        ])
-        self.category_filter.currentTextChanged.connect(self.filter_programs)
-        filter_layout.addWidget(self.category_filter)
+        # Note: Kategori field dihapus karena tidak ada di database
+        filter_info = QLabel("Filter berdasarkan pencarian di atas")
+        filter_info.setStyleSheet("color: #7f8c8d; font-style: italic;")
+        filter_layout.addWidget(filter_info)
 
         filter_layout.addStretch()
 
@@ -198,6 +213,9 @@ class ProgramKerjaKategorialWidget(QWidget):
         # Enable context menu
         self.program_table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.program_table.customContextMenuRequested.connect(self.show_context_menu)
+
+        # Double click to view detail
+        self.program_table.itemDoubleClicked.connect(self.view_program)
 
         table_layout.addWidget(self.program_table)
 
@@ -309,88 +327,192 @@ class ProgramKerjaKategorialWidget(QWidget):
         table.setSizePolicy(table.sizePolicy().Expanding, table.sizePolicy().Expanding)
 
     def create_action_buttons(self):
-        """Create action buttons layout"""
+        """Create action buttons layout dengan style yang konsisten"""
         action_layout = QHBoxLayout()
         action_layout.addStretch()
+        action_layout.setSpacing(5)
 
-        view_button = self.create_button("Lihat Detail", "#3498db", self.view_program, "server/assets/view.png")
-        action_layout.addWidget(view_button)
+        # Detail button dengan ikon
+        detail_button = QPushButton(" Lihat Detail")
+        try:
+            icon = QIcon("server/assets/lihat.png")
+            if not icon.isNull():
+                detail_button.setIcon(icon)
+                detail_button.setIconSize(QSize(16, 16))
+        except Exception:
+            pass
+        detail_button.setStyleSheet("""
+            QPushButton {
+                background-color: #2980b9;
+                color: white;
+                padding: 6px 12px;
+                border: none;
+                border-radius: 3px;
+                font-weight: 500;
+                font-size: 11px;
+            }
+            QPushButton:hover {
+                background-color: #3498db;
+            }
+            QPushButton:pressed {
+                background-color: #1f618d;
+            }
+        """)
+        detail_button.clicked.connect(self.view_program)
+        action_layout.addWidget(detail_button)
 
-        export_button = self.create_button("Export CSV", "#16a085", self.export_programs, "server/assets/export.png")
-        action_layout.addWidget(export_button)
+        # Edit button dengan ikon
+        edit_button = QPushButton(" Edit")
+        try:
+            icon = QIcon("server/assets/edit.png")
+            if not icon.isNull():
+                edit_button.setIcon(icon)
+                edit_button.setIconSize(QSize(16, 16))
+        except Exception:
+            pass
+        edit_button.setStyleSheet("""
+            QPushButton {
+                background-color: #f39c12;
+                color: white;
+                padding: 6px 12px;
+                border: none;
+                border-radius: 3px;
+                font-weight: 500;
+                font-size: 11px;
+            }
+            QPushButton:hover {
+                background-color: #f1c40f;
+            }
+            QPushButton:pressed {
+                background-color: #d68910;
+            }
+        """)
+        edit_button.clicked.connect(self.edit_program)
+        action_layout.addWidget(edit_button)
+
+        # Delete button dengan ikon
+        delete_button = QPushButton(" Hapus")
+        try:
+            icon = QIcon("server/assets/hapus.png")
+            if not icon.isNull():
+                delete_button.setIcon(icon)
+                delete_button.setIconSize(QSize(16, 16))
+        except Exception:
+            pass
+        delete_button.setStyleSheet("""
+            QPushButton {
+                background-color: #e74c3c;
+                color: white;
+                padding: 6px 12px;
+                border: none;
+                border-radius: 3px;
+                font-weight: 500;
+                font-size: 11px;
+            }
+            QPushButton:hover {
+                background-color: #c0392b;
+            }
+            QPushButton:pressed {
+                background-color: #a93226;
+            }
+        """)
+        delete_button.clicked.connect(self.delete_program)
+        action_layout.addWidget(delete_button)
+
+        # Export CSV button dengan ikon
+        export_csv_button = QPushButton(" Export CSV")
+        try:
+            icon = QIcon("server/assets/export.png")
+            if not icon.isNull():
+                export_csv_button.setIcon(icon)
+                export_csv_button.setIconSize(QSize(16, 16))
+        except Exception:
+            pass
+        export_csv_button.setStyleSheet("""
+            QPushButton {
+                background-color: #16a085;
+                color: white;
+                padding: 6px 12px;
+                border: none;
+                border-radius: 3px;
+                font-weight: 500;
+                font-size: 11px;
+            }
+            QPushButton:hover {
+                background-color: #1abc9c;
+            }
+            QPushButton:pressed {
+                background-color: #117a65;
+            }
+        """)
+        export_csv_button.clicked.connect(self.export_programs)
+        action_layout.addWidget(export_csv_button)
+
+        # Refresh button dengan ikon
+        refresh_button = QPushButton(" Refresh")
+        try:
+            icon = QIcon("server/assets/refresh.png")
+            if not icon.isNull():
+                refresh_button.setIcon(icon)
+                refresh_button.setIconSize(QSize(16, 16))
+        except Exception:
+            pass
+        refresh_button.setStyleSheet("""
+            QPushButton {
+                background-color: #3498db;
+                color: white;
+                padding: 6px 12px;
+                border: none;
+                border-radius: 3px;
+                font-weight: 500;
+                font-size: 11px;
+            }
+            QPushButton:hover {
+                background-color: #2980b9;
+            }
+            QPushButton:pressed {
+                background-color: #1f618d;
+            }
+        """)
+        refresh_button.clicked.connect(self.load_data)
+        action_layout.addWidget(refresh_button)
 
         return action_layout
 
-    def create_button(self, text, color, slot, icon_path=None):
-        """Create button with consistent style"""
-        button = QPushButton(text)
-
-        if icon_path:
-            try:
-                icon = QIcon(icon_path)
-                if not icon.isNull():
-                    button.setIcon(icon)
-                    button.setIconSize(QSize(20, 20))
-            except Exception:
-                pass
-
-        button.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {color};
-                color: white;
-                padding: 5px 10px;
-                border: none;
-                border-radius: 3px;
-                text-align: left;
-            }}
-            QPushButton:hover {{
-                background-color: {self.darken_color(color)};
-            }}
-        """)
-        button.clicked.connect(slot)
-        return button
-
-    def darken_color(self, color):
-        """Darken color for hover effect"""
-        color_map = {
-            "#3498db": "#2980b9",
-            "#27ae60": "#2ecc71",
-            "#f39c12": "#f1c40f",
-            "#c0392b": "#e74c3c",
-            "#16a085": "#1abc9c",
-        }
-        return color_map.get(color, color)
 
     def show_context_menu(self, position):
-        """Show context menu"""
+        """Show context menu dengan ikon"""
         if self.program_table.rowCount() == 0:
             return
 
         menu = QMenu()
-        add_action = menu.addAction("Tambah Program Kerja")
-        edit_action = menu.addAction("Edit Program")
-        delete_action = menu.addAction("Hapus Program")
+
+        add_action = menu.addAction("➕ Tambah Program Kerja")
+        view_action = menu.addAction("👁️ Lihat Detail")
+        edit_action = menu.addAction("✏️ Edit Program")
+        delete_action = menu.addAction("🗑️ Hapus Program")
         menu.addSeparator()
-        view_action = menu.addAction("Lihat Detail")
-        export_action = menu.addAction("Export")
+        export_action = menu.addAction("📄 Export CSV")
+        refresh_action = menu.addAction("🔄 Refresh Data")
 
         action = menu.exec_(self.program_table.mapToGlobal(position))
 
         if action == add_action:
             self.add_program()
+        elif action == view_action:
+            self.view_program()
         elif action == edit_action:
             self.edit_program()
         elif action == delete_action:
             self.delete_program()
-        elif action == view_action:
-            self.view_program()
         elif action == export_action:
             self.export_programs()
+        elif action == refresh_action:
+            self.load_data()
 
     def filter_programs(self):
-        """Filter programs based on search and category"""
+        """Filter programs based on search"""
         search_text = self.search_input.text().lower()
-        category_filter = self.category_filter.currentText()
 
         filtered_programs = []
 
@@ -398,12 +520,10 @@ class ProgramKerjaKategorialWidget(QWidget):
             # Search filter
             if search_text:
                 program_name = program.get('program_kerja', '').lower()
-                if search_text not in program_name:
-                    continue
+                subyek = program.get('subyek_sasaran', '').lower()
+                pic = program.get('pic', '').lower()
 
-            # Category filter
-            if category_filter != "Semua":
-                if program.get('kategori', '') != category_filter:
+                if search_text not in program_name and search_text not in subyek and search_text not in pic:
                     continue
 
             filtered_programs.append(program)
@@ -479,9 +599,27 @@ class ProgramKerjaKategorialWidget(QWidget):
 
         try:
             self.log_message.emit("Memuat data program kerja K. Kategorial dari database...")
-            success, programs = self.db_manager.get_program_kerja_kategorial_list()
+            success, result = self.db_manager.get_program_kerja_kategorial_list()
 
             if success:
+                # Handle different response structures
+                programs = []
+                if isinstance(result, list):
+                    programs = result
+                elif isinstance(result, dict):
+                    if 'data' in result:
+                        # Response structure: {"data": [...]}
+                        programs = result.get('data', [])
+                    elif 'status' in result and result.get('status') == 'success':
+                        # Response structure: {"status": "success", "data": {"data": [...]}}
+                        nested_data = result.get('data', {})
+                        if isinstance(nested_data, dict) and 'data' in nested_data:
+                            programs = nested_data.get('data', [])
+                        elif isinstance(nested_data, list):
+                            programs = nested_data
+
+                self.log_message.emit(f"[DEBUG] Loaded {len(programs)} programs from API")
+
                 self.work_programs = []
                 for program in programs:
                     ui_data = {
@@ -502,18 +640,19 @@ class ProgramKerjaKategorialWidget(QWidget):
                         'jumlah': program.get('jumlah', 0),
                         'total': program.get('total', 0),
                         'keterangan': program.get('keterangan', ''),
-                        'kategori': program.get('kategori', ''),
                         'created_by': program.get('created_by'),
                     }
                     self.work_programs.append(ui_data)
 
                 self.filter_programs()
-                self.log_message.emit(f"Data program kerja K. Kategorial berhasil dimuat: {len(self.work_programs)} program")
+                self.log_message.emit(f"✓ Data program kerja K. Kategorial berhasil dimuat: {len(self.work_programs)} program")
             else:
-                self.log_message.emit(f"Gagal memuat data: {programs}")
+                self.log_message.emit(f"✗ Gagal memuat data: {result}")
 
         except Exception as e:
-            self.log_message.emit(f"Error loading program kerja K. Kategorial: {str(e)}")
+            import traceback
+            self.log_message.emit(f"✗ Error loading program kerja K. Kategorial: {str(e)}")
+            self.log_message.emit(f"[DEBUG] Traceback: {traceback.format_exc()}")
 
     def view_program(self):
         """View selected program details"""
@@ -591,6 +730,13 @@ class ProgramKerjaKategorialWidget(QWidget):
                 if success:
                     self.log_message.emit(f"Program kerja berhasil ditambahkan (ID: {result})")
                     self.load_data()
+
+                    # Show success notification
+                    QMessageBox.information(
+                        self,
+                        "Sukses",
+                        f"Program kerja '{data.get('program_kerja')}' berhasil ditambahkan!"
+                    )
                 else:
                     QMessageBox.critical(self, "Error", f"Gagal menambahkan program: {result}")
                     self.log_message.emit(f"Gagal menambahkan program kerja: {result}")
@@ -633,6 +779,13 @@ class ProgramKerjaKategorialWidget(QWidget):
                 if success:
                     self.log_message.emit("Program kerja berhasil diupdate")
                     self.load_data()
+
+                    # Show success notification
+                    QMessageBox.information(
+                        self,
+                        "Sukses",
+                        f"Program kerja '{data.get('program_kerja')}' berhasil diperbarui!"
+                    )
                 else:
                     QMessageBox.critical(self, "Error", f"Gagal mengupdate program: {result}")
                     self.log_message.emit(f"Gagal mengupdate program kerja: {result}")
@@ -675,6 +828,13 @@ class ProgramKerjaKategorialWidget(QWidget):
                 if success:
                     self.log_message.emit("Program kerja berhasil dihapus")
                     self.load_data()
+
+                    # Show success notification
+                    QMessageBox.information(
+                        self,
+                        "Sukses",
+                        f"Program kerja '{program_name}' berhasil dihapus!"
+                    )
                 else:
                     QMessageBox.critical(self, "Error", f"Gagal menghapus program: {result}")
                     self.log_message.emit(f"Gagal menghapus program kerja: {result}")

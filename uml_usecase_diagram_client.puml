@@ -1,0 +1,157 @@
+@startuml
+
+' background diagram
+skinparam backgroundColor white
+skinparam shadowing false
+
+' USE CASE (oval)
+skinparam usecase {
+  BackgroundColor white
+  BorderColor black
+}
+
+title Use Case Diagram - Client
+
+left to right direction
+
+actor "User WR/Client" as client
+
+rectangle "         " {
+
+    ' ===== Login =====
+    usecase "Login" as UC_Login
+    usecase "Validasi Kredensial User" as UC_Validasi
+
+    ' ===== Dashboard =====
+    usecase "Dashboard" as UC_Dashboard
+    usecase "Lihat Statistik WR" as UC_StatistikWR
+    usecase "Lihat Status Koneksi" as UC_StatusKoneksi
+    usecase "Lihat Informasi API" as UC_InfoAPI
+
+    ' ===== Kelola Database Umat =====
+    usecase "Kelola Database Umat" as UC_KelolaUmat
+    usecase "CRUD Data Umat WR" as UC_CRUDUmat
+    usecase "Filter Data Umat" as UC_FilterUmat
+    usecase "Cari Data Umat" as UC_CariUmat
+
+    ' ===== Kelola Keuangan WR =====
+    usecase "Kelola Keuangan WR" as UC_KeuanganWR
+    usecase "CRUD Keuangan WR" as UC_CRUDKeuanganWR
+    
+    ' ===== Kelola Program Kerja WR =====
+    usecase "Kelola Program Kerja WR" as UC_ProkerWR
+    usecase "CRUD Program Kerja WR" as UC_CRUDProkerWR
+
+    ' ===== Kelola Kegiatan WR =====
+    usecase "Kelola Kegiatan WR" as UC_KegiatanWR
+    usecase "CRUD Kegiatan WR" as UC_CRUDKegiatanWR
+
+    ' ===== Kelola Pengumuman =====
+    usecase "Lihat Pengumuman" as UC_LihatPengumuman
+    usecase "Cari Pengumuman" as UC_CariPengumuman
+
+    ' ===== Kelola Dokumen =====
+    usecase "Kelola Dokumen" as UC_DokumenWR
+    usecase "Download Dokumen" as UC_DownloadDokumen
+    
+    ' ===== Kelola Profil =====
+    usecase "Kelola Profil" as UC_KelolaProfile
+    usecase "Lihat Profil" as UC_LihatProfile
+    usecase "Edit Profil" as UC_EditProfile
+    usecase "Ganti Password" as UC_PasswordChange
+    usecase "Logout" as UC_Logout
+
+    ' ===== Riwayat Aktivitas =====
+    usecase "Lihat Riwayat Aktivitas" as UC_RiwayatAktivitas
+    usecase "Lihat Log Login" as UC_LogLogin
+    usecase "Lihat Log Koneksi" as UC_LogKoneksi
+    usecase "Lihat Log CRUD" as UC_LogCRUD
+
+    ' ===== Koneksi API =====
+    usecase "Kelola Koneksi" as UC_KelolaKoneksi
+    usecase "Hubungkan ke API" as UC_HubungkanAPI
+    usecase "Putuskan dari API" as UC_PutuskanAPI
+    usecase "Refresh Data" as UC_RefreshData
+
+    ' ===== Relasi Include untuk Login =====
+    UC_Login ..> UC_Validasi : <<include>>
+
+    ' ===== Relasi Include untuk Dashboard =====
+    UC_Dashboard ..> UC_StatistikWR : <<include>>
+    UC_Dashboard ..> UC_StatusKoneksi : <<include>>
+    UC_Dashboard ..> UC_InfoAPI : <<include>>
+
+    ' ===== Relasi Extend untuk Database Umat =====
+    UC_KelolaUmat <.. UC_CRUDUmat : <<extend>>
+    UC_KelolaUmat <.. UC_CariUmat : <<extend>>
+    UC_KelolaUmat <.. UC_FilterUmat : <<extend>>
+
+    ' ===== Relasi Extend untuk Keuangan WR =====
+    UC_KeuanganWR <.. UC_CRUDKeuanganWR : <<extend>>
+
+    ' ===== Relasi Extend untuk Program Kerja WR =====
+    UC_ProkerWR <.. UC_CRUDProkerWR : <<extend>>
+
+    ' ===== Relasi Extend untuk Kegiatan WR =====
+    UC_KegiatanWR <.. UC_CRUDKegiatanWR : <<extend>>
+
+    ' ===== Relasi Extend untuk Pengumuman =====
+    UC_LihatPengumuman <.. UC_CariPengumuman : <<extend>>
+
+    ' ===== Relasi Extend untuk Dokumen =====
+    UC_DokumenWR <.. UC_DownloadDokumen : <<extend>>
+    
+    ' ===== Relasi Extend untuk Profil =====
+    UC_KelolaProfile <.. UC_LihatProfile : <<extend>>
+    UC_KelolaProfile <.. UC_EditProfile : <<extend>>
+    UC_KelolaProfile <.. UC_Logout : <<extend>>
+    UC_KelolaProfile <.. UC_PasswordChange : <<extend>>
+
+    ' ===== Relasi Extend untuk Riwayat Aktivitas =====
+    UC_RiwayatAktivitas <.. UC_LogLogin : <<extend>>
+    UC_RiwayatAktivitas <.. UC_LogKoneksi : <<extend>>
+    UC_RiwayatAktivitas <.. UC_LogCRUD : <<extend>>
+
+    ' ===== Relasi Extend untuk Koneksi API =====
+    UC_KelolaKoneksi <.. UC_HubungkanAPI : <<extend>>
+    UC_KelolaKoneksi <.. UC_PutuskanAPI : <<extend>>
+    UC_KelolaKoneksi <.. UC_RefreshData : <<extend>>
+
+    ' ===== Aktor ke Use Case Utama =====
+    client --> UC_Login
+
+    ' ===== Login ke Use Case Menu =====
+    UC_Login --> UC_Dashboard
+    UC_Login --> UC_KelolaUmat
+    UC_Login --> UC_KeuanganWR
+    UC_Login --> UC_ProkerWR
+    UC_Login --> UC_KegiatanWR
+    UC_Login --> UC_LihatPengumuman
+    UC_Login --> UC_DokumenWR
+    UC_Login --> UC_KelolaProfile
+    UC_Login --> UC_RiwayatAktivitas
+    UC_Login --> UC_KelolaKoneksi
+
+}
+note left of UC_KeuanganWR
+  User WR : CRUD penuh
+  Admin : Read-only
+end note
+
+note left of UC_KegiatanWR
+  User WR : CRUD penuh
+  Admin: Read-only
+end note
+
+note right of UC_ProkerWR
+  User WR : CRUD penuh
+  Admin : Read-only
+end note
+
+note right of UC_KelolaUmat
+  User WR: CRUD penuh
+  Admin: CRUD penuh
+end note
+
+
+@enduml

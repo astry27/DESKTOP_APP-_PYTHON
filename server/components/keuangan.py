@@ -85,7 +85,7 @@ class KeuanganDialog(QDialog):
             self.tanggal.setDate(QDate.currentDate())
         form_layout.addRow("Tanggal:", self.tanggal)
 
-        # Jenis Transaksi
+        # Jenis (Pemasukan/Pengeluaran) - mapping ke field 'jenis' di database
         self.jenis = QComboBox()
         self.jenis.addItems(['Pemasukan', 'Pengeluaran'])
         if self.keuangan_data.get('jenis'):
@@ -94,16 +94,19 @@ class KeuanganDialog(QDialog):
                 self.jenis.setCurrentIndex(index)
         form_layout.addRow("Jenis Transaksi:", self.jenis)
 
-        # Kategori
+        # Kategori - mapping ke field 'kategori' di database
         self.kategori = QComboBox()
+        self.kategori.setEditable(True)
         self.kategori.addItems([
-            "Kolekte", "Donasi", "Operasional",
-            "Pemeliharaan", "Program", "Lainnya"
+            "Kolekte Mingguan", "Persembahan", "Donasi", "Operasional",
+            "Pemeliharaan Gedung", "Program Gereja", "Lainnya"
         ])
         if self.keuangan_data.get('kategori'):
             index = self.kategori.findText(self.keuangan_data['kategori'])
             if index >= 0:
                 self.kategori.setCurrentIndex(index)
+            else:
+                self.kategori.setCurrentText(self.keuangan_data['kategori'])
         form_layout.addRow("Kategori:", self.kategori)
 
         # Keterangan
@@ -164,8 +167,8 @@ class KeuanganDialog(QDialog):
     def get_data(self):
         return {
             'tanggal': self.tanggal.date().toString(Qt.ISODate),
-            'jenis': self.jenis.currentText(),
-            'kategori': self.kategori.currentText(),
+            'jenis': self.jenis.currentText(),  # Pemasukan/Pengeluaran
+            'kategori': self.kategori.currentText(),  # Kolekte, Donasi, dll
             'keterangan': self.keterangan.toPlainText(),
             'jumlah': self.jumlah.value(),
         }
@@ -241,20 +244,21 @@ class KeuanganWRWidget(QWidget):
         self.table.setHorizontalHeader(custom_header)
 
         self.table.setHorizontalHeaderLabels([
-            "Tanggal Transaksi", "Jenis", "Kategori", "Keterangan",
-            "Jumlah", "Saldo", "User", "Tanggal Input"
+            "Tanggal", "Jenis", "Kategori", "Keterangan",
+            "Jumlah", "Aksi"
         ])
 
         self.apply_professional_table_style(self.table)
 
         self.table.setColumnWidth(0, 110)
         self.table.setColumnWidth(1, 100)
-        self.table.setColumnWidth(2, 120)
-        self.table.setColumnWidth(3, 200)
-        self.table.setColumnWidth(4, 120)
-        self.table.setColumnWidth(5, 120)
-        self.table.setColumnWidth(6, 150)
-        self.table.setColumnWidth(7, 140)
+        self.table.setColumnWidth(2, 140)
+        self.table.setColumnWidth(3, 180)
+        self.table.setColumnWidth(4, 110)
+        self.table.setColumnWidth(5, 110)
+        self.table.setColumnWidth(6, 120)
+        self.table.setColumnWidth(7, 130)
+        self.table.setColumnWidth(8, 100)
 
         header = self.table.horizontalHeader()
         header.sectionResized.connect(self.update_header_height)
@@ -588,90 +592,103 @@ class KeuanganKategorialWidget(QWidget):
         self.admin_id = admin_id
         self.keuangan_data = []
         self.filtered_data = []
+        self.sorted_data = []  # Data sorted untuk display
         self.setup_ui()
         self.load_data()
 
     def setup_ui(self):
         layout = QVBoxLayout(self)
+        layout.setSpacing(10)
+        layout.setContentsMargins(10, 10, 10, 10)
 
-        # Header
-        header_layout = QHBoxLayout()
-        title = QLabel("Keuangan Kategorial")
-        title.setFont(QFont("Arial", 14, QFont.Bold))
-        header_layout.addWidget(title)
-        header_layout.addStretch()
-
-        add_btn = QPushButton("Tambah")
-        add_btn.clicked.connect(self.add_data)
-        add_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #27ae60;
-                color: white;
-                border: none;
-                padding: 6px 12px;
-                border-radius: 4px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #2ecc71;
+        # Title section with professional styling
+        title_frame = QFrame()
+        title_frame.setStyleSheet("""
+            QFrame {
+                background-color: white;
+                border-bottom: 2px solid #ecf0f1;
+                padding: 10px 0px;
             }
         """)
-        header_layout.addWidget(add_btn)
+        title_layout = QHBoxLayout(title_frame)
+        title_layout.setContentsMargins(10, 0, 10, 0)
 
-        refresh_btn = QPushButton("Refresh")
-        refresh_btn.clicked.connect(self.load_data)
-        refresh_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #3498db;
-                color: white;
+        title_label = QLabel("Keuangan Kategorial")
+        title_font = QFont("Arial", 18, QFont.Bold)
+        title_label.setFont(title_font)
+        title_label.setStyleSheet("""
+            QLabel {
+                color: #2c3e50;
+                padding: 2px;
+                background-color: transparent;
                 border: none;
-                padding: 6px 12px;
-                border-radius: 4px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #2980b9;
             }
         """)
-        header_layout.addWidget(refresh_btn)
-        layout.addLayout(header_layout)
+        title_layout.addWidget(title_label)
+        title_layout.addStretch()
+        layout.addWidget(title_frame)
 
-        # Filter
-        filter_layout = QHBoxLayout()
-        filter_layout.addWidget(QLabel("Cari:"))
-        self.search_input = QLineEdit(self)
-        self.search_input.setPlaceholderText("Cari keterangan...")
+        # Professional Summary Statistics
+        self.create_financial_statistics_summary(layout)
+
+        # Combined toolbar with search/filter and buttons
+        toolbar_layout = QHBoxLayout()
+        toolbar_layout.setSpacing(10)
+
+        # Search
+        search_label = QLabel("Cari:")
+        search_label.setStyleSheet("font-weight: 500; color: #2c3e50;")
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("Cari keterangan transaksi...")
+        self.search_input.setFixedWidth(200)
         self.search_input.textChanged.connect(self.filter_data)
-        filter_layout.addWidget(self.search_input)
 
-        filter_layout.addWidget(QLabel("Jenis:"))
-        self.jenis_filter = QComboBox(self)
+        # Type filter
+        type_label = QLabel("Jenis:")
+        type_label.setStyleSheet("font-weight: 500; color: #2c3e50;")
+        self.jenis_filter = QComboBox()
         self.jenis_filter.addItems(["Semua", "Pemasukan", "Pengeluaran"])
+        self.jenis_filter.setFixedWidth(120)
         self.jenis_filter.currentTextChanged.connect(self.filter_data)
-        filter_layout.addWidget(self.jenis_filter)
 
-        filter_layout.addStretch()
-        layout.addLayout(filter_layout)
+        # Add and Refresh buttons
+        add_btn = self.create_professional_button("Tambah Transaksi", "#27ae60", "#2ecc71")
+        add_btn.clicked.connect(self.add_data)
 
-        # Table
+        refresh_btn = self.create_professional_button("Refresh", "#3498db", "#2980b9")
+        refresh_btn.clicked.connect(self.load_data)
+
+        toolbar_layout.addWidget(search_label)
+        toolbar_layout.addWidget(self.search_input)
+        toolbar_layout.addWidget(type_label)
+        toolbar_layout.addWidget(self.jenis_filter)
+        toolbar_layout.addStretch()
+        toolbar_layout.addWidget(add_btn)
+        toolbar_layout.addWidget(refresh_btn)
+
+        layout.addLayout(toolbar_layout)
+
+        # Table with professional styling
         self.table = QTableWidget()
-        self.table.setColumnCount(6)
+        self.table.setColumnCount(7)
 
         custom_header = WordWrapHeaderView(Qt.Horizontal, self.table)
         self.table.setHorizontalHeader(custom_header)
 
         self.table.setHorizontalHeaderLabels([
-            "Tanggal", "Jenis", "Kategori", "Keterangan", "Jumlah", "Aksi"
+            "Tanggal", "Jenis", "Kategori", "Keterangan", "Jumlah (Rp)", "Saldo", "Aksi"
         ])
 
         self.apply_professional_table_style(self.table)
 
+        # Set column widths
         self.table.setColumnWidth(0, 100)
         self.table.setColumnWidth(1, 100)
         self.table.setColumnWidth(2, 120)
         self.table.setColumnWidth(3, 200)
         self.table.setColumnWidth(4, 120)
         self.table.setColumnWidth(5, 120)
+        self.table.setColumnWidth(6, 140)
 
         header = self.table.horizontalHeader()
         header.sectionResized.connect(self.update_header_height)
@@ -680,39 +697,107 @@ class KeuanganKategorialWidget(QWidget):
 
         layout.addWidget(self.table)
 
-        # Stats
-        stats_frame = QLabel("Ringkasan Keuangan:")
-        stats_frame.setFont(QFont("Arial", 10, QFont.Bold))
-        layout.addWidget(stats_frame)
+    def create_financial_statistics_summary(self, layout):
+        """Create financial summary using client style"""
+        from PyQt5.QtWidgets import QGroupBox
 
-        self.stats_layout = QHBoxLayout()
+        stats_group = QGroupBox("Ringkasan Keuangan")
+        stats_layout = QHBoxLayout(stats_group)
 
-        self.total_label = QLabel("Total Transaksi: 0")
-        self.total_label.setFont(QFont("Arial", 9))
-        self.stats_layout.addWidget(self.total_label)
+        # Initialize value labels
+        self.total_transaksi_value = QLabel("0")
+        self.total_pemasukan_label = QLabel("Rp 0")
+        self.total_pengeluaran_label = QLabel("Rp 0")
+        self.total_saldo_label = QLabel("Rp 0")
 
-        self.stats_layout.addWidget(QLabel("|"))
+        # Add stat widgets using client style
+        stats_layout.addWidget(self.create_stat_widget("TOTAL TRANSAKSI", self.total_transaksi_value, "#ddeaee", "#2c3e50"))
+        stats_layout.addWidget(self.create_stat_widget("TOTAL PEMASUKAN", self.total_pemasukan_label, "#e8f8f5", "#27ae60"))
+        stats_layout.addWidget(self.create_stat_widget("TOTAL PENGELUARAN", self.total_pengeluaran_label, "#fadbd8", "#e74c3c"))
+        stats_layout.addWidget(self.create_stat_widget("SALDO AKHIR", self.total_saldo_label, "#e3f2fd", "#3498db"))
 
-        self.pemasukan_label = QLabel("Total Pemasukan: Rp 0")
-        self.pemasukan_label.setFont(QFont("Arial", 9, QFont.Bold))
-        self.pemasukan_label.setStyleSheet("color: #27ae60;")
-        self.stats_layout.addWidget(self.pemasukan_label)
+        layout.addWidget(stats_group)
 
-        self.stats_layout.addWidget(QLabel("|"))
+    def create_stat_widget(self, label_text, value_label, bg_color, text_color):
+        """Create statistical widget using client style"""
+        widget = QWidget()
+        widget.setStyleSheet(f"""
+            QWidget {{
+                background-color: {bg_color};
+                border-radius: 4px;
+                padding: 6px;
+            }}
+        """)
+        widget.setMaximumHeight(60)
+        layout = QVBoxLayout(widget)
+        layout.setSpacing(2)
+        layout.setContentsMargins(6, 6, 6, 6)
 
-        self.pengeluaran_label = QLabel("Total Pengeluaran: Rp 0")
-        self.pengeluaran_label.setFont(QFont("Arial", 9, QFont.Bold))
-        self.pengeluaran_label.setStyleSheet("color: #e74c3c;")
-        self.stats_layout.addWidget(self.pengeluaran_label)
+        label = QLabel(label_text)
+        label.setAlignment(Qt.AlignCenter)
+        label.setWordWrap(True)
+        label.setStyleSheet(f"""
+            QLabel {{
+                font-weight: bold;
+                color: {text_color};
+                font-size: 9px;
+                font-family: Arial, sans-serif;
+                background-color: transparent;
+                min-height: 12px;
+            }}
+        """)
 
-        self.stats_layout.addWidget(QLabel("|"))
+        value_label.setAlignment(Qt.AlignCenter)
+        value_label.setWordWrap(True)
+        value_label.setStyleSheet(f"""
+            QLabel {{
+                font-size: 14px;
+                font-weight: bold;
+                color: {text_color};
+                font-family: Arial, sans-serif;
+                background-color: transparent;
+                padding: 2px;
+                min-height: 16px;
+            }}
+        """)
 
-        self.saldo_label = QLabel("Saldo: Rp 0")
-        self.saldo_label.setFont(QFont("Arial", 10, QFont.Bold))
-        self.stats_layout.addWidget(self.saldo_label)
+        layout.addWidget(label)
+        layout.addWidget(value_label)
 
-        self.stats_layout.addStretch()
-        layout.addLayout(self.stats_layout)
+        return widget
+
+    def create_professional_button(self, text, bg_color, hover_color):
+        """Create a professional button with gradient"""
+        button = QPushButton(text)
+        button.setMinimumSize(150, 32)
+        button.setMaximumSize(220, 32)
+
+        button.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {bg_color};
+                color: white;
+                border: 1px solid {bg_color};
+                border-radius: 4px;
+                padding: 4px 8px;
+                font-size: 11px;
+                font-weight: 500;
+                text-align: center;
+                margin: 1px 3px;
+                box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            }}
+            QPushButton:hover {{
+                background-color: {hover_color};
+                border-color: {hover_color};
+                box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+            }}
+            QPushButton:pressed {{
+                background-color: {bg_color};
+                border-color: {bg_color};
+                box-shadow: inset 0 1px 2px rgba(0,0,0,0.2);
+            }}
+        """)
+
+        return button
 
     def update_header_height(self, logicalIndex, oldSize, newSize):
         if hasattr(self, 'table'):
@@ -787,16 +872,23 @@ class KeuanganKategorialWidget(QWidget):
 
     def load_data(self):
         try:
+            print(f"[DEBUG] KeuanganKategorialWidget.load_data - loading...")
             success, data = self.db_manager.get_keuangan_kategorial_list()
+            print(f"[DEBUG] KeuanganKategorialWidget.load_data - success={success}, data type={type(data)}")
             if success:
                 self.keuangan_data = data if isinstance(data, list) else []
                 self.filtered_data = self.keuangan_data.copy()
                 self.update_table()
                 self.update_stats()
                 self.log_message.emit(f"Data keuangan kategorial dimuat: {len(self.keuangan_data)} record")
+                print(f"[DEBUG] KeuanganKategorialWidget.load_data - loaded {len(self.keuangan_data)} records")
             else:
+                print(f"[ERROR] KeuanganKategorialWidget.load_data failed: {data}")
                 self.log_message.emit(f"Gagal memuat data: {data}")
         except Exception as e:
+            print(f"[ERROR] KeuanganKategorialWidget.load_data exception: {str(e)}")
+            import traceback
+            traceback.print_exc()
             self.log_message.emit(f"Error: {str(e)}")
 
     def filter_data(self):
@@ -817,9 +909,18 @@ class KeuanganKategorialWidget(QWidget):
         self.update_stats()
 
     def update_table(self):
-        self.table.setRowCount(len(self.filtered_data))
+        # Sort data by ID (oldest first) for correct running balance
+        self.sorted_data = sorted(self.filtered_data, key=lambda x: x.get('id_keuangan_kategorial', 0) or x.get('id', 0), reverse=False)
 
-        for row, item in enumerate(self.filtered_data):
+        self.table.setRowCount(len(self.sorted_data))
+
+        # Calculate running balance
+        running_balance = 0.0
+
+        for row, item in enumerate(self.sorted_data):
+            # Set row height
+            self.table.setRowHeight(row, 36)
+
             # Format tanggal transaksi - dd/mm/yyyy saja tanpa hari
             tanggal = item.get('tanggal', '')
             if tanggal:
@@ -867,8 +968,12 @@ class KeuanganKategorialWidget(QWidget):
                             tanggal = date_obj.strftime('%d/%m/%Y')
                 except:
                     pass
-            self.table.setItem(row, 0, QTableWidgetItem(str(tanggal)))
 
+            tanggal_item = QTableWidgetItem(str(tanggal))
+            tanggal_item.setTextAlignment(Qt.AlignCenter)
+            self.table.setItem(row, 0, tanggal_item)
+
+            # Jenis (Pemasukan/Pengeluaran) - dari field 'jenis'
             jenis_value = str(item.get('jenis', ''))
             jenis_item = QTableWidgetItem(jenis_value)
             jenis_item.setTextAlignment(Qt.AlignCenter)
@@ -883,98 +988,246 @@ class KeuanganKategorialWidget(QWidget):
             jenis_item.setFlags(jenis_item.flags() & ~Qt.ItemIsEditable)
             self.table.setItem(row, 1, jenis_item)
 
-            self.table.setItem(row, 2, QTableWidgetItem(str(item.get('kategori', ''))))
+            # Kategori (Kolekte Mingguan, Donasi, etc) - dari field 'kategori'
+            kat_item = QTableWidgetItem(str(item.get('kategori', '')))
+            kat_item.setFlags(kat_item.flags() & ~Qt.ItemIsEditable)
+            self.table.setItem(row, 2, kat_item)
+
             self.table.setItem(row, 3, QTableWidgetItem(str(item.get('keterangan', ''))))
 
-            jumlah = f"Rp {float(item.get('jumlah', 0)):,.0f}"
-            self.table.setItem(row, 4, QTableWidgetItem(jumlah))
+            # Calculate running balance and jumlah
+            try:
+                jumlah_value = float(item.get('jumlah', 0))
+                if jenis_value == 'Pemasukan':
+                    running_balance += jumlah_value
+                    jumlah_text = f"+{jumlah_value:,.0f}"
+                    jumlah_color = QColor("#27ae60")
+                else:
+                    running_balance -= jumlah_value
+                    jumlah_text = f"-{jumlah_value:,.0f}"
+                    jumlah_color = QColor("#e74c3c")
+            except:
+                jumlah_text = "0"
+                jumlah_color = QColor("#333333")
 
-            # Aksi buttons
-            action_widget = QWidget()
-            action_layout = QHBoxLayout(action_widget)
-            action_layout.setContentsMargins(0, 0, 0, 0)
+            jumlah_item = QTableWidgetItem(jumlah_text)
+            jumlah_item.setForeground(jumlah_color)
+            self.table.setItem(row, 4, jumlah_item)
 
-            edit_btn = QPushButton("Edit")
-            edit_btn.setMaximumWidth(50)
-            edit_btn.setStyleSheet("background-color: #f39c12; color: white; border: none; border-radius: 3px;")
-            edit_btn.clicked.connect(lambda checked, r=row: self.edit_data(r))
-            action_layout.addWidget(edit_btn)
+            # Saldo column (running balance)
+            saldo_item = QTableWidgetItem(f"{running_balance:,.0f}")
+            if running_balance >= 0:
+                saldo_item.setForeground(QColor("#27ae60"))
+            else:
+                saldo_item.setForeground(QColor("#e74c3c"))
+            self.table.setItem(row, 5, saldo_item)
 
-            delete_btn = QPushButton("Hapus")
-            delete_btn.setMaximumWidth(60)
-            delete_btn.setStyleSheet("background-color: #e74c3c; color: white; border: none; border-radius: 3px;")
-            delete_btn.clicked.connect(lambda checked, r=row: self.delete_data(r))
-            action_layout.addWidget(delete_btn)
+            # Aksi buttons - professional style matching client
+            action_widget = self.create_action_buttons_for_row(row)
+            self.table.setCellWidget(row, 6, action_widget)
 
-            self.table.setCellWidget(row, 5, action_widget)
+    def create_action_buttons_for_row(self, row):
+        """Create action buttons for table row - matching client style"""
+        action_widget = QWidget()
+        action_layout = QHBoxLayout(action_widget)
+        action_layout.setContentsMargins(3, 3, 3, 3)
+        action_layout.setSpacing(3)
+        action_layout.setAlignment(Qt.AlignCenter)
+
+        # Edit button
+        edit_button = QPushButton()
+        edit_button.setText("Edit")
+        edit_button.setFixedSize(50, 28)
+        edit_button.setStyleSheet("""
+            QPushButton {
+                background-color: #f39c12;
+                color: white;
+                border: none;
+                border-radius: 3px;
+                padding: 2px;
+                font-size: 10px;
+                font-weight: 500;
+            }
+            QPushButton:hover {
+                background-color: #e67e22;
+            }
+            QPushButton:pressed {
+                background-color: #d35400;
+            }
+        """)
+        edit_button.setToolTip("Edit Transaksi")
+        edit_button.clicked.connect(lambda _, r=row: self.edit_data(r))
+        action_layout.addWidget(edit_button)
+
+        # Delete button
+        delete_button = QPushButton()
+        delete_button.setText("Hapus")
+        delete_button.setFixedSize(55, 28)
+        delete_button.setStyleSheet("""
+            QPushButton {
+                background-color: #e74c3c;
+                color: white;
+                border: none;
+                border-radius: 3px;
+                padding: 2px;
+                font-size: 10px;
+                font-weight: 500;
+            }
+            QPushButton:hover {
+                background-color: #c0392b;
+            }
+            QPushButton:pressed {
+                background-color: #a93226;
+            }
+        """)
+        delete_button.setToolTip("Hapus Transaksi")
+        delete_button.clicked.connect(lambda _, r=row: self.delete_data(r))
+        action_layout.addWidget(delete_button)
+
+        return action_widget
 
     def update_stats(self):
+        """Update statistics labels using client style"""
         total = len(self.filtered_data)
         pemasukan = sum(float(item.get('jumlah', 0)) for item in self.filtered_data if item.get('jenis') == 'Pemasukan')
         pengeluaran = sum(float(item.get('jumlah', 0)) for item in self.filtered_data if item.get('jenis') == 'Pengeluaran')
         saldo = pemasukan - pengeluaran
 
-        self.total_label.setText(f"Total Transaksi: {total}")
-        self.pemasukan_label.setText(f"Total Pemasukan: Rp {pemasukan:,.0f}")
-        self.pengeluaran_label.setText(f"Total Pengeluaran: Rp {pengeluaran:,.0f}")
-        self.saldo_label.setText(f"Saldo: Rp {saldo:,.0f}")
+        # Update summary widgets using client style
+        if hasattr(self, 'total_transaksi_value'):
+            self.total_transaksi_value.setText(str(total))
 
-        if saldo >= 0:
-            self.saldo_label.setStyleSheet("color: #27ae60; font-weight: bold;")
-        else:
-            self.saldo_label.setStyleSheet("color: #e74c3c; font-weight: bold;")
+        if hasattr(self, 'total_pemasukan_label'):
+            self.total_pemasukan_label.setText(f"Rp {pemasukan:,.0f}")
+
+        if hasattr(self, 'total_pengeluaran_label'):
+            self.total_pengeluaran_label.setText(f"Rp {pengeluaran:,.0f}")
+
+        if hasattr(self, 'total_saldo_label'):
+            self.total_saldo_label.setText(f"Rp {saldo:,.0f}")
+            # Update saldo color dynamically
+            color = "#3498db" if saldo >= 0 else "#e74c3c"
+            bg_color = "#e3f2fd" if saldo >= 0 else "#fadbd8"
+
+            # Update parent widget background color too
+            if self.total_saldo_label.parent():
+                self.total_saldo_label.parent().setStyleSheet(f"""
+                    QWidget {{
+                        background-color: {bg_color};
+                        border-radius: 4px;
+                        padding: 6px;
+                    }}
+                """)
+
+            self.total_saldo_label.setStyleSheet(f"""
+                QLabel {{
+                    font-size: 14px;
+                    font-weight: bold;
+                    color: {color};
+                    font-family: Arial, sans-serif;
+                    background-color: transparent;
+                    padding: 2px;
+                    min-height: 16px;
+                }}
+            """)
 
     def add_data(self):
         dialog = KeuanganDialog(self)
         if dialog.exec_() == QDialog.Accepted:
             data = dialog.get_data()
+            print(f"[DEBUG] add_data - data being sent: {data}, admin_id: {self.admin_id}")
             try:
                 success, result = self.db_manager.add_keuangan_kategorial(data, self.admin_id)
+                print(f"[DEBUG] add_data - API response: success={success}, result={result}")
                 if success:
                     self.load_data()
                     self.log_message.emit(f"Data keuangan berhasil ditambahkan")
                 else:
-                    QMessageBox.critical(self, "Error", f"Gagal: {result}")
+                    print(f"[ERROR] Add keuangan kategorial failed: {result}")
+                    QMessageBox.critical(self, "Error", f"Gagal menambah data:\n{result}")
             except Exception as e:
-                QMessageBox.critical(self, "Error", f"Error: {str(e)}")
+                print(f"[ERROR] Exception in add_data: {str(e)}")
+                import traceback
+                traceback.print_exc()
+                QMessageBox.critical(self, "Error", f"Error:\n{str(e)}")
 
     def set_admin_id(self, admin_id):
         """Set admin ID for this widget"""
         self.admin_id = admin_id
 
     def edit_data(self, row):
-        if row < 0 or row >= len(self.filtered_data):
-            return
-        item = self.filtered_data[row]
-        dialog = KeuanganDialog(self, item)
-        if dialog.exec_() == QDialog.Accepted:
-            data = dialog.get_data()
-            try:
-                success, result = self.db_manager.update_keuangan_kategorial(item.get('id_keuangan_kategorial'), data)
-                if success:
-                    self.load_data()
-                    self.log_message.emit(f"Data keuangan berhasil diupdate")
-                else:
-                    QMessageBox.critical(self, "Error", f"Gagal: {result}")
-            except Exception as e:
-                QMessageBox.critical(self, "Error", f"Error: {str(e)}")
+        """Edit transaction from specific row - using sorted_data"""
+        try:
+            if row < 0 or row >= len(self.sorted_data):
+                print(f"[ERROR] Invalid row index: {row}, sorted_data length: {len(self.sorted_data)}")
+                return
+
+            item = self.sorted_data[row]
+            item_id = item.get('id_keuangan_kategorial')
+            print(f"[DEBUG] edit_data - editing row={row}, ID: {item_id}")
+
+            dialog = KeuanganDialog(self, item)
+            if dialog.exec_() == QDialog.Accepted:
+                data = dialog.get_data()
+                print(f"[DEBUG] edit_data - updated data: {data}")
+                try:
+                    success, result = self.db_manager.update_keuangan_kategorial(item_id, data)
+                    print(f"[DEBUG] edit_data - API response: success={success}, result={result}")
+                    if success:
+                        self.load_data()
+                        self.log_message.emit(f"Data keuangan berhasil diupdate")
+                        QMessageBox.information(self, "Sukses", "Transaksi berhasil diperbarui")
+                    else:
+                        print(f"[ERROR] Update keuangan kategorial failed: {result}")
+                        QMessageBox.critical(self, "Error", f"Gagal update data:\n{result}")
+                except Exception as e:
+                    print(f"[ERROR] Exception in edit_data: {str(e)}")
+                    import traceback
+                    traceback.print_exc()
+                    QMessageBox.critical(self, "Error", f"Error:\n{str(e)}")
+        except Exception as e:
+            print(f"[ERROR] Exception in edit_data: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            QMessageBox.critical(self, "Error", f"Error mengedit transaksi: {str(e)}")
 
     def delete_data(self, row):
-        if row < 0 or row >= len(self.filtered_data):
-            return
-        item = self.filtered_data[row]
-        reply = QMessageBox.question(self, "Konfirmasi", "Yakin ingin menghapus data ini?",
-                                    QMessageBox.Yes | QMessageBox.No)
-        if reply == QMessageBox.Yes:
-            try:
-                success, result = self.db_manager.delete_keuangan_kategorial(item.get('id_keuangan_kategorial'))
-                if success:
-                    self.load_data()
-                    self.log_message.emit(f"Data keuangan berhasil dihapus")
-                else:
-                    QMessageBox.critical(self, "Error", f"Gagal: {result}")
-            except Exception as e:
-                QMessageBox.critical(self, "Error", f"Error: {str(e)}")
+        """Delete transaction from specific row - using sorted_data"""
+        try:
+            if row < 0 or row >= len(self.sorted_data):
+                print(f"[ERROR] Invalid row index: {row}, sorted_data length: {len(self.sorted_data)}")
+                return
+
+            item = self.sorted_data[row]
+            item_id = item.get('id_keuangan_kategorial')
+            keterangan = item.get('keterangan', 'Unknown')
+
+            reply = QMessageBox.question(self, "Konfirmasi",
+                                       f"Apakah Anda yakin ingin menghapus transaksi '{keterangan}'?",
+                                       QMessageBox.Yes | QMessageBox.No)
+
+            if reply == QMessageBox.Yes:
+                print(f"[DEBUG] delete_data - deleting row={row}, ID: {item_id}")
+                try:
+                    success, result = self.db_manager.delete_keuangan_kategorial(item_id)
+                    print(f"[DEBUG] delete_data - API response: success={success}, result={result}")
+                    if success:
+                        self.load_data()
+                        self.log_message.emit(f"Data keuangan berhasil dihapus")
+                        QMessageBox.information(self, "Sukses", "Transaksi berhasil dihapus")
+                    else:
+                        print(f"[ERROR] Delete keuangan kategorial failed: {result}")
+                        QMessageBox.critical(self, "Error", f"Gagal hapus data:\n{result}")
+                except Exception as e:
+                    print(f"[ERROR] Exception in delete_data: {str(e)}")
+                    import traceback
+                    traceback.print_exc()
+                    QMessageBox.critical(self, "Error", f"Error:\n{str(e)}")
+        except Exception as e:
+            print(f"[ERROR] Exception in delete_data: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            QMessageBox.critical(self, "Error", f"Error menghapus transaksi: {str(e)}")
 
 
 class KeuanganComponent(QWidget):
@@ -997,7 +1250,7 @@ class KeuanganComponent(QWidget):
         self.tab_widget.addTab(self.wr_widget, "WR")
 
         # Tab K. Kategorial
-        self.kategorial_widget = KeuanganKategorialWidget(db_manager, self)
+        self.kategorial_widget = KeuanganKategorialWidget(db_manager, None, self)
         self.kategorial_widget.log_message.connect(self.on_log_message)
         self.tab_widget.addTab(self.kategorial_widget, "K. Kategorial")
 
@@ -1015,6 +1268,9 @@ class KeuanganComponent(QWidget):
     def set_current_admin(self, admin_data):
         """Set the current admin data."""
         self.current_admin = admin_data
+        # Propagate admin_id to kategorial widget
+        if admin_data and 'id_admin' in admin_data:
+            self.kategorial_widget.set_admin_id(admin_data['id_admin'])
 
     def on_log_message(self, message):
         """Relay log messages"""

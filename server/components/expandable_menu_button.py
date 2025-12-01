@@ -52,7 +52,7 @@ class ExpandableMenuButton(QWidget):
                 color: #1A252F;
             }
             QPushButton:checked {
-                background-color: #455565;
+                background-color: #12101E;
                 color: #FFFFFF;
                 font-weight: bold;
                 border-radius: 6px;
@@ -141,7 +141,7 @@ class ExpandableMenuButton(QWidget):
     def update_appearance(self):
         """Update appearance based on expanded state"""
         if self.is_expanded:
-            # Active state - dark blue-gray background for main button with rounded corners
+            # Active state - dark background (#12101E) for main button with rounded corners
             self.main_button.setStyleSheet("""
                 QPushButton {
                     border: none;
@@ -151,11 +151,11 @@ class ExpandableMenuButton(QWidget):
                     margin: 4px 8px 4px 8px;
                     font-size: 13px;
                     font-weight: bold;
-                    background-color: #455565;
+                    background-color: #12101E;
                     color: #FFFFFF;
                 }
                 QPushButton:hover {
-                    background-color: #455565;
+                    background-color: #12101E;
                 }
             """)
             # Dropdown button styling saat expanded - match main button background with rounded corners
@@ -163,14 +163,14 @@ class ExpandableMenuButton(QWidget):
                 QPushButton {
                     border: none;
                     border-radius: 6px;
-                    background-color: #455565;
+                    background-color: #12101E;
                     padding: 10px 15px;
                     margin: 4px 0px 4px 0px;
                     cursor: pointer;
                     color: #FFFFFF;
                 }
                 QPushButton:hover {
-                    background-color: #455565;
+                    background-color: #12101E;
                 }
             """)
             # Container background untuk full width effect
