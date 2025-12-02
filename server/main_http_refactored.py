@@ -427,11 +427,7 @@ class ServerMainWindow(QMainWindow):
         view_menu.addAction(refresh_action)
         
         tools_menu = menubar.addMenu("&Alat")
-        
-        send_message_action = QAction("Kirim Pesan ke Semua Client", self)
-        send_message_action.triggered.connect(self.server_control.send_broadcast_message)
-        tools_menu.addAction(send_message_action)
-        
+
         refresh_status_action = QAction("Refresh Status API", self)
         refresh_status_action.triggered.connect(self.server_control.auto_refresh_status)
         tools_menu.addAction(refresh_status_action)

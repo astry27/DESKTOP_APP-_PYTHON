@@ -1381,7 +1381,28 @@ class DatabaseManager:
         try:
             result = self.api_client.get_program_kerja_kategorial(search)
             if result["success"]:
-                return True, result["data"] if isinstance(result["data"], list) else []
+                # API returns: {"success": True, "data": {"status": "success", "data": {"data": [...]}}}
+                api_response = result.get("data", {})
+
+                # Check if api_response has nested data structure
+                if isinstance(api_response, dict):
+                    # Get the data field from API response
+                    data_field = api_response.get("data", [])
+
+                    # Check if data field is another dict with "data" key
+                    if isinstance(data_field, dict) and "data" in data_field:
+                        # {"data": {"data": [...]}}
+                        return True, data_field["data"]
+                    elif isinstance(data_field, list):
+                        # {"data": [...]}
+                        return True, data_field
+                    else:
+                        return True, []
+                elif isinstance(api_response, list):
+                    # Direct list
+                    return True, api_response
+                else:
+                    return True, []
             else:
                 return False, result["data"]
         except Exception as e:

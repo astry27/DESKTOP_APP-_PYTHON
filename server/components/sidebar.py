@@ -15,7 +15,7 @@ class SidebarButton(QPushButton):
         self.setCheckable(True)
         self.setFixedHeight(45)
 
-        # Set style dengan bold font untuk menu utama - background putih, teks profesional
+        # Set style untuk menu utama - background transparan, teks putih
         self.setStyleSheet("""
             QPushButton {
                 border: none;
@@ -23,20 +23,22 @@ class SidebarButton(QPushButton):
                 text-align: left;
                 padding: 10px 15px;
                 font-size: 13px;
-                font-weight: bold;
-                background-color: #FFFFFF;
-                color: #2C3E50;
+                font-weight: normal;
+                background-color: transparent;
+                color: #ffffff;
                 margin: 4px 8px;
             }
             QPushButton:hover {
-                background-color: #ECF0F1;
-                color: #1A252F;
+                background-color: rgba(38, 139, 210, 0.12);
+                color: #ffffff;
             }
             QPushButton:checked {
-                background-color: #002B36;
-                color: #FFFFFF;
+                background-color: rgba(38, 139, 210, 0.2);
+                color: #ffffff;
                 font-weight: bold;
                 border-radius: 6px;
+                border-left: 3px solid #2aa198;
+                padding-left: 12px;
                 margin: 4px 8px;
             }
         """)
@@ -49,8 +51,20 @@ class SidebarButton(QPushButton):
             self.setIcon(QIcon(icon_path))
             self.setIconSize(QSize(18, 18))
 
-            # Generate active icon path (dashboard_icon.png -> dashboard_active_icon.png)
-            if icon_path.endswith('.png'):
+            # Generate active icon path
+            # Examples:
+            # dashboard_icon.png -> dashboard_active_icon.png
+            # book_icon.png -> book_active_icon.png
+            if icon_path.endswith('_icon.png'):
+                # Replace _icon.png with _active_icon.png
+                active_path = icon_path.replace('_icon.png', '_active_icon.png')
+                if os.path.exists(active_path):
+                    self.icon_active_path = active_path
+                    print(f"[DEBUG] Found active icon for {icon_path}: {active_path}")
+                else:
+                    print(f"[DEBUG] Active icon not found: {active_path}")
+            elif icon_path.endswith('.png'):
+                # Fallback untuk icon tanpa _icon suffix
                 base_path = icon_path[:-4]  # Remove .png
                 active_path = base_path + '_active_icon.png'
                 if os.path.exists(active_path):
@@ -82,8 +96,8 @@ class SidebarWidget(QWidget):
         self.setFixedWidth(250)
         self.db_manager = None
 
-        # Set style untuk sidebar utama - background putih
-        self.setStyleSheet("background-color: #FFFFFF;")
+        # Set style untuk sidebar utama - background biru gelap matching header
+        self.setStyleSheet("background-color: #002B36;")
 
         # Layout utama
         layout = QVBoxLayout(self)
@@ -101,18 +115,18 @@ class SidebarWidget(QWidget):
         scroll_area.setStyleSheet("""
             QScrollArea {
                 border: none;
-                background-color: #FFFFFF;
+                background-color: #002B36;
             }
             QScrollBar:vertical {
                 width: 8px;
-                background-color: #FFFFFF;
+                background-color: #002B36;
             }
             QScrollBar::handle:vertical {
-                background-color: #BDC3C7;
+                background-color: #586e75;
                 border-radius: 4px;
             }
             QScrollBar::handle:vertical:hover {
-                background-color: #95A5A6;
+                background-color: #657b83;
             }
             QScrollBar:horizontal {
                 height: 0px;
@@ -121,7 +135,7 @@ class SidebarWidget(QWidget):
 
         # Container untuk menu navigasi
         menu_container = QWidget()
-        menu_container.setStyleSheet("background-color: #FFFFFF;")
+        menu_container.setStyleSheet("background-color: #002B36;")
         self.menu_layout = QVBoxLayout(menu_container)
         self.menu_layout.setContentsMargins(0, 0, 0, 0)
         self.menu_layout.setSpacing(0)  # Spacing ditangani oleh margin di button
@@ -303,13 +317,6 @@ class SidebarWidget(QWidget):
         self.submenu_kelompok_kategorial.reset_buttons()
         # Pengaturan tetap selected
         self.menu_pengaturan.setChecked(True)
-
-        # Update icon untuk semua menu
-        self.menu_dashboard.update_icon_state()
-        self.menu_buku_kronik.update_icon_state()
-        self.menu_riwayat.update_icon_state()
-        self.menu_pengaturan.update_icon_state()
-
         self.menu_selected.emit("pengaturan_sistem")
 
     def on_pusat_paroki_toggled(self, expanded):
@@ -454,7 +461,7 @@ class SidebarWidget(QWidget):
         """Buat header sidebar dengan logo dan judul"""
         header = QWidget()
         header.setMinimumHeight(90)
-        header.setStyleSheet("background-color: #002B36; border-bottom: 1px solid #2D2B3F;")
+        header.setStyleSheet("background-color: #002B36;")
 
         header_layout = QHBoxLayout(header)
         header_layout.setContentsMargins(10, 8, 10, 8)
@@ -534,7 +541,7 @@ class SidebarWidget(QWidget):
         """Buat container untuk status API"""
         status_container = QWidget()
         status_container.setFixedHeight(80)
-        status_container.setStyleSheet("background-color: #F8F9FA; border-top: 1px solid #E0E0E0;")
+        status_container.setStyleSheet("background-color: #002B36; border-top: 1px solid #586e75;")
 
         status_layout = QVBoxLayout(status_container)
         status_layout.setContentsMargins(15, 8, 15, 8)

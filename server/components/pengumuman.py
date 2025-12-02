@@ -777,47 +777,118 @@ class PengumumanComponent(QWidget):
     
     def broadcast_pengumuman(self):
         """Broadcast pengumuman terpilih ke semua client melalui API"""
+        # Validasi: Pengumuman harus dipilih terlebih dahulu
         current_row = self.pengumuman_table.currentRow()
         if current_row < 0:
-            QMessageBox.warning(self, "Warning", "Pilih pengumuman yang akan dibroadcast")
+            QMessageBox.warning(
+                self,
+                "Pilih Pengumuman",
+                "Silakan pilih pengumuman yang akan di-broadcast terlebih dahulu.\n\n"
+                "Cara: Klik pada baris pengumuman di tabel untuk memilihnya."
+            )
             return
-        
+
         if current_row >= len(self.pengumuman_data):
-            QMessageBox.warning(self, "Error", "Data tidak valid")
+            QMessageBox.warning(self, "Error", "Data pengumuman tidak valid")
             return
-        
+
         if not self.db_manager:
-            QMessageBox.warning(self, "Warning", "Database manager tidak tersedia!")
+            QMessageBox.warning(self, "Error", "Database manager tidak tersedia!")
             return
-        
-        # Cek status API dulu
-        success, api_status = self.db_manager.get_api_service_status()
-        if not success or not api_status.get('api_enabled', False):
-            QMessageBox.warning(self, "Warning", "API tidak aktif! Aktifkan API terlebih dahulu.")
+
+        # Cek status API - pastikan API aktif
+        try:
+            success, api_status = self.db_manager.get_api_service_status()
+            if not success or not api_status.get('api_enabled', False):
+                QMessageBox.warning(
+                    self,
+                    "API Tidak Aktif",
+                    "API Server tidak aktif!\n\n"
+                    "Aktifkan API terlebih dahulu melalui menu Kontrol Server."
+                )
+                return
+        except Exception as e:
+            QMessageBox.warning(
+                self,
+                "Error",
+                f"Tidak dapat memeriksa status API: {str(e)}"
+            )
             return
-        
+
+        # Ambil data pengumuman yang dipilih
         pengumuman_data = self.pengumuman_data[current_row]
         judul = pengumuman_data.get('judul', 'Pengumuman')
         isi = pengumuman_data.get('isi', '')
-        
-        # Truncate isi jika terlalu panjang
-        if len(isi) > 200:
-            isi = isi[:200] + "..."
-        
-        message = f"PENGUMUMAN: {judul} - {isi}"
-        
+        sasaran = pengumuman_data.get('sasaran', 'Semua Umat')
+        penanggung_jawab = pengumuman_data.get('penanggung_jawab', '-')
+
+        # Konfirmasi broadcast dengan detail pengumuman
+        reply = QMessageBox.question(
+            self,
+            'Konfirmasi Broadcast',
+            f"Broadcast pengumuman ini ke semua client?\n\n"
+            f"Judul: {judul}\n"
+            f"Sasaran: {sasaran}\n"
+            f"Penanggung Jawab: {penanggung_jawab}\n\n"
+            f"Pengumuman akan dikirim ke semua user yang terhubung.",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+
+        if reply != QMessageBox.Yes:
+            return
+
+        # Format pesan broadcast
+        # Clean HTML tags dari isi
+        import re
+        isi_clean = re.sub(r'<[^>]+>', '', isi).strip()
+
+        # Truncate isi jika terlalu panjang (maksimal 300 karakter)
+        if len(isi_clean) > 300:
+            isi_clean = isi_clean[:300] + "..."
+
+        # Format pesan dengan struktur yang jelas
+        message = f"""
+╔══════════════════════════════════════╗
+║        PENGUMUMAN GEREJA            ║
+╚══════════════════════════════════════╝
+
+📢 {judul}
+
+{isi_clean}
+
+👤 Penanggung Jawab: {penanggung_jawab}
+🎯 Sasaran: {sasaran}
+        """.strip()
+
         try:
+            # Kirim broadcast melalui API
+            self.log_message.emit(f"Mengirim broadcast pengumuman: {judul}")
             success, result = self.db_manager.send_broadcast_message(message)
-            
+
             if success:
-                QMessageBox.information(self, "Sukses", "Pengumuman berhasil dibroadcast ke semua client melalui API")
-                self.log_message.emit(f"Pengumuman dibroadcast via API: {judul}")
+                QMessageBox.information(
+                    self,
+                    "Broadcast Berhasil",
+                    f"Pengumuman '{judul}' berhasil di-broadcast!\n\n"
+                    f"Semua client yang terhubung akan menerima notifikasi."
+                )
+                self.log_message.emit(f"✓ Pengumuman di-broadcast: {judul} untuk {sasaran}")
             else:
-                QMessageBox.warning(self, "Error", f"Gagal broadcast pengumuman: {result}")
-                self.log_message.emit(f"Error broadcast pengumuman: {result}")
+                QMessageBox.warning(
+                    self,
+                    "Broadcast Gagal",
+                    f"Gagal mem-broadcast pengumuman.\n\n"
+                    f"Error: {result}"
+                )
+                self.log_message.emit(f"✗ Gagal broadcast pengumuman: {result}")
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"Error broadcast pengumuman: {str(e)}")
-            self.log_message.emit(f"Exception broadcast pengumuman: {str(e)}")
+            QMessageBox.critical(
+                self,
+                "Error",
+                f"Terjadi kesalahan saat mem-broadcast pengumuman:\n\n{str(e)}"
+            )
+            self.log_message.emit(f"✗ Exception broadcast pengumuman: {str(e)}")
     
     def get_data(self):
         """Ambil data pengumuman untuk komponen lain"""

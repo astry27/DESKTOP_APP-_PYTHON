@@ -107,7 +107,7 @@ class ProgramKerjaDPPWidget(QWidget):
         action_layout.addWidget(delete_button)
 
         # Export button
-        export_button = self.create_button("Export CSV", "#f39c12", self.export_program)
+        export_button = self.create_button(".csv", "#f39c12", self.export_program)
         action_layout.addWidget(export_button)
 
         action_layout.addStretch()

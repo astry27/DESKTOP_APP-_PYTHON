@@ -15,29 +15,30 @@ class VerticalSubMenuButton(QPushButton):
         self.icon_path = icon_path
         self.icon_active_path = None
 
-        # Set style untuk submenu - indentasi dalam dengan warna background solid
+        # Set style untuk submenu - indentasi dalam dengan background transparan
         self.setStyleSheet("""
             QPushButton {
                 border: none;
-                border-radius: 4px;
+                border-radius: 6px;
                 text-align: left;
                 padding: 8px 12px 8px 40px;
                 font-size: 12px;
-                font-weight: 400;
-                background-color: #FFFFFF;
-                color: #7F8C8D;
-                margin: 3px 8px;
+                font-weight: normal;
+                background-color: transparent;
+                color: #ffffff;
+                margin: 3px 8px 3px 16px;
             }
             QPushButton:hover {
-                background-color: #ECF0F1;
-                color: #2C3E50;
-                font-weight: 500;
+                background-color: rgba(42, 161, 152, 0.1);
+                color: #ffffff;
             }
             QPushButton:checked {
-                background-color: #12101E;
-                color: #FFFFFF;
-                font-weight: 500;
-                border-radius: 4px;
+                background-color: rgba(42, 161, 152, 0.15);
+                color: #ffffff;
+                font-weight: bold;
+                border-left: 2px solid #2aa198;
+                border-radius: 6px;
+                padding-left: 38px;
             }
         """)
 
@@ -69,7 +70,7 @@ class VerticalSubMenu(QWidget):
         super().__init__(parent)
         self.setStyleSheet("""
             QWidget {
-                background-color: #FFFFFF;
+                background-color: transparent;
             }
         """)
 

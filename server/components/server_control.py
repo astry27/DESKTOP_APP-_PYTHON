@@ -178,7 +178,7 @@ class ServerControlComponent(QWidget):
     
     def create_log_buttons(self):
         log_button_layout = QHBoxLayout()
-        
+
         self.clear_log_button = QPushButton("Bersihkan Log")
         self.clear_log_button.clicked.connect(self.clear_log)
         self.clear_log_button.setStyleSheet("""
@@ -193,7 +193,7 @@ class ServerControlComponent(QWidget):
                 background-color: #c0392b;
             }
         """)
-        
+
         self.save_log_button = QPushButton("Simpan Log")
         self.save_log_button.clicked.connect(self.save_log)
         self.save_log_button.setStyleSheet("""
@@ -208,26 +208,11 @@ class ServerControlComponent(QWidget):
                 background-color: #2980b9;
             }
         """)
-        
-        self.broadcast_button = QPushButton("Broadcast Message")
-        self.broadcast_button.clicked.connect(self.send_broadcast_message)
-        self.broadcast_button.setStyleSheet("""
-            QPushButton {
-                background-color: #8e44ad;
-                color: white;
-                padding: 5px 10px;
-                border: none;
-                border-radius: 3px;
-            }
-            QPushButton:hover {
-                background-color: #9b59b6;
-            }
-        """)
-        
+
         log_button_layout.addWidget(self.clear_log_button)
         log_button_layout.addWidget(self.save_log_button)
-        log_button_layout.addWidget(self.broadcast_button)
-        
+        log_button_layout.addStretch()
+
         return log_button_layout
     
     def create_professional_table_connected(self):
@@ -623,34 +608,6 @@ class ServerControlComponent(QWidget):
 
             self.client_table.setItem(i, 5, status_item)
 
-    def send_broadcast_message(self):
-        """Kirim broadcast message ke semua client melalui API"""
-        if not self.database_manager:
-            QMessageBox.warning(self, "Warning", "Database manager tidak tersedia!")
-            return
-        
-        # Cek apakah API aktif
-        if not self.check_api_status():
-            QMessageBox.warning(self, "Warning", "API tidak aktif! Aktifkan API terlebih dahulu.")
-            return
-        
-        message, ok = QInputDialog.getText(self, "Kirim Pesan Broadcast", 
-                                         "Masukkan pesan untuk semua client:")
-        if ok and message:
-            try:
-                # Kirim broadcast melalui API
-                success, result = self.database_manager.send_broadcast_message(message)
-                
-                if success:
-                    QMessageBox.information(self, "Sukses", "Pesan broadcast berhasil dikirim")
-                    self.log_message.emit(f"Pesan broadcast terkirim: {message}")
-                else:
-                    QMessageBox.warning(self, "Error", f"Gagal mengirim pesan broadcast: {result}")
-                    self.log_message.emit(f"Error broadcast: {result}")
-            except Exception as e:
-                QMessageBox.critical(self, "Error", f"Error mengirim broadcast: {str(e)}")
-                self.log_message.emit(f"Exception broadcast: {str(e)}")
-    
     def add_log_message(self, message):
         """Tambah pesan ke log"""
         timestamp = datetime.datetime.now().strftime("%H:%M:%S")

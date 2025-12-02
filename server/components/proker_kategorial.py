@@ -37,12 +37,12 @@ class ProgramKerjaKategorialWidget(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        # Title section
+        # Title section - transparent background
         title_frame = QFrame()
         title_frame.setStyleSheet("""
             QFrame {
-                background-color: white;
-                border-bottom: 2px solid #ecf0f1;
+                background-color: transparent;
+                border: none;
                 padding: 10px 0px;
             }
         """)
@@ -75,13 +75,9 @@ class ProgramKerjaKategorialWidget(QWidget):
         header = self.create_header()
         content_layout.addWidget(header)
 
-        # Search section
-        search_group = self.create_search()
-        content_layout.addWidget(search_group)
-
-        # Filter section
-        filter_group = self.create_filters()
-        content_layout.addWidget(filter_group)
+        # Search and Filter section (combined without containers)
+        search_filter_layout = self.create_search_filter()
+        content_layout.addLayout(search_filter_layout)
 
         # Table
         table_widget = self.create_table()
@@ -131,37 +127,54 @@ class ProgramKerjaKategorialWidget(QWidget):
 
         return header
 
-    def create_search(self):
-        """Create search section"""
-        search_group = QGroupBox()
-        search_layout = QHBoxLayout(search_group)
+    def create_search_filter(self):
+        """Create search and filter layout without containers"""
+        layout = QHBoxLayout()
+        layout.setContentsMargins(0, 5, 0, 5)
 
+        # Search input
         search_label = QLabel("Cari:")
-        search_layout.addWidget(search_label)
+        layout.addWidget(search_label)
 
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("Cari nama program kerja...")
-        self.search_input.setFixedWidth(300)
+        self.search_input.setFixedWidth(250)
         self.search_input.textChanged.connect(self.filter_programs)
-        search_layout.addWidget(self.search_input)
+        layout.addWidget(self.search_input)
 
-        search_layout.addStretch()
+        layout.addSpacing(20)
 
-        return search_group
+        # Kategori filter
+        kategori_label = QLabel("Kategori:")
+        layout.addWidget(kategori_label)
 
-    def create_filters(self):
-        """Create filter section"""
-        filter_group = QGroupBox()
-        filter_layout = QHBoxLayout(filter_group)
+        self.kategori_filter = QComboBox()
+        self.kategori_filter.addItems(["Semua", "Pastoral", "Sosial", "Pendidikan", "Liturgi", "Keuangan", "Lainnya"])
+        self.kategori_filter.setFixedWidth(150)
+        self.kategori_filter.currentTextChanged.connect(self.filter_programs)
+        layout.addWidget(self.kategori_filter)
 
-        # Note: Kategori field dihapus karena tidak ada di database
-        filter_info = QLabel("Filter berdasarkan pencarian di atas")
-        filter_info.setStyleSheet("color: #7f8c8d; font-style: italic;")
-        filter_layout.addWidget(filter_info)
+        layout.addSpacing(20)
 
-        filter_layout.addStretch()
+        # Waktu filter
+        waktu_label = QLabel("Waktu:")
+        layout.addWidget(waktu_label)
 
-        return filter_group
+        self.waktu_filter = QComboBox()
+        months = [
+            "Semua Waktu",
+            "Januari", "Februari", "Maret", "April",
+            "Mei", "Juni", "Juli", "Agustus",
+            "September", "Oktober", "November", "Desember"
+        ]
+        self.waktu_filter.addItems(months)
+        self.waktu_filter.setFixedWidth(150)
+        self.waktu_filter.currentTextChanged.connect(self.filter_programs)
+        layout.addWidget(self.waktu_filter)
+
+        layout.addStretch()
+
+        return layout
 
     def create_table(self):
         """Create table for program kerja kategorial"""
@@ -420,7 +433,7 @@ class ProgramKerjaKategorialWidget(QWidget):
         action_layout.addWidget(delete_button)
 
         # Export CSV button dengan ikon
-        export_csv_button = QPushButton(" Export CSV")
+        export_csv_button = QPushButton(" .csv")
         try:
             icon = QIcon("server/assets/export.png")
             if not icon.isNull():
@@ -511,8 +524,10 @@ class ProgramKerjaKategorialWidget(QWidget):
             self.load_data()
 
     def filter_programs(self):
-        """Filter programs based on search"""
+        """Filter programs based on search, kategori, and waktu"""
         search_text = self.search_input.text().lower()
+        kategori_filter = self.kategori_filter.currentText()
+        waktu_filter = self.waktu_filter.currentText()
 
         filtered_programs = []
 
@@ -524,6 +539,18 @@ class ProgramKerjaKategorialWidget(QWidget):
                 pic = program.get('pic', '').lower()
 
                 if search_text not in program_name and search_text not in subyek and search_text not in pic:
+                    continue
+
+            # Kategori filter (based on program_kerja content - simple matching)
+            if kategori_filter != "Semua":
+                program_kerja = program.get('program_kerja', '').lower()
+                if kategori_filter.lower() not in program_kerja:
+                    continue
+
+            # Waktu filter (based on waktu field)
+            if waktu_filter != "Semua Waktu":
+                waktu = program.get('waktu', '').lower()
+                if waktu_filter.lower() not in waktu:
                     continue
 
             filtered_programs.append(program)
@@ -604,21 +631,25 @@ class ProgramKerjaKategorialWidget(QWidget):
             if success:
                 # Handle different response structures
                 programs = []
+
+                self.log_message.emit(f"[DEBUG] API Response Type: {type(result)}")
+                self.log_message.emit(f"[DEBUG] API Response: {str(result)[:200]}")
+
                 if isinstance(result, list):
+                    # Direct list of programs
                     programs = result
                 elif isinstance(result, dict):
+                    # Check for nested structure: {"data": [...]} or {"data": {"data": [...]}}
                     if 'data' in result:
-                        # Response structure: {"data": [...]}
-                        programs = result.get('data', [])
-                    elif 'status' in result and result.get('status') == 'success':
-                        # Response structure: {"status": "success", "data": {"data": [...]}}
-                        nested_data = result.get('data', {})
-                        if isinstance(nested_data, dict) and 'data' in nested_data:
-                            programs = nested_data.get('data', [])
-                        elif isinstance(nested_data, list):
-                            programs = nested_data
+                        nested = result['data']
+                        if isinstance(nested, list):
+                            # {"data": [...]}
+                            programs = nested
+                        elif isinstance(nested, dict) and 'data' in nested:
+                            # {"data": {"data": [...]}}
+                            programs = nested['data'] if isinstance(nested['data'], list) else []
 
-                self.log_message.emit(f"[DEBUG] Loaded {len(programs)} programs from API")
+                self.log_message.emit(f"[DEBUG] Parsed {len(programs)} programs from response")
 
                 self.work_programs = []
                 for program in programs:

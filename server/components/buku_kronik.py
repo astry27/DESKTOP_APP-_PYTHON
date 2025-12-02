@@ -3,9 +3,10 @@
 
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
                            QScrollArea, QMessageBox, QDialog, QFormLayout, QLineEdit,
-                           QDateEdit, QTextEdit, QDialogButtonBox, QGroupBox, QFrame)
-from PyQt5.QtCore import Qt, QDate, pyqtSignal, QDateTime, QTimer
-from PyQt5.QtGui import QFont, QColor
+                           QDateEdit, QTextEdit, QDialogButtonBox, QGroupBox, QFrame,
+                           QFileDialog)
+from PyQt5.QtCore import Qt, QDate, pyqtSignal, QDateTime, QTimer, QSize
+from PyQt5.QtGui import QFont, QColor, QIcon
 import datetime
 
 
@@ -173,7 +174,14 @@ class BukuKronikComponent(QWidget):
 
         header_layout.addStretch()
 
-        add_button = QPushButton("➕ Tambah Peristiwa")
+        add_button = QPushButton(" Tambah Peristiwa")
+        try:
+            icon = QIcon("server/assets/tambah.png")
+            if not icon.isNull():
+                add_button.setIcon(icon)
+                add_button.setIconSize(QSize(18, 18))
+        except Exception:
+            pass
         add_button.setStyleSheet("""
             QPushButton {
                 background-color: #27ae60;
@@ -211,16 +219,55 @@ class BukuKronikComponent(QWidget):
 
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("Cari peristiwa atau keterangan...")
-        self.search_input.setMaximumWidth(300)
+        self.search_input.setMaximumWidth(250)
         self.search_input.setMinimumHeight(32)
-        self.search_input.textChanged.connect(self.on_search_changed)
+        self.search_input.textChanged.connect(self.apply_filters)
         filter_layout.addWidget(self.search_input)
+
+        # Spacer
+        filter_layout.addSpacing(20)
+
+        # Filter by date range
+        date_label = QLabel("Periode:")
+        filter_layout.addWidget(date_label)
+
+        # Start date
+        self.start_date = QDateEdit()
+        self.start_date.setCalendarPopup(True)
+        self.start_date.setDisplayFormat("dd/MM/yyyy")
+        self.start_date.setMaximumWidth(120)
+        self.start_date.setMinimumHeight(32)
+        # Set to 1 year ago by default
+        self.start_date.setDate(QDate.currentDate().addYears(-1))
+        self.start_date.dateChanged.connect(self.apply_filters)
+        filter_layout.addWidget(self.start_date)
+
+        # Separator
+        separator_label = QLabel("-")
+        filter_layout.addWidget(separator_label)
+
+        # End date
+        self.end_date = QDateEdit()
+        self.end_date.setCalendarPopup(True)
+        self.end_date.setDisplayFormat("dd/MM/yyyy")
+        self.end_date.setMaximumWidth(120)
+        self.end_date.setMinimumHeight(32)
+        self.end_date.setDate(QDate.currentDate())
+        self.end_date.dateChanged.connect(self.apply_filters)
+        filter_layout.addWidget(self.end_date)
 
         filter_layout.addStretch()
 
         # Refresh button
-        refresh_button = QPushButton("🔄 Refresh")
-        refresh_button.setMaximumWidth(100)
+        refresh_button = QPushButton(" Refresh")
+        try:
+            icon = QIcon("server/assets/refresh.png")
+            if not icon.isNull():
+                refresh_button.setIcon(icon)
+                refresh_button.setIconSize(QSize(16, 16))
+        except Exception:
+            pass
+        refresh_button.setMaximumWidth(110)
         refresh_button.setStyleSheet("""
             QPushButton {
                 background-color: #3498db;
@@ -245,23 +292,31 @@ class BukuKronikComponent(QWidget):
 
         action_layout.addStretch()
 
-        # Clear search button
-        clear_button = QPushButton("🔄 Hapus Filter")
-        clear_button.setMaximumWidth(140)
-        clear_button.setStyleSheet("""
+        # Export PDF button
+        pdf_button = QPushButton(" Export PDF")
+        try:
+            icon = QIcon("server/assets/export.png")
+            if not icon.isNull():
+                pdf_button.setIcon(icon)
+                pdf_button.setIconSize(QSize(16, 16))
+        except Exception:
+            pass
+        pdf_button.setMaximumWidth(140)
+        pdf_button.setStyleSheet("""
             QPushButton {
-                background-color: #95a5a6;
+                background-color: #e74c3c;
                 color: white;
                 padding: 6px 12px;
                 border: none;
                 border-radius: 3px;
+                font-weight: 500;
             }
             QPushButton:hover {
-                background-color: #7f8c8d;
+                background-color: #c0392b;
             }
         """)
-        clear_button.clicked.connect(self.clear_search)
-        action_layout.addWidget(clear_button)
+        pdf_button.clicked.connect(self.export_to_pdf)
+        action_layout.addWidget(pdf_button)
 
         return action_layout
 
@@ -285,7 +340,7 @@ class BukuKronikComponent(QWidget):
         content_layout.setContentsMargins(10, 12, 10, 12)
         content_layout.setSpacing(6)
 
-        # Tanggal (bold and larger)
+        # Tanggal (bold, simple style)
         tanggal_str = peristiwa.get('tanggal', 'N/A')
         if tanggal_str and tanggal_str != 'N/A':
             try:
@@ -294,7 +349,7 @@ class BukuKronikComponent(QWidget):
                 else:
                     date_obj = datetime.datetime.strptime(tanggal_str.split('T')[0], '%Y-%m-%d').date()
 
-                tanggal_display = date_obj.strftime('%d/%m/%Y')  # Format: 11/11/2024
+                tanggal_display = date_obj.strftime('%d %B %Y')  # Format: 11 November 2024
             except:
                 tanggal_display = tanggal_str
         else:
@@ -302,23 +357,23 @@ class BukuKronikComponent(QWidget):
 
         tanggal_label = QLabel(tanggal_display)
         tanggal_font = QFont()
-        tanggal_font.setPointSize(10)
+        tanggal_font.setPointSize(9)
         tanggal_font.setBold(True)
         tanggal_label.setFont(tanggal_font)
-        tanggal_label.setStyleSheet("color: #3498db; background-color: transparent;")
+        tanggal_label.setStyleSheet("color: #34495e; background-color: transparent;")
         content_layout.addWidget(tanggal_label)
 
-        # Peristiwa
+        # Peristiwa (judul dengan warna yang sama seperti tanggal)
         peristiwa_label = QLabel(peristiwa.get('peristiwa', 'Peristiwa tidak ada'))
         peristiwa_font = QFont()
-        peristiwa_font.setPointSize(11)
-        peristiwa_font.setBold(True)
+        peristiwa_font.setPointSize(10)
+        peristiwa_font.setBold(False)
         peristiwa_label.setFont(peristiwa_font)
         peristiwa_label.setWordWrap(True)
-        peristiwa_label.setStyleSheet("color: #2c3e50; background-color: transparent;")
+        peristiwa_label.setStyleSheet("color: #34495e; background-color: transparent;")
         content_layout.addWidget(peristiwa_label)
 
-        # Keterangan (jika ada)
+        # Keterangan (jika ada, dengan warna yang sama)
         keterangan = peristiwa.get('keterangan', '')
         if keterangan:
             keterangan_label = QLabel(keterangan)
@@ -326,7 +381,7 @@ class BukuKronikComponent(QWidget):
             keterangan_font.setPointSize(9)
             keterangan_label.setFont(keterangan_font)
             keterangan_label.setWordWrap(True)
-            keterangan_label.setStyleSheet("color: #7f8c8d; background-color: transparent;")
+            keterangan_label.setStyleSheet("color: #34495e; background-color: transparent;")
             content_layout.addWidget(keterangan_label)
 
         # Action buttons layout (in horizontal line)
@@ -334,8 +389,15 @@ class BukuKronikComponent(QWidget):
         button_layout.setContentsMargins(0, 8, 0, 0)
         button_layout.setSpacing(8)
 
-        # Edit button (kuning dengan ikon)
-        edit_btn = QPushButton("✏️ Edit")
+        # Edit button (kuning dengan ikon PNG)
+        edit_btn = QPushButton(" Edit")
+        try:
+            icon = QIcon("server/assets/edit.png")
+            if not icon.isNull():
+                edit_btn.setIcon(icon)
+                edit_btn.setIconSize(QSize(14, 14))
+        except Exception:
+            pass
         edit_btn.setFixedSize(80, 28)
         edit_btn.setStyleSheet("""
             QPushButton {
@@ -354,8 +416,15 @@ class BukuKronikComponent(QWidget):
         edit_btn.clicked.connect(lambda: self.edit_peristiwa(peristiwa))
         button_layout.addWidget(edit_btn)
 
-        # Delete button (merah dengan ikon)
-        delete_btn = QPushButton("🗑️ Hapus")
+        # Delete button (merah dengan ikon PNG)
+        delete_btn = QPushButton(" Hapus")
+        try:
+            icon = QIcon("server/assets/hapus.png")
+            if not icon.isNull():
+                delete_btn.setIcon(icon)
+                delete_btn.setIconSize(QSize(14, 14))
+        except Exception:
+            pass
         delete_btn.setFixedSize(85, 28)
         delete_btn.setStyleSheet("""
             QPushButton {
@@ -452,25 +521,47 @@ class BukuKronikComponent(QWidget):
         # Add stretch at the end
         self.kronik_layout.addStretch()
 
-    def on_search_changed(self):
-        """Handle search text change"""
+    def apply_filters(self):
+        """Apply search text and date range filters"""
         search_text = self.search_input.text().lower()
+        start_date = self.start_date.date().toPyDate()
+        end_date = self.end_date.date().toPyDate()
 
-        if not search_text:
-            self.populate_kronik_list(self.peristiwa_list)
-            return
+        # Filter peristiwa based on search text and date range
+        filtered = []
+        for peristiwa in self.peristiwa_list:
+            # Check search text match
+            text_match = True
+            if search_text:
+                text_match = (
+                    search_text in peristiwa.get('peristiwa', '').lower() or
+                    search_text in peristiwa.get('keterangan', '').lower()
+                )
 
-        # Filter peristiwa
-        filtered = [p for p in self.peristiwa_list if
-                   search_text in p.get('peristiwa', '').lower() or
-                   search_text in p.get('keterangan', '').lower()]
+            # Check date range match
+            date_match = True
+            tanggal_str = peristiwa.get('tanggal', '')
+            if tanggal_str:
+                try:
+                    if isinstance(tanggal_str, str) and 'T' in tanggal_str:
+                        date_obj = datetime.datetime.fromisoformat(tanggal_str.replace('Z', '+00:00')).date()
+                    else:
+                        date_obj = datetime.datetime.strptime(tanggal_str.split('T')[0], '%Y-%m-%d').date()
+
+                    # Check if date is within range
+                    date_match = start_date <= date_obj <= end_date
+                except:
+                    # If date parsing fails, exclude from results
+                    date_match = False
+            else:
+                # No date = exclude from filtered results
+                date_match = False
+
+            # Add to filtered list if both conditions match
+            if text_match and date_match:
+                filtered.append(peristiwa)
 
         self.populate_kronik_list(filtered)
-
-    def clear_search(self):
-        """Clear search filter"""
-        self.search_input.clear()
-        self.populate_kronik_list(self.peristiwa_list)
 
     def add_peristiwa(self):
         """Add new peristiwa"""
@@ -595,6 +686,119 @@ class BukuKronikComponent(QWidget):
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Gagal hapus peristiwa: {str(e)}")
             self.log_message.emit(f"Exception deleting peristiwa: {str(e)}")
+
+    def export_to_pdf(self):
+        """Export buku kronik to PDF"""
+        if not self.peristiwa_list:
+            QMessageBox.warning(self, "Warning", "Tidak ada data peristiwa untuk diekspor")
+            return
+
+        filename, _ = QFileDialog.getSaveFileName(
+            self, "Export Buku Kronik ke PDF", "buku_kronik.pdf", "PDF Files (*.pdf)"
+        )
+        if not filename:
+            return
+
+        try:
+            # Try to use reportlab for PDF generation
+            try:
+                from reportlab.lib.pagesizes import A4
+                from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+                from reportlab.lib.units import cm
+                from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+                from reportlab.lib import colors
+                from reportlab.lib.enums import TA_CENTER
+            except ImportError:
+                QMessageBox.critical(
+                    self, "Error",
+                    "Library ReportLab tidak tersedia.\n\nInstall dengan: pip install reportlab"
+                )
+                return
+
+            # Create PDF
+            doc = SimpleDocTemplate(filename, pagesize=A4)
+            story = []
+            styles = getSampleStyleSheet()
+
+            # Title
+            title_style = ParagraphStyle(
+                'CustomTitle',
+                parent=styles['Heading1'],
+                fontSize=18,
+                textColor=colors.HexColor('#2c3e50'),
+                spaceAfter=30,
+                alignment=TA_CENTER
+            )
+            title = Paragraph("BUKU KRONIK - PENCATATAN PERISTIWA GEREJA", title_style)
+            story.append(title)
+            story.append(Spacer(1, 0.5*cm))
+
+            # Add each peristiwa
+            for idx, peristiwa in enumerate(self.peristiwa_list, 1):
+                # Date
+                tanggal_str = peristiwa.get('tanggal', 'N/A')
+                if tanggal_str and tanggal_str != 'N/A':
+                    try:
+                        if isinstance(tanggal_str, str) and 'T' in tanggal_str:
+                            date_obj = datetime.datetime.fromisoformat(tanggal_str.replace('Z', '+00:00')).date()
+                        else:
+                            date_obj = datetime.datetime.strptime(tanggal_str.split('T')[0], '%Y-%m-%d').date()
+                        tanggal_display = date_obj.strftime('%d %B %Y')
+                    except:
+                        tanggal_display = tanggal_str
+                else:
+                    tanggal_display = 'Tanggal tidak ada'
+
+                # Date style
+                date_style = ParagraphStyle(
+                    'DateStyle',
+                    parent=styles['Normal'],
+                    fontSize=10,
+                    textColor=colors.HexColor('#34495e'),
+                    fontName='Helvetica-Bold',
+                    spaceAfter=6
+                )
+                date_para = Paragraph(f"<b>{tanggal_display}</b>", date_style)
+                story.append(date_para)
+
+                # Peristiwa (event title)
+                event_style = ParagraphStyle(
+                    'EventStyle',
+                    parent=styles['Normal'],
+                    fontSize=11,
+                    textColor=colors.HexColor('#34495e'),
+                    spaceAfter=6
+                )
+                event_text = peristiwa.get('peristiwa', 'Peristiwa tidak ada')
+                event_para = Paragraph(event_text, event_style)
+                story.append(event_para)
+
+                # Keterangan (if exists)
+                keterangan = peristiwa.get('keterangan', '')
+                if keterangan:
+                    keterangan_style = ParagraphStyle(
+                        'KeteranganStyle',
+                        parent=styles['Normal'],
+                        fontSize=9,
+                        textColor=colors.HexColor('#34495e'),
+                        spaceAfter=12
+                    )
+                    keterangan_para = Paragraph(keterangan, keterangan_style)
+                    story.append(keterangan_para)
+
+                # Add separator line
+                if idx < len(self.peristiwa_list):
+                    story.append(Spacer(1, 0.3*cm))
+
+            # Build PDF
+            doc.build(story)
+
+            QMessageBox.information(self, "Sukses", f"Buku kronik berhasil diekspor ke:\n{filename}")
+            self.log_message.emit(f"Buku kronik berhasil diekspor ke: {filename}")
+
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Gagal export PDF: {str(e)}")
+            self.log_message.emit(f"Error exporting PDF: {str(e)}")
 
     def get_data(self):
         """Get peristiwa data"""

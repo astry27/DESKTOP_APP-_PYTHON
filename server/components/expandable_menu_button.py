@@ -43,17 +43,17 @@ class ExpandableMenuButton(QWidget):
                 padding: 10px 15px;
                 margin: 4px 8px 4px 8px;
                 font-size: 13px;
-                font-weight: bold;
-                background-color: #FFFFFF;
-                color: #2C3E50;
+                font-weight: normal;
+                background-color: transparent;
+                color: #ffffff;
             }
             QPushButton:hover {
-                background-color: #ECF0F1;
-                color: #1A252F;
+                background-color: rgba(38, 139, 210, 0.12);
+                color: #ffffff;
             }
             QPushButton:checked {
-                background-color: #12101E;
-                color: #FFFFFF;
+                background-color: rgba(38, 139, 210, 0.2);
+                color: #ffffff;
                 font-weight: bold;
                 border-radius: 6px;
             }
@@ -98,10 +98,7 @@ class ExpandableMenuButton(QWidget):
             QWidget {
                 border: none;
                 margin: 0px;
-                background-color: #FFFFFF;
-            }
-            QWidget:hover {
-                background-color: #ECF0F1;
+                background-color: transparent;
             }
         """)
 
@@ -141,48 +138,51 @@ class ExpandableMenuButton(QWidget):
     def update_appearance(self):
         """Update appearance based on expanded state"""
         if self.is_expanded:
-            # Active state - dark background (#12101E) for main button with rounded corners
+            # Active state - soft highlight background with border-left indicator
             self.main_button.setStyleSheet("""
                 QPushButton {
                     border: none;
                     border-radius: 6px;
+                    border-left: 3px solid #2aa198;
                     text-align: left;
                     padding: 10px 15px;
+                    padding-left: 12px;
                     margin: 4px 8px 4px 8px;
                     font-size: 13px;
                     font-weight: bold;
-                    background-color: #12101E;
-                    color: #FFFFFF;
+                    background-color: rgba(38, 139, 210, 0.2);
+                    color: #ffffff;
                 }
                 QPushButton:hover {
-                    background-color: #12101E;
+                    background-color: rgba(38, 139, 210, 0.25);
+                    color: #ffffff;
                 }
             """)
-            # Dropdown button styling saat expanded - match main button background with rounded corners
+            # Dropdown button styling saat expanded
             self.dropdown_button.setStyleSheet("""
                 QPushButton {
                     border: none;
+                    background-color: rgba(38, 139, 210, 0.2);
                     border-radius: 6px;
-                    background-color: #12101E;
                     padding: 10px 15px;
-                    margin: 4px 0px 4px 0px;
+                    margin: 4px 8px 4px 0px;
                     cursor: pointer;
-                    color: #FFFFFF;
+                    color: #ffffff;
                 }
                 QPushButton:hover {
-                    background-color: #12101E;
+                    background-color: rgba(38, 139, 210, 0.25);
                 }
             """)
-            # Container background untuk full width effect
+            # Container background untuk active state
             self.setStyleSheet("""
                 QWidget {
                     border: none;
                     margin: 0px;
-                    background-color: #FFFFFF;
+                    background-color: transparent;
                 }
             """)
         else:
-            # Normal state - restore original styling with rounded corners
+            # Normal state - restore original styling
             self.main_button.setStyleSheet("""
                 QPushButton {
                     border: none;
@@ -191,13 +191,13 @@ class ExpandableMenuButton(QWidget):
                     padding: 10px 15px;
                     margin: 4px 8px 4px 8px;
                     font-size: 13px;
-                    font-weight: bold;
-                    background-color: #FFFFFF;
-                    color: #2C3E50;
+                    font-weight: normal;
+                    background-color: transparent;
+                    color: #ffffff;
                 }
                 QPushButton:hover {
-                    background-color: #ECF0F1;
-                    color: #1A252F;
+                    background-color: rgba(38, 139, 210, 0.12);
+                    color: #ffffff;
                 }
             """)
             # Dropdown button styling saat normal
@@ -206,9 +206,9 @@ class ExpandableMenuButton(QWidget):
                     border: none;
                     background-color: transparent;
                     padding: 10px 15px;
-                    margin: 4px 0px 4px 0px;
+                    margin: 4px 8px 4px 0px;
                     cursor: pointer;
-                    color: #2C3E50;
+                    color: #ffffff;
                 }
                 QPushButton:hover {
                     background-color: transparent;
@@ -219,10 +219,7 @@ class ExpandableMenuButton(QWidget):
                 QWidget {
                     border: none;
                     margin: 0px;
-                    background-color: #FFFFFF;
-                }
-                QWidget:hover {
-                    background-color: #FFFFFF;
+                    background-color: transparent;
                 }
             """)
 

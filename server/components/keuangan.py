@@ -682,13 +682,13 @@ class KeuanganKategorialWidget(QWidget):
         self.apply_professional_table_style(self.table)
 
         # Set column widths
-        self.table.setColumnWidth(0, 100)
-        self.table.setColumnWidth(1, 100)
-        self.table.setColumnWidth(2, 120)
-        self.table.setColumnWidth(3, 200)
-        self.table.setColumnWidth(4, 120)
-        self.table.setColumnWidth(5, 120)
-        self.table.setColumnWidth(6, 140)
+        self.table.setColumnWidth(0, 100)  # Tanggal
+        self.table.setColumnWidth(1, 100)  # Jenis
+        self.table.setColumnWidth(2, 120)  # Kategori
+        self.table.setColumnWidth(3, 200)  # Keterangan
+        self.table.setColumnWidth(4, 120)  # Jumlah
+        self.table.setColumnWidth(5, 120)  # Saldo
+        self.table.setColumnWidth(6, 170)  # Aksi (diperbesar untuk 3 button)
 
         header = self.table.horizontalHeader()
         header.sectionResized.connect(self.update_header_height)
@@ -696,6 +696,17 @@ class KeuanganKategorialWidget(QWidget):
         QTimer.singleShot(100, lambda: self.update_header_height(0, 0, 0))
 
         layout.addWidget(self.table)
+
+        # Export button at bottom right
+        export_layout = QHBoxLayout()
+        export_layout.addStretch()
+
+        export_excel_btn = self.create_professional_button("Export ke Excel", "#16a085", "#1abc9c")
+        export_excel_btn.clicked.connect(self.export_to_excel)
+        export_excel_btn.setToolTip("Ekspor data ke file Excel")
+        export_layout.addWidget(export_excel_btn)
+
+        layout.addLayout(export_layout)
 
     def create_financial_statistics_summary(self, layout):
         """Create financial summary using client style"""
@@ -1027,12 +1038,37 @@ class KeuanganKategorialWidget(QWidget):
             self.table.setCellWidget(row, 6, action_widget)
 
     def create_action_buttons_for_row(self, row):
-        """Create action buttons for table row - matching client style"""
+        """Create action buttons for table row - matching client style with 3 buttons"""
         action_widget = QWidget()
         action_layout = QHBoxLayout(action_widget)
         action_layout.setContentsMargins(3, 3, 3, 3)
         action_layout.setSpacing(3)
         action_layout.setAlignment(Qt.AlignCenter)
+
+        # View button
+        view_button = QPushButton()
+        view_button.setText("Lihat")
+        view_button.setFixedSize(50, 28)
+        view_button.setStyleSheet("""
+            QPushButton {
+                background-color: #3498db;
+                color: white;
+                border: none;
+                border-radius: 3px;
+                padding: 2px;
+                font-size: 10px;
+                font-weight: 500;
+            }
+            QPushButton:hover {
+                background-color: #2980b9;
+            }
+            QPushButton:pressed {
+                background-color: #21618c;
+            }
+        """)
+        view_button.setToolTip("Lihat Detail Transaksi")
+        view_button.clicked.connect(lambda _, r=row: self.view_data(r))
+        action_layout.addWidget(view_button)
 
         # Edit button
         edit_button = QPushButton()
@@ -1155,6 +1191,63 @@ class KeuanganKategorialWidget(QWidget):
         """Set admin ID for this widget"""
         self.admin_id = admin_id
 
+    def view_data(self, row):
+        """View transaction detail from specific row - using sorted_data"""
+        try:
+            if row < 0 or row >= len(self.sorted_data):
+                print(f"[ERROR] Invalid row index: {row}, sorted_data length: {len(self.sorted_data)}")
+                return
+
+            item = self.sorted_data[row]
+            print(f"[DEBUG] view_data - viewing row={row}, data: {item}")
+
+            # Format tanggal - dd/mm/yyyy
+            tanggal = item.get('tanggal', 'N/A')
+            if tanggal and tanggal != 'N/A':
+                try:
+                    if isinstance(tanggal, str):
+                        tanggal_str = tanggal.strip()
+                        if 'T' in tanggal_str or (' ' in tanggal_str and ':' in tanggal_str):
+                            try:
+                                dt = datetime.datetime.fromisoformat(tanggal_str.replace('Z', '+00:00'))
+                                tanggal = dt.strftime('%d/%m/%Y')
+                            except:
+                                parts = tanggal_str.split(' ')[0] if ' ' in tanggal_str else tanggal_str
+                                dt = datetime.datetime.strptime(parts, '%Y-%m-%d')
+                                tanggal = dt.strftime('%d/%m/%Y')
+                        elif '-' in tanggal_str:
+                            parts = tanggal_str.split(' ')[0]
+                            dt = datetime.datetime.strptime(parts, '%Y-%m-%d')
+                            tanggal = dt.strftime('%d/%m/%Y')
+                        elif '/' in tanggal_str:
+                            # Already formatted
+                            pass
+                except Exception as e:
+                    print(f"[WARN] Failed to format date: {e}")
+
+            # Get other details
+            jenis = item.get('jenis', 'N/A')
+            kategori = item.get('kategori', 'N/A')
+            keterangan = item.get('keterangan', 'N/A')
+            jumlah = item.get('jumlah', 0)
+
+            detail_text = f"""
+Detail Transaksi Keuangan Kategorial:
+
+Tanggal: {tanggal}
+Jenis: {jenis}
+Kategori: {kategori}
+Keterangan: {keterangan}
+Jumlah: Rp {jumlah:,.0f}
+"""
+
+            QMessageBox.information(self, "Detail Transaksi", detail_text)
+        except Exception as e:
+            print(f"[ERROR] Exception in view_data: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            QMessageBox.critical(self, "Error", f"Error menampilkan detail: {str(e)}")
+
     def edit_data(self, row):
         """Edit transaction from specific row - using sorted_data"""
         try:
@@ -1228,6 +1321,219 @@ class KeuanganKategorialWidget(QWidget):
             import traceback
             traceback.print_exc()
             QMessageBox.critical(self, "Error", f"Error menghapus transaksi: {str(e)}")
+
+    def export_to_excel(self):
+        """Export keuangan kategorial data to Excel file"""
+        if not self.filtered_data:
+            QMessageBox.warning(self, "Warning", "Tidak ada data untuk diekspor")
+            return
+
+        try:
+            # Get save file path
+            file_path, _ = QFileDialog.getSaveFileName(
+                self,
+                "Export Data Keuangan Kategorial",
+                f"keuangan_kategorial_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
+                "Excel Files (*.xlsx)"
+            )
+
+            if not file_path:
+                return
+
+            # Try to import openpyxl
+            try:
+                from openpyxl import Workbook
+                from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+            except ImportError:
+                QMessageBox.critical(
+                    self,
+                    "Error",
+                    "Library openpyxl tidak ditemukan.\nInstall dengan: pip install openpyxl"
+                )
+                return
+
+            # Create workbook
+            wb = Workbook()
+            ws = wb.active
+            ws.title = "Keuangan Kategorial"
+
+            # Define styles
+            header_font = Font(bold=True, color="FFFFFF", size=11)
+            header_fill = PatternFill(start_color="2c3e50", end_color="2c3e50", fill_type="solid")
+            header_alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+            border_style = Border(
+                left=Side(style='thin'),
+                right=Side(style='thin'),
+                top=Side(style='thin'),
+                bottom=Side(style='thin')
+            )
+
+            # Write headers
+            headers = ["No", "Tanggal", "Jenis", "Kategori", "Keterangan", "Jumlah (Rp)", "Saldo"]
+            for col_idx, header in enumerate(headers, 1):
+                cell = ws.cell(row=1, column=col_idx)
+                cell.value = str(header)
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = header_alignment
+                cell.border = border_style
+
+            # Set column widths
+            ws.column_dimensions['A'].width = 5  # type: ignore
+            ws.column_dimensions['B'].width = 12  # type: ignore
+            ws.column_dimensions['C'].width = 12  # type: ignore
+            ws.column_dimensions['D'].width = 20  # type: ignore
+            ws.column_dimensions['E'].width = 35  # type: ignore
+            ws.column_dimensions['F'].width = 15  # type: ignore
+            ws.column_dimensions['G'].width = 15  # type: ignore
+
+            # Sort data by ID for correct running balance
+            sorted_data = sorted(self.filtered_data, key=lambda x: x.get('id_keuangan_kategorial', 0) or x.get('id', 0), reverse=False)
+
+            # Calculate running balance and write data
+            running_balance = 0.0
+
+            for idx, item in enumerate(sorted_data, 1):
+                # Format tanggal
+                tanggal = item.get('tanggal', '')
+                if tanggal:
+                    try:
+                        if isinstance(tanggal, str):
+                            tanggal_str = tanggal.strip()
+                            if 'T' in tanggal_str or (' ' in tanggal_str and ':' in tanggal_str):
+                                dt = datetime.datetime.fromisoformat(tanggal_str.replace('Z', '+00:00'))
+                                tanggal = dt.strftime('%d/%m/%Y')
+                            elif '-' in tanggal_str:
+                                parts = tanggal_str.split(' ')[0]
+                                dt = datetime.datetime.strptime(parts, '%Y-%m-%d')
+                                tanggal = dt.strftime('%d/%m/%Y')
+                    except:
+                        pass
+
+                jenis = item.get('jenis', '')
+                kategori = item.get('kategori', '')
+                keterangan = item.get('keterangan', '')
+
+                try:
+                    jumlah_value = float(item.get('jumlah', 0))
+                    if jenis == 'Pemasukan':
+                        running_balance += jumlah_value
+                    else:
+                        running_balance -= jumlah_value
+                except:
+                    jumlah_value = 0
+
+                # Write row data
+                row_num = idx + 1
+
+                # Column 1: No
+                cell_no = ws.cell(row=row_num, column=1)
+                cell_no.value = idx
+                cell_no.border = border_style
+
+                # Column 2: Tanggal
+                cell_tanggal = ws.cell(row=row_num, column=2)
+                cell_tanggal.value = str(tanggal)
+                cell_tanggal.border = border_style
+
+                # Column 3: Jenis
+                jenis_cell = ws.cell(row=row_num, column=3)
+                jenis_cell.value = str(jenis)
+                jenis_cell.border = border_style
+                if jenis == 'Pemasukan':
+                    jenis_cell.fill = PatternFill(start_color="d5f4e6", end_color="d5f4e6", fill_type="solid")
+                    jenis_cell.font = Font(color="27ae60", bold=True)
+                elif jenis == 'Pengeluaran':
+                    jenis_cell.fill = PatternFill(start_color="fadbd8", end_color="fadbd8", fill_type="solid")
+                    jenis_cell.font = Font(color="c0392b", bold=True)
+
+                # Column 4: Kategori
+                cell_kategori = ws.cell(row=row_num, column=4)
+                cell_kategori.value = str(kategori)
+                cell_kategori.border = border_style
+
+                # Column 5: Keterangan
+                cell_keterangan = ws.cell(row=row_num, column=5)
+                cell_keterangan.value = str(keterangan)
+                cell_keterangan.border = border_style
+
+                # Column 6: Jumlah
+                jumlah_cell = ws.cell(row=row_num, column=6)
+                jumlah_cell.value = jumlah_value
+                jumlah_cell.border = border_style
+                jumlah_cell.number_format = '#,##0'
+                if jenis == 'Pemasukan':
+                    jumlah_cell.font = Font(color="27ae60")
+                else:
+                    jumlah_cell.font = Font(color="c0392b")
+
+                # Column 7: Saldo
+                saldo_cell = ws.cell(row=row_num, column=7)
+                saldo_cell.value = running_balance
+                saldo_cell.border = border_style
+                saldo_cell.number_format = '#,##0'
+                if running_balance >= 0:
+                    saldo_cell.font = Font(color="27ae60", bold=True)
+                else:
+                    saldo_cell.font = Font(color="c0392b", bold=True)
+
+            # Add summary at the bottom
+            summary_row = len(sorted_data) + 3
+
+            # Calculate totals
+            total_pemasukan = sum(float(item.get('jumlah', 0)) for item in sorted_data if item.get('jenis') == 'Pemasukan')
+            total_pengeluaran = sum(float(item.get('jumlah', 0)) for item in sorted_data if item.get('jenis') == 'Pengeluaran')
+            saldo_akhir = total_pemasukan - total_pengeluaran
+
+            # Summary header
+            summary_header = ws.cell(row=summary_row, column=4)
+            summary_header.value = "RINGKASAN:"
+            summary_header.font = Font(bold=True)
+
+            # Total Pemasukan
+            label_pemasukan = ws.cell(row=summary_row + 1, column=4)
+            label_pemasukan.value = "Total Pemasukan:"
+
+            pemasukan_cell = ws.cell(row=summary_row + 1, column=5)
+            pemasukan_cell.value = total_pemasukan
+            pemasukan_cell.number_format = '#,##0'
+            pemasukan_cell.font = Font(color="27ae60", bold=True)
+
+            # Total Pengeluaran
+            label_pengeluaran = ws.cell(row=summary_row + 2, column=4)
+            label_pengeluaran.value = "Total Pengeluaran:"
+
+            pengeluaran_cell = ws.cell(row=summary_row + 2, column=5)
+            pengeluaran_cell.value = total_pengeluaran
+            pengeluaran_cell.number_format = '#,##0'
+            pengeluaran_cell.font = Font(color="c0392b", bold=True)
+
+            # Saldo Akhir
+            label_saldo = ws.cell(row=summary_row + 3, column=4)
+            label_saldo.value = "Saldo Akhir:"
+
+            saldo_cell_summary = ws.cell(row=summary_row + 3, column=5)
+            saldo_cell_summary.value = saldo_akhir
+            saldo_cell_summary.number_format = '#,##0'
+            saldo_cell_summary.font = Font(color="27ae60" if saldo_akhir >= 0 else "c0392b", bold=True)
+
+            # Save workbook
+            wb.save(file_path)
+
+            QMessageBox.information(
+                self,
+                "Export Berhasil",
+                f"Data berhasil diekspor ke:\n{file_path}\n\nTotal: {len(sorted_data)} transaksi"
+            )
+            self.log_message.emit(f"Data keuangan kategorial berhasil diekspor ke {file_path}")
+
+        except Exception as e:
+            print(f"[ERROR] Exception in export_to_excel: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            QMessageBox.critical(self, "Error", f"Gagal mengekspor data:\n{str(e)}")
+            self.log_message.emit(f"Error export data: {str(e)}")
 
 
 class KeuanganComponent(QWidget):

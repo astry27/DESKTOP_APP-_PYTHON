@@ -1,0 +1,10 @@
+created_at,created_by_pengguna,dibuat_oleh,id_keuangan,jumlah,kategori,keterangan,nama_user,sub_kategori,tanggal
+"Mon, 01 Dec 2025 01:55:13 GMT",3,asdf,30,12345678.00,Pengeluaran,qqereqt,asdf,Donasi,"Mon, 01 Dec 2025 00:00:00 GMT"
+"Mon, 01 Dec 2025 02:30:38 GMT",3,asdf,31,99999999.99,Pemasukan,,asdf,Kolekte,"Mon, 01 Dec 2025 00:00:00 GMT"
+"Mon, 01 Dec 2025 02:41:59 GMT",3,asdf,32,111111.00,Pengeluaran,a2qedd,asdf,Donasi,"Mon, 01 Dec 2025 00:00:00 GMT"
+"Mon, 01 Dec 2025 03:39:24 GMT",3,asdf,33,222222.00,Pemasukan,,asdf,Kolekte,"Mon, 01 Dec 2025 00:00:00 GMT"
+"Mon, 17 Nov 2025 22:16:47 GMT",3,asdf,29,100000.00,Pemasukan,,asdf,Kolekte,"Mon, 17 Nov 2025 00:00:00 GMT"
+"Thu, 30 Oct 2025 13:57:47 GMT",3,asdf,23,100000.00,Pengeluaran,donasi pemabngunan,asdf,Donasi,"Thu, 30 Oct 2025 00:00:00 GMT"
+"Mon, 06 Oct 2025 22:26:41 GMT",6,user,19,250000.00,Pemasukan,asdf,user client,Kolekte,"Mon, 06 Oct 2025 00:00:00 GMT"
+"Sun, 05 Oct 2025 21:22:09 GMT",6,user,15,1000000.00,Pemasukan,passs,user client,Kolekte,"Sun, 05 Oct 2025 00:00:00 GMT"
+"Sun, 05 Oct 2025 21:29:20 GMT",6,user,16,200000.00,Pengeluaran,sosial,user client,Donasi,"Sun, 05 Oct 2025 00:00:00 GMT"
