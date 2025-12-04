@@ -2,7 +2,7 @@
 
 import os
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QScrollArea
-from PyQt5.QtCore import QSize, Qt, QTimer, pyqtSignal
+from PyQt5.QtCore import QSize, Qt, pyqtSignal
 from PyQt5.QtGui import QIcon, QPixmap
 from .vertical_submenu import VerticalSubMenu
 from .expandable_menu_button import ExpandableMenuButton
@@ -13,6 +13,7 @@ class SidebarButton(QPushButton):
     def __init__(self, text, icon_path=None, parent=None):
         super().__init__(text, parent)
         self.setCheckable(True)
+        self.setAutoExclusive(False)  # PENTING: Non-exclusive untuk kontrol manual
         self.setFixedHeight(45)
 
         # Set style untuk menu utama - background transparan, teks putih
@@ -45,44 +46,14 @@ class SidebarButton(QPushButton):
 
         # Set icon dari file path
         self.icon_path = icon_path
-        self.icon_active_path = None
 
         if icon_path and os.path.exists(icon_path):
             self.setIcon(QIcon(icon_path))
             self.setIconSize(QSize(18, 18))
 
-            # Generate active icon path
-            # Examples:
-            # dashboard_icon.png -> dashboard_active_icon.png
-            # book_icon.png -> book_active_icon.png
-            if icon_path.endswith('_icon.png'):
-                # Replace _icon.png with _active_icon.png
-                active_path = icon_path.replace('_icon.png', '_active_icon.png')
-                if os.path.exists(active_path):
-                    self.icon_active_path = active_path
-                    print(f"[DEBUG] Found active icon for {icon_path}: {active_path}")
-                else:
-                    print(f"[DEBUG] Active icon not found: {active_path}")
-            elif icon_path.endswith('.png'):
-                # Fallback untuk icon tanpa _icon suffix
-                base_path = icon_path[:-4]  # Remove .png
-                active_path = base_path + '_active_icon.png'
-                if os.path.exists(active_path):
-                    self.icon_active_path = active_path
-
-        # Connect clicked signal untuk switch icon saat checked
-        self.clicked.connect(self.on_clicked)
-
     def update_icon_state(self):
-        """Update icon berdasarkan checked state"""
-        if self.isChecked() and self.icon_active_path:
-            self.setIcon(QIcon(self.icon_active_path))
-        elif not self.isChecked() and self.icon_path:
-            self.setIcon(QIcon(self.icon_path))
-
-    def on_clicked(self):
-        """Handle click untuk switch icon saat checked/unchecked"""
-        self.update_icon_state()
+        """Update icon state - tidak melakukan apa-apa karena active icon sudah dihilangkan"""
+        pass
 
 
 class SidebarWidget(QWidget):
@@ -90,11 +61,12 @@ class SidebarWidget(QWidget):
 
     # Signal untuk menu yang dipilih
     menu_selected = pyqtSignal(str)
+    # Signal untuk logout
+    logout_requested = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setFixedWidth(250)
-        self.db_manager = None
 
         # Set style untuk sidebar utama - background biru gelap matching header
         self.setStyleSheet("background-color: #002B36;")
@@ -107,6 +79,12 @@ class SidebarWidget(QWidget):
         # Header sidebar
         header = self.create_header()
         layout.addWidget(header)
+
+        # Line pembatas antara header dan menu navigasi
+        separator = QWidget()
+        separator.setFixedHeight(1)
+        separator.setStyleSheet("background-color: #586e75;")
+        layout.addWidget(separator)
 
         # Scroll area untuk menu
         scroll_area = QScrollArea()
@@ -203,7 +181,6 @@ class SidebarWidget(QWidget):
         self.submenu_kelompok_kategorial.menu_clicked.connect(self.on_submenu_clicked)
 
         # ============ MENU BUKU KRONIK ============
-        # Icon akan switch otomatis antara book_icon.png (tidak aktif) dan book_active_icon.png (aktif)
         self.menu_buku_kronik = SidebarButton("Buku Kronik", os.path.join(assets_path, "book_icon.png"))
         self.menu_buku_kronik.clicked.connect(self.on_buku_kronik_clicked)
         self.menu_layout.addWidget(self.menu_buku_kronik)
@@ -225,169 +202,243 @@ class SidebarWidget(QWidget):
         scroll_area.setWidget(menu_container)
         layout.addWidget(scroll_area, 1)  # Stretch factor 1 - grow dengan tersedia space
 
-        # Status API - selalu di bawah
-        status_container = self.create_status_container()
-        layout.addWidget(status_container, 0)  # No stretch - fixed height
-
-        # Timer untuk update status API secara berkala
-        self.status_timer = QTimer()
-        self.status_timer.timeout.connect(self.update_api_status)
-        self.status_timer.start(10000)  # Update setiap 10 detik
+        # Tombol Logout - selalu di bawah
+        logout_container = self.create_logout_button()
+        layout.addWidget(logout_container, 0)  # No stretch - fixed height
 
     def on_dashboard_clicked(self):
         """Handle Dashboard menu click"""
-        # Deselect semua menu expandable dan sembunyikan submenu
-        self.deselect_all_expandable_menus()
-        # Deselect semua menu utama lain
-        self.menu_buku_kronik.setChecked(False)
-        self.menu_riwayat.setChecked(False)
-        self.menu_pengaturan.setChecked(False)
-        # Reset semua submenu
-        self.submenu_pusat_paroki.reset_buttons()
-        self.submenu_wilayah_rohani.reset_buttons()
-        self.submenu_kelompok_kategorial.reset_buttons()
-        # Dashboard tetap selected
-        self.menu_dashboard.setChecked(True)
+        # PENTING: Prevent recursive call saat programmatic setChecked
+        if self.menu_dashboard.isChecked():
+            # Deselect semua menu expandable dan sembunyikan submenu
+            self.deselect_all_expandable_menus()
+            # Deselect semua menu utama lain
+            self.menu_buku_kronik.setChecked(False)
+            self.menu_riwayat.setChecked(False)
+            self.menu_pengaturan.setChecked(False)
+            # Reset semua submenu
+            self.submenu_pusat_paroki.reset_buttons()
+            self.submenu_wilayah_rohani.reset_buttons()
+            self.submenu_kelompok_kategorial.reset_buttons()
+            # Dashboard tetap selected
+            self.menu_dashboard.setChecked(True)
 
-        # Update icon untuk semua menu
-        self.menu_dashboard.update_icon_state()
-        self.menu_buku_kronik.update_icon_state()
-        self.menu_riwayat.update_icon_state()
-        self.menu_pengaturan.update_icon_state()
+            # Update icon untuk semua menu
+            self.menu_dashboard.update_icon_state()
+            self.menu_buku_kronik.update_icon_state()
+            self.menu_riwayat.update_icon_state()
+            self.menu_pengaturan.update_icon_state()
 
-        self.menu_selected.emit("dashboard")
+            self.menu_selected.emit("dashboard")
 
     def on_buku_kronik_clicked(self):
         """Handle Buku Kronik menu click"""
-        # Deselect semua menu expandable dan sembunyikan submenu
-        self.deselect_all_expandable_menus()
-        # Deselect semua menu utama lain
-        self.menu_dashboard.setChecked(False)
-        self.menu_riwayat.setChecked(False)
-        self.menu_pengaturan.setChecked(False)
-        # Reset semua submenu
-        self.submenu_pusat_paroki.reset_buttons()
-        self.submenu_wilayah_rohani.reset_buttons()
-        self.submenu_kelompok_kategorial.reset_buttons()
-        # Buku Kronik tetap selected
-        self.menu_buku_kronik.setChecked(True)
+        # PENTING: Prevent recursive call saat programmatic setChecked
+        if self.menu_buku_kronik.isChecked():
+            # Deselect semua menu expandable dan sembunyikan submenu
+            self.deselect_all_expandable_menus()
+            # Deselect semua menu utama lain
+            self.menu_dashboard.setChecked(False)
+            self.menu_riwayat.setChecked(False)
+            self.menu_pengaturan.setChecked(False)
+            # Reset semua submenu
+            self.submenu_pusat_paroki.reset_buttons()
+            self.submenu_wilayah_rohani.reset_buttons()
+            self.submenu_kelompok_kategorial.reset_buttons()
+            # Buku Kronik tetap selected
+            self.menu_buku_kronik.setChecked(True)
 
-        # Update icon untuk semua menu (pastikan icon berubah sesuai state)
-        self.menu_dashboard.update_icon_state()
-        self.menu_buku_kronik.update_icon_state()
-        self.menu_riwayat.update_icon_state()
-        self.menu_pengaturan.update_icon_state()
+            # Update icon untuk semua menu (pastikan icon berubah sesuai state)
+            self.menu_dashboard.update_icon_state()
+            self.menu_buku_kronik.update_icon_state()
+            self.menu_riwayat.update_icon_state()
+            self.menu_pengaturan.update_icon_state()
 
-        self.menu_selected.emit("buku_kronik")
+            self.menu_selected.emit("buku_kronik")
 
     def on_riwayat_clicked(self):
         """Handle Riwayat menu click"""
-        # Deselect semua menu expandable dan sembunyikan submenu
-        self.deselect_all_expandable_menus()
-        # Deselect semua menu utama lain
-        self.menu_dashboard.setChecked(False)
-        self.menu_buku_kronik.setChecked(False)
-        self.menu_pengaturan.setChecked(False)
-        # Reset semua submenu
-        self.submenu_pusat_paroki.reset_buttons()
-        self.submenu_wilayah_rohani.reset_buttons()
-        self.submenu_kelompok_kategorial.reset_buttons()
-        # Riwayat tetap selected
-        self.menu_riwayat.setChecked(True)
+        # PENTING: Prevent recursive call saat programmatic setChecked
+        if self.menu_riwayat.isChecked():
+            # Deselect semua menu expandable dan sembunyikan submenu
+            self.deselect_all_expandable_menus()
+            # Deselect semua menu utama lain
+            self.menu_dashboard.setChecked(False)
+            self.menu_buku_kronik.setChecked(False)
+            self.menu_pengaturan.setChecked(False)
+            # Reset semua submenu
+            self.submenu_pusat_paroki.reset_buttons()
+            self.submenu_wilayah_rohani.reset_buttons()
+            self.submenu_kelompok_kategorial.reset_buttons()
+            # Riwayat tetap selected
+            self.menu_riwayat.setChecked(True)
 
-        # Update icon untuk semua menu
-        self.menu_dashboard.update_icon_state()
-        self.menu_buku_kronik.update_icon_state()
-        self.menu_riwayat.update_icon_state()
-        self.menu_pengaturan.update_icon_state()
+            # Update icon untuk semua menu
+            self.menu_dashboard.update_icon_state()
+            self.menu_buku_kronik.update_icon_state()
+            self.menu_riwayat.update_icon_state()
+            self.menu_pengaturan.update_icon_state()
 
-        self.menu_selected.emit("riwayat")
+            self.menu_selected.emit("riwayat")
 
     def on_pengaturan_clicked(self):
         """Handle Pengaturan Sistem menu click"""
-        # Deselect semua menu expandable dan sembunyikan submenu
-        self.deselect_all_expandable_menus()
-        # Deselect semua menu utama lain
-        self.menu_dashboard.setChecked(False)
-        self.menu_buku_kronik.setChecked(False)
-        self.menu_riwayat.setChecked(False)
-        # Reset semua submenu
-        self.submenu_pusat_paroki.reset_buttons()
-        self.submenu_wilayah_rohani.reset_buttons()
-        self.submenu_kelompok_kategorial.reset_buttons()
-        # Pengaturan tetap selected
-        self.menu_pengaturan.setChecked(True)
-        self.menu_selected.emit("pengaturan_sistem")
+        # PENTING: Prevent recursive call saat programmatic setChecked
+        if self.menu_pengaturan.isChecked():
+            # Deselect semua menu expandable dan sembunyikan submenu
+            self.deselect_all_expandable_menus()
+            # Deselect semua menu utama lain
+            self.menu_dashboard.setChecked(False)
+            self.menu_buku_kronik.setChecked(False)
+            self.menu_riwayat.setChecked(False)
+            # Reset semua submenu
+            self.submenu_pusat_paroki.reset_buttons()
+            self.submenu_wilayah_rohani.reset_buttons()
+            self.submenu_kelompok_kategorial.reset_buttons()
+            # Pengaturan tetap selected
+            self.menu_pengaturan.setChecked(True)
+
+            # Update icon untuk semua menu
+            self.menu_dashboard.update_icon_state()
+            self.menu_buku_kronik.update_icon_state()
+            self.menu_riwayat.update_icon_state()
+            self.menu_pengaturan.update_icon_state()
+
+            self.menu_selected.emit("pengaturan_sistem")
 
     def on_pusat_paroki_toggled(self, expanded):
         """Handle Pusat Paroki toggle"""
         if expanded:
             # Deselect semua regular menu
             self.deselect_all_regular_menus()
-            # Deselect menu expandable lain
+            # Deselect menu expandable lain dan hide submenu mereka
+            self.menu_wilayah_rohani.set_expanded(False)
             self.menu_wilayah_rohani.setChecked(False)
+            self.menu_wilayah_rohani.update_icon_state()
+            self.submenu_wilayah_rohani.hide_submenu()
+
+            self.menu_kelompok_kategorial.set_expanded(False)
             self.menu_kelompok_kategorial.setChecked(False)
+            self.menu_kelompok_kategorial.update_icon_state()
+            self.submenu_kelompok_kategorial.hide_submenu()
+
             # Reset semua submenu lain
             self.submenu_wilayah_rohani.reset_buttons()
             self.submenu_kelompok_kategorial.reset_buttons()
+            # Reset submenu Pusat Paroki juga
+            self.submenu_pusat_paroki.reset_buttons()
             # Pastikan menu Pusat Paroki tetap checked (highlighted)
             self.menu_pusat_paroki.setChecked(True)
+            self.menu_pusat_paroki.update_icon_state()
+            # Update icon untuk semua menu regular
+            self.menu_dashboard.update_icon_state()
+            self.menu_buku_kronik.update_icon_state()
+            self.menu_riwayat.update_icon_state()
+            self.menu_pengaturan.update_icon_state()
             # Show submenu Pusat Paroki
             self.submenu_pusat_paroki.show_submenu()
         else:
             self.submenu_pusat_paroki.hide_submenu()
             self.submenu_pusat_paroki.reset_buttons()
+            self.menu_pusat_paroki.setChecked(False)
+            self.menu_pusat_paroki.update_icon_state()
 
     def on_wilayah_rohani_toggled(self, expanded):
         """Handle Wilayah Rohani toggle"""
         if expanded:
             # Deselect semua regular menu
             self.deselect_all_regular_menus()
-            # Deselect menu expandable lain
+            # Deselect menu expandable lain dan hide submenu mereka
+            self.menu_pusat_paroki.set_expanded(False)
             self.menu_pusat_paroki.setChecked(False)
+            self.menu_pusat_paroki.update_icon_state()
+            self.submenu_pusat_paroki.hide_submenu()
+
+            self.menu_kelompok_kategorial.set_expanded(False)
             self.menu_kelompok_kategorial.setChecked(False)
+            self.menu_kelompok_kategorial.update_icon_state()
+            self.submenu_kelompok_kategorial.hide_submenu()
+
             # Reset semua submenu lain
             self.submenu_pusat_paroki.reset_buttons()
             self.submenu_kelompok_kategorial.reset_buttons()
+            # Reset submenu Wilayah Rohani juga
+            self.submenu_wilayah_rohani.reset_buttons()
             # Pastikan menu Wilayah Rohani tetap checked (highlighted)
             self.menu_wilayah_rohani.setChecked(True)
+            self.menu_wilayah_rohani.update_icon_state()
+            # Update icon untuk semua menu regular
+            self.menu_dashboard.update_icon_state()
+            self.menu_buku_kronik.update_icon_state()
+            self.menu_riwayat.update_icon_state()
+            self.menu_pengaturan.update_icon_state()
             # Show submenu Wilayah Rohani
             self.submenu_wilayah_rohani.show_submenu()
         else:
             self.submenu_wilayah_rohani.hide_submenu()
             self.submenu_wilayah_rohani.reset_buttons()
+            self.menu_wilayah_rohani.setChecked(False)
+            self.menu_wilayah_rohani.update_icon_state()
 
     def on_kelompok_kategorial_toggled(self, expanded):
         """Handle Kelompok Kategorial toggle"""
         if expanded:
             # Deselect semua regular menu
             self.deselect_all_regular_menus()
-            # Deselect menu expandable lain
+            # Deselect menu expandable lain dan hide submenu mereka
+            self.menu_pusat_paroki.set_expanded(False)
             self.menu_pusat_paroki.setChecked(False)
+            self.menu_pusat_paroki.update_icon_state()
+            self.submenu_pusat_paroki.hide_submenu()
+
+            self.menu_wilayah_rohani.set_expanded(False)
             self.menu_wilayah_rohani.setChecked(False)
+            self.menu_wilayah_rohani.update_icon_state()
+            self.submenu_wilayah_rohani.hide_submenu()
+
             # Reset semua submenu lain
             self.submenu_pusat_paroki.reset_buttons()
             self.submenu_wilayah_rohani.reset_buttons()
+            # Reset submenu Kelompok Kategorial juga
+            self.submenu_kelompok_kategorial.reset_buttons()
             # Pastikan menu Kelompok Kategorial tetap checked (highlighted)
             self.menu_kelompok_kategorial.setChecked(True)
+            self.menu_kelompok_kategorial.update_icon_state()
+            # Update icon untuk semua menu regular
+            self.menu_dashboard.update_icon_state()
+            self.menu_buku_kronik.update_icon_state()
+            self.menu_riwayat.update_icon_state()
+            self.menu_pengaturan.update_icon_state()
             # Show submenu Kelompok Kategorial
             self.submenu_kelompok_kategorial.show_submenu()
         else:
             self.submenu_kelompok_kategorial.hide_submenu()
             self.submenu_kelompok_kategorial.reset_buttons()
+            self.menu_kelompok_kategorial.setChecked(False)
+            self.menu_kelompok_kategorial.update_icon_state()
 
     def deselect_all_regular_menus(self):
         """Deselect semua regular menu (non-expandable)"""
         self.menu_dashboard.setChecked(False)
+        self.menu_dashboard.update_icon_state()
         self.menu_buku_kronik.setChecked(False)
+        self.menu_buku_kronik.update_icon_state()
         self.menu_riwayat.setChecked(False)
+        self.menu_riwayat.update_icon_state()
         self.menu_pengaturan.setChecked(False)
+        self.menu_pengaturan.update_icon_state()
 
     def deselect_all_expandable_menus(self):
         """Collapse semua expandable menu dan sembunyikan submenu"""
         self.menu_pusat_paroki.set_expanded(False)
+        self.menu_pusat_paroki.setChecked(False)
+        self.menu_pusat_paroki.update_icon_state()
         self.menu_wilayah_rohani.set_expanded(False)
+        self.menu_wilayah_rohani.setChecked(False)
+        self.menu_wilayah_rohani.update_icon_state()
         self.menu_kelompok_kategorial.set_expanded(False)
+        self.menu_kelompok_kategorial.setChecked(False)
+        self.menu_kelompok_kategorial.update_icon_state()
         self.submenu_pusat_paroki.hide_submenu()
         self.submenu_wilayah_rohani.hide_submenu()
         self.submenu_kelompok_kategorial.hide_submenu()
@@ -411,35 +462,54 @@ class SidebarWidget(QWidget):
         # Deselect semua regular menu saat submenu diklik
         self.deselect_all_regular_menus()
 
-        # Tentukan parent menu mana yang diklik dan pastikan tetap checked
+        # Tentukan parent menu mana yang diklik dan uncheck parent menu
+        # Active state hanya pada submenu yang diklik
         # Jika submenu_pusat_paroki yang diklik
         if menu_id in ["struktur_dpp", "proker_dpp",
                        "kegiatan_paroki", "database_umat", "aset", "dokumen", "pengumuman", "tim_pembina"]:
-            self.menu_pusat_paroki.setChecked(True)
+            # Uncheck parent menu - active state pindah ke submenu
+            self.menu_pusat_paroki.setChecked(False)
+            self.menu_pusat_paroki.update_icon_state()
             # Deselect menu expandable lain
             self.menu_wilayah_rohani.setChecked(False)
+            self.menu_wilayah_rohani.update_icon_state()
             self.menu_kelompok_kategorial.setChecked(False)
+            self.menu_kelompok_kategorial.update_icon_state()
             # Reset submenu lain
             self.submenu_wilayah_rohani.reset_buttons()
             self.submenu_kelompok_kategorial.reset_buttons()
         # Jika submenu_wilayah_rohani yang diklik
         elif menu_id in ["struktur_wr", "keuangan_wr", "proker_wr", "kegiatan_wr"]:
-            self.menu_wilayah_rohani.setChecked(True)
+            # Uncheck parent menu - active state pindah ke submenu
+            self.menu_wilayah_rohani.setChecked(False)
+            self.menu_wilayah_rohani.update_icon_state()
             # Deselect menu expandable lain
             self.menu_pusat_paroki.setChecked(False)
+            self.menu_pusat_paroki.update_icon_state()
             self.menu_kelompok_kategorial.setChecked(False)
+            self.menu_kelompok_kategorial.update_icon_state()
             # Reset submenu lain
             self.submenu_pusat_paroki.reset_buttons()
             self.submenu_kelompok_kategorial.reset_buttons()
         # Jika submenu_kelompok_kategorial yang diklik
         elif menu_id in ["struktur_kategorial", "keuangan_kategorial", "proker_kategorial"]:
-            self.menu_kelompok_kategorial.setChecked(True)
+            # Uncheck parent menu - active state pindah ke submenu
+            self.menu_kelompok_kategorial.setChecked(False)
+            self.menu_kelompok_kategorial.update_icon_state()
             # Deselect menu expandable lain
             self.menu_pusat_paroki.setChecked(False)
+            self.menu_pusat_paroki.update_icon_state()
             self.menu_wilayah_rohani.setChecked(False)
+            self.menu_wilayah_rohani.update_icon_state()
             # Reset submenu lain
             self.submenu_pusat_paroki.reset_buttons()
             self.submenu_wilayah_rohani.reset_buttons()
+
+        # Update icon untuk semua menu regular juga
+        self.menu_dashboard.update_icon_state()
+        self.menu_buku_kronik.update_icon_state()
+        self.menu_riwayat.update_icon_state()
+        self.menu_pengaturan.update_icon_state()
 
         self.menu_selected.emit(menu_id)
 
@@ -451,11 +521,6 @@ class SidebarWidget(QWidget):
             self.menu_wilayah_rohani.setChecked(False)
         if active_menu != self.menu_kelompok_kategorial:
             self.menu_kelompok_kategorial.setChecked(False)
-
-    def set_database_manager(self, db_manager):
-        """Set database manager untuk cek status API"""
-        self.db_manager = db_manager
-        self.update_api_status()
 
     def create_header(self):
         """Buat header sidebar dengan logo dan judul"""
@@ -537,181 +602,203 @@ class SidebarWidget(QWidget):
 
         return header
 
-    def create_status_container(self):
-        """Buat container untuk status API"""
-        status_container = QWidget()
-        status_container.setFixedHeight(80)
-        status_container.setStyleSheet("background-color: #002B36; border-top: 1px solid #586e75;")
+    def create_logout_button(self):
+        """Buat tombol logout dan refresh di bagian bawah sidebar"""
+        logout_container = QWidget()
+        logout_container.setFixedHeight(80)
+        logout_container.setStyleSheet("background-color: #002B36; border-top: 1px solid #586e75;")
 
-        status_layout = QVBoxLayout(status_container)
-        status_layout.setContentsMargins(15, 8, 15, 8)
-        status_layout.setAlignment(Qt.AlignCenter)
+        main_layout = QVBoxLayout(logout_container)
+        main_layout.setContentsMargins(15, 10, 15, 10)
+        main_layout.setSpacing(8)
 
-        # Status API dengan ikon
-        self.api_status = QLabel("🔴 API: Mengecek...")
-        self.api_status.setStyleSheet("""
-            color: #e74c3c;
-            font-size: 11px;
-            font-weight: bold;
-            padding: 3px;
-            background-color: rgba(231, 76, 60, 0.1);
-            border-radius: 3px;
+        # Layout horizontal untuk button logout dan refresh
+        button_layout = QHBoxLayout()
+        button_layout.setSpacing(8)
+
+        # Tombol Logout dengan icon (di kiri)
+        logout_btn = QPushButton("Logout")
+        logout_btn.setFixedHeight(40)
+        logout_btn.setCursor(Qt.PointingHandCursor)
+
+        # Set icon logout
+        logout_icon_path = "server/assets/logout.png"
+        if os.path.exists(logout_icon_path):
+            logout_btn.setIcon(QIcon(logout_icon_path))
+            logout_btn.setIconSize(QSize(18, 18))
+
+        logout_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #073642;
+                color: #ffffff;
+                border: 1px solid rgba(255, 255, 255, 0.3);
+                border-radius: 6px;
+                font-size: 12px;
+                font-weight: bold;
+                padding: 8px 12px;
+                text-align: center;
+            }
+            QPushButton:hover {
+                background-color: #0a4a5a;
+                border: 1px solid rgba(255, 255, 255, 0.5);
+            }
+            QPushButton:pressed {
+                background-color: #002b36;
+            }
         """)
-        self.api_status.setAlignment(Qt.AlignCenter)
+        logout_btn.clicked.connect(self.on_logout_clicked)
 
-        # Status koneksi
-        self.connection_status = QLabel("🌐 Koneksi: Tidak diketahui")
-        self.connection_status.setStyleSheet("""
-            color: #f39c12;
-            font-size: 10px;
-            padding: 2px;
-            background-color: rgba(243, 156, 18, 0.1);
-            border-radius: 3px;
+        # Tombol Refresh dengan icon dan teks (di kanan)
+        refresh_btn = QPushButton(" Refresh")
+        refresh_btn.setFixedHeight(40)
+        refresh_btn.setCursor(Qt.PointingHandCursor)
+        refresh_btn.setToolTip("Refresh data")
+
+        # Set icon refresh
+        refresh_icon_path = "server/assets/refresh.png"
+        if os.path.exists(refresh_icon_path):
+            refresh_btn.setIcon(QIcon(refresh_icon_path))
+            refresh_btn.setIconSize(QSize(18, 18))
+
+        refresh_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #073642;
+                color: #ffffff;
+                border: 1px solid rgba(255, 255, 255, 0.3);
+                border-radius: 6px;
+                font-size: 12px;
+                font-weight: bold;
+                padding: 8px 12px;
+                text-align: center;
+            }
+            QPushButton:hover {
+                background-color: #0a4a5a;
+                border: 1px solid rgba(255, 255, 255, 0.5);
+            }
+            QPushButton:pressed {
+                background-color: #002b36;
+            }
         """)
-        self.connection_status.setAlignment(Qt.AlignCenter)
+        refresh_btn.clicked.connect(self.on_refresh_clicked)
 
-        status_layout.addWidget(self.api_status)
-        status_layout.addWidget(self.connection_status)
+        # Tambahkan ke layout: logout kiri, refresh kanan
+        button_layout.addWidget(logout_btn, 1)
+        button_layout.addWidget(refresh_btn, 1)
 
-        return status_container
+        main_layout.addLayout(button_layout)
 
-    def update_api_status(self):
-        """Update status API dari database manager"""
-        if not self.db_manager:
-            self.set_api_offline()
-            return
+        return logout_container
 
-        try:
-            # Cek status API
-            success, status_data = self.db_manager.get_api_service_status()
+    def on_refresh_clicked(self):
+        """Handle klik tombol refresh untuk reload data komponen saat ini"""
+        # Emit signal untuk refresh data
+        if hasattr(self.parent(), 'refresh_current_component'):
+            self.parent().refresh_current_component()
 
-            if success and status_data.get('api_enabled', False):
-                self.set_api_active()
+    def on_logout_clicked(self):
+        """Handle klik tombol logout dengan konfirmasi"""
+        from PyQt5.QtWidgets import QMessageBox
 
-                # Cek jumlah client yang benar-benar terhubung/aktif
-                client_success, result = self.db_manager.get_active_sessions()
-                if client_success:
-                    # Handle berbagai format response dari API
-                    if isinstance(result, dict):
-                        if 'data' in result:
-                            clients = result['data']
-                        elif 'clients' in result:
-                            clients = result['clients']
-                        else:
-                            clients = []
-                    elif isinstance(result, list):
-                        clients = result
-                    else:
-                        clients = []
+        msg = QMessageBox(self)
+        msg.setWindowTitle("Konfirmasi Keluar")
+        msg.setText("Keluar akan menutup sesi Anda saat ini. Lanjutkan?")
+        msg.setIcon(QMessageBox.Question)
+        msg.setStandardButtons(QMessageBox.Yes | QMessageBox.Cancel)
+        msg.setDefaultButton(QMessageBox.Cancel)
 
-                    # Filter hanya client yang benar-benar aktif dengan timeout check
-                    import datetime
-                    active_clients = []
-                    current_time = datetime.datetime.now()
+        # Set button text ke bahasa Indonesia
+        yes_btn = msg.button(QMessageBox.Yes)
+        yes_btn.setText("Yes")
+        cancel_btn = msg.button(QMessageBox.Cancel)
+        cancel_btn.setText("Cancel")
 
-                    for client in clients:
-                        status = client.get('status', '').lower()
-                        last_activity = client.get('last_activity') or client.get('connect_time')
+        # Force transparent background untuk semua child labels (termasuk icon)
+        for child in msg.findChildren(QLabel):
+            child.setStyleSheet("background-color: transparent; background: transparent;")
+            child.setAutoFillBackground(False)
 
-                        # Check jika client benar-benar aktif berdasarkan status dan waktu aktivitas terakhir
-                        is_active = False
-                        if status in ['aktif', 'active', 'terhubung', 'connected', 'online']:
-                            if last_activity:
-                                try:
-                                    if isinstance(last_activity, str):
-                                        if 'T' in last_activity:
-                                            last_time = datetime.datetime.fromisoformat(last_activity.replace('Z', '+00:00'))
-                                        else:
-                                            last_time = datetime.datetime.strptime(last_activity, '%Y-%m-%d %H:%M:%S')
-                                    else:
-                                        last_time = last_activity
+        # Apply button styling langsung ke setiap button dengan force override
+        button_style = """
+            QPushButton {
+                min-width: 75px;
+                min-height: 23px;
+                padding: 3px 10px;
+                font-size: 11px;
+                border: 1px solid #41ADFF !important;
+                border-radius: 0px;
+                background-color: #F0F0F0 !important;
+                background: #F0F0F0 !important;
+                color: #000000 !important;
+            }
+            QPushButton:hover {
+                background-color: #e5f1fb !important;
+                background: #e5f1fb !important;
+                border: 1px solid #41ADFF !important;
+            }
+            QPushButton:pressed {
+                background-color: #cce4f7 !important;
+                background: #cce4f7 !important;
+                border: 1px solid #41ADFF !important;
+            }
+        """
+        yes_btn.setStyleSheet(button_style)
+        yes_btn.setAutoFillBackground(True)
+        cancel_btn.setStyleSheet(button_style)
+        cancel_btn.setAutoFillBackground(True)
 
-                                    # Client dianggap aktif jika aktivitas terakhir kurang dari 5 menit yang lalu
-                                    time_diff = current_time - last_time.replace(tzinfo=None)
-                                    if time_diff.total_seconds() < 300:  # 5 menit
-                                        is_active = True
-                                except:
-                                    pass
-
-                        if is_active:
-                            active_clients.append(client)
-
-                    client_count = len(active_clients)
-                    self.connection_status.setText(f"🌐 Client Aktif: {client_count}")
-                    self.connection_status.setStyleSheet("""
-                        color: #27ae60;
-                        font-size: 10px;
-                        padding: 2px;
-                        background-color: rgba(39, 174, 96, 0.1);
-                        border-radius: 3px;
-                    """)
-                else:
-                    self.connection_status.setText("🌐 Koneksi: Error")
-                    self.connection_status.setStyleSheet("""
-                        color: #e74c3c;
-                        font-size: 10px;
-                        padding: 2px;
-                        background-color: rgba(231, 76, 60, 0.1);
-                        border-radius: 3px;
-                    """)
-            else:
-                self.set_api_offline()
-        except:
-            self.set_api_error()
-
-    def set_api_active(self):
-        """Set status API aktif"""
-        self.api_status.setText("🟢 API: Aktif")
-        self.api_status.setStyleSheet("""
-            color: #2ecc71;
-            font-size: 11px;
-            font-weight: bold;
-            padding: 3px;
-            background-color: rgba(46, 204, 113, 0.1);
-            border-radius: 3px;
+        # Custom styling untuk dialog konfirmasi - menghilangkan background icon dan update warna button
+        msg.setStyleSheet("""
+            QMessageBox {
+                background-color: #ffffff;
+            }
+            /* Hilangkan background pada semua label termasuk icon */
+            QMessageBox QLabel {
+                color: #000000;
+                font-size: 12px;
+                background-color: transparent;
+                background: transparent;
+                padding: 10px;
+            }
+            QMessageBox QLabel#qt_msgbox_label {
+                background-color: transparent;
+                background: transparent;
+            }
+            QMessageBox QLabel#qt_msgbox_icon_label {
+                background-color: transparent;
+                background: transparent;
+            }
+            /* Style untuk button dengan warna custom */
+            QMessageBox QPushButton {
+                min-width: 75px;
+                min-height: 23px;
+                padding: 3px 10px;
+                font-size: 11px;
+                border: 1px solid #41ADFF;
+                border-radius: 0px;
+                background-color: #F0F0F0;
+                color: #000000;
+            }
+            QMessageBox QPushButton:hover {
+                background-color: #e5f1fb;
+                border: 1px solid #41ADFF;
+            }
+            QMessageBox QPushButton:pressed {
+                background-color: #cce4f7;
+                border: 1px solid #41ADFF;
+            }
+            QMessageBox QPushButton:focus {
+                background-color: #e5f1fb;
+                border: 1px solid #41ADFF;
+                outline: none;
+            }
         """)
 
-    def set_api_offline(self):
-        """Set status API non-aktif"""
-        self.api_status.setText("🔴 API: Non-aktif")
-        self.api_status.setStyleSheet("""
-            color: #e74c3c;
-            font-size: 11px;
-            font-weight: bold;
-            padding: 3px;
-            background-color: rgba(231, 76, 60, 0.1);
-            border-radius: 3px;
-        """)
+        result = msg.exec_()
 
-        self.connection_status.setText("🌐 Tidak ada koneksi")
-        self.connection_status.setStyleSheet("""
-            color: #7f8c8d;
-            font-size: 10px;
-            padding: 2px;
-            background-color: rgba(127, 140, 141, 0.1);
-            border-radius: 3px;
-        """)
+        if result == QMessageBox.Yes:
+            # Emit signal logout untuk ditangani oleh main window
+            self.logout_requested.emit()
 
-    def set_api_error(self):
-        """Set status API error"""
-        self.api_status.setText("⚠️ API: Error")
-        self.api_status.setStyleSheet("""
-            color: #f39c12;
-            font-size: 11px;
-            font-weight: bold;
-            padding: 3px;
-            background-color: rgba(243, 156, 18, 0.1);
-            border-radius: 3px;
-        """)
-
-        self.connection_status.setText("🌐 Koneksi bermasalah")
-        self.connection_status.setStyleSheet("""
-            color: #f39c12;
-            font-size: 10px;
-            padding: 2px;
-            background-color: rgba(243, 156, 18, 0.1);
-            border-radius: 3px;
-        """)
 
     def reset_menu_selection(self):
         """Reset semua pilihan menu"""

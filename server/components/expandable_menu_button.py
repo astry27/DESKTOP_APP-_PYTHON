@@ -15,15 +15,7 @@ class ExpandableMenuButton(QWidget):
         super().__init__(parent)
         self.is_expanded = False
         self.icon_path = icon_path
-        self.icon_active_path = None
         self.original_text = text
-
-        # Generate active icon path
-        if icon_path and icon_path.endswith('.png'):
-            base_path = icon_path[:-4]  # Remove .png
-            active_path = base_path + '_active_icon.png'
-            if os.path.exists(active_path):
-                self.icon_active_path = active_path
 
         # Setup layout horizontal
         layout = QHBoxLayout(self)
@@ -33,6 +25,7 @@ class ExpandableMenuButton(QWidget):
         # Main button untuk teks dan menu icon
         self.main_button = QPushButton(text)
         self.main_button.setCheckable(True)
+        self.main_button.setAutoExclusive(False)  # PENTING: Non-exclusive untuk kontrol manual
         self.main_button.setFixedHeight(45)
         self.main_button.setFlat(True)
         self.main_button.setStyleSheet("""
@@ -129,11 +122,12 @@ class ExpandableMenuButton(QWidget):
         self.toggled.emit(self.is_expanded)
 
     def update_icon(self):
-        """Update menu icon berdasarkan state expanded/collapsed"""
-        if self.is_expanded and self.icon_active_path:
-            self.main_button.setIcon(QIcon(self.icon_active_path))
-        elif not self.is_expanded and self.icon_path:
-            self.main_button.setIcon(QIcon(self.icon_path))
+        """Update menu icon - tidak melakukan apa-apa karena active icon sudah dihilangkan"""
+        pass
+
+    def update_icon_state(self):
+        """Update icon state - tidak melakukan apa-apa karena active icon sudah dihilangkan"""
+        pass
 
     def update_appearance(self):
         """Update appearance based on expanded state"""
@@ -224,12 +218,17 @@ class ExpandableMenuButton(QWidget):
             """)
 
     def setChecked(self, checked):
-        """Set checked state"""
-        self.is_expanded = checked
+        """Set checked state - digunakan untuk menandai menu aktif saat submenu diklik"""
+        # Jangan ubah is_expanded atau tampilan visual
+        # Ini hanya untuk tracking state, bukan untuk menampilkan active state
         self.main_button.setChecked(checked)
-        self.update_dropdown_icon()
-        self.update_icon()  # Update menu icon
-        self.update_appearance()
+
+        # TIDAK ada perubahan visual - active state hanya ditampilkan saat expanded
+        # Saat submenu diklik, parent menu tidak boleh menampilkan active state
+
+        # Reset ke normal styling saat setChecked(False) dipanggil
+        if not checked:
+            self.update_appearance()
 
     def set_expanded(self, expanded):
         """Set expansion state"""

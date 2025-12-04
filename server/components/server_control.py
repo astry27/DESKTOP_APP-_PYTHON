@@ -178,40 +178,57 @@ class ServerControlComponent(QWidget):
     
     def create_log_buttons(self):
         log_button_layout = QHBoxLayout()
+        log_button_layout.setSpacing(8)
+        log_button_layout.setContentsMargins(0, 0, 0, 0)
 
         self.clear_log_button = QPushButton("Bersihkan Log")
         self.clear_log_button.clicked.connect(self.clear_log)
+        self.clear_log_button.setCursor(Qt.PointingHandCursor)
+        self.clear_log_button.setFixedHeight(35)
         self.clear_log_button.setStyleSheet("""
             QPushButton {
-                background-color: #e74c3c;
-                color: white;
-                padding: 5px 10px;
-                border: none;
-                border-radius: 3px;
+                background-color: #ecf0f1;
+                color: #2c3e50;
+                padding: 8px 15px;
+                border: 1px solid #bdc3c7;
+                border-radius: 5px;
+                font-size: 12px;
+                font-weight: 500;
             }
             QPushButton:hover {
-                background-color: #c0392b;
+                background-color: #d5dbdb;
+                border: 1px solid #95a5a6;
+            }
+            QPushButton:pressed {
+                background-color: #bdc3c7;
             }
         """)
 
         self.save_log_button = QPushButton("Simpan Log")
         self.save_log_button.clicked.connect(self.save_log)
+        self.save_log_button.setCursor(Qt.PointingHandCursor)
+        self.save_log_button.setFixedHeight(35)
         self.save_log_button.setStyleSheet("""
             QPushButton {
-                background-color: #3498db;
-                color: white;
-                padding: 5px 10px;
-                border: none;
-                border-radius: 3px;
+                background-color: #ecf0f1;
+                color: #2c3e50;
+                padding: 8px 15px;
+                border: 1px solid #bdc3c7;
+                border-radius: 5px;
+                font-size: 12px;
+                font-weight: 500;
             }
             QPushButton:hover {
-                background-color: #2980b9;
+                background-color: #d5dbdb;
+                border: 1px solid #95a5a6;
+            }
+            QPushButton:pressed {
+                background-color: #bdc3c7;
             }
         """)
 
-        log_button_layout.addWidget(self.clear_log_button)
-        log_button_layout.addWidget(self.save_log_button)
-        log_button_layout.addStretch()
+        log_button_layout.addWidget(self.clear_log_button, 1)  # Stretch factor 1 - 50%
+        log_button_layout.addWidget(self.save_log_button, 1)   # Stretch factor 1 - 50%
 
         return log_button_layout
     

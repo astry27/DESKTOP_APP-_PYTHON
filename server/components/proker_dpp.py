@@ -97,20 +97,22 @@ class ProgramKerjaDPPWidget(QWidget):
         """Create action buttons layout"""
         action_layout = QHBoxLayout()
         action_layout.setContentsMargins(0, 5, 0, 5)
-
-        # Edit button
-        edit_button = self.create_button("Edit Program", "#3498db", self.edit_program)
-        action_layout.addWidget(edit_button)
-
-        # Delete button
-        delete_button = self.create_button("Hapus Program", "#c0392b", self.delete_program)
-        action_layout.addWidget(delete_button)
-
-        # Export button
-        export_button = self.create_button(".csv", "#f39c12", self.export_program)
-        action_layout.addWidget(export_button)
+        action_layout.setSpacing(10)
 
         action_layout.addStretch()
+
+        # Edit button with icon
+        edit_button = self.create_button("Edit", "#f39c12", self.edit_program, "server/assets/edit.png")
+        action_layout.addWidget(edit_button)
+
+        # Delete button with icon
+        delete_button = self.create_button("Hapus", "#c0392b", self.delete_program, "server/assets/hapus.png")
+        action_layout.addWidget(delete_button)
+
+        # Export button with icon - changed to green color
+        export_button = self.create_button(".CSV", "#27ae60", self.export_program, "server/assets/export.png")
+        action_layout.addWidget(export_button)
+
         return action_layout
 
     def create_header(self):

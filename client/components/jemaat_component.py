@@ -444,6 +444,12 @@ class JemaatDialog(QDialog):
         # Calculate initial age
         self.calculate_age()
 
+        # Trigger initial visibility state for edit mode
+        if self.jemaat_data.get('jenis_pekerjaan'):
+            self.on_jenis_pekerjaan_changed(self.jenis_pekerjaan.currentText())
+        if self.jemaat_data.get('status_kekatolikan'):
+            self.on_status_kekatolikan_changed(self.status_kekatolikan.currentText())
+
     def setup_sakramen_babtis(self, layout):
         """Setup section Sakramen Babtis"""
         from PyQt5.QtWidgets import QGroupBox
@@ -465,15 +471,20 @@ class JemaatDialog(QDialog):
             # Unblock signals after setting value
             self.status_babtis.blockSignals(False)
 
+        # Create labels for conditional fields
+        self.tempat_babtis_label = QLabel("Tempat Babtis:")
         self.tempat_babtis = QLineEdit(self.jemaat_data.get('tempat_babtis', ''))
         self.tempat_babtis.setMinimumWidth(300)
         self.tempat_babtis.setVisible(False)
+        self.tempat_babtis_label.setVisible(False)
 
+        self.tanggal_babtis_label = QLabel("Tanggal Babtis:")
         self.tanggal_babtis = QDateEdit()
         self.tanggal_babtis.setCalendarPopup(True)
         self.tanggal_babtis.setDate(QDate.currentDate())
         self.tanggal_babtis.setMinimumWidth(300)
         self.tanggal_babtis.setVisible(False)
+        self.tanggal_babtis_label.setVisible(False)
         if self.jemaat_data.get('tanggal_babtis'):
             try:
                 date_obj = datetime.strptime(str(self.jemaat_data['tanggal_babtis']), '%Y-%m-%d').date()
@@ -481,16 +492,22 @@ class JemaatDialog(QDialog):
             except:
                 pass
 
+        self.nama_babtis_label = QLabel("Nama Babtis:")
         self.nama_babtis = QLineEdit(self.jemaat_data.get('nama_babtis', ''))
         self.nama_babtis.setMinimumWidth(300)
         self.nama_babtis.setVisible(False)
+        self.nama_babtis_label.setVisible(False)
 
         babtis_layout.addRow("Status:", self.status_babtis)
-        babtis_layout.addRow("Tempat Babtis:", self.tempat_babtis)
-        babtis_layout.addRow("Tanggal Babtis:", self.tanggal_babtis)
-        babtis_layout.addRow("Nama Babtis:", self.nama_babtis)
+        babtis_layout.addRow(self.tempat_babtis_label, self.tempat_babtis)
+        babtis_layout.addRow(self.tanggal_babtis_label, self.tanggal_babtis)
+        babtis_layout.addRow(self.nama_babtis_label, self.nama_babtis)
 
         layout.addWidget(babtis_group)
+
+        # Trigger initial visibility state for edit mode
+        if self.jemaat_data.get('status_babtis'):
+            self.on_babtis_status_changed(self.status_babtis.currentText())
 
     def setup_sakramen_ekaristi(self, layout):
         """Setup section Sakramen Ekaristi"""
@@ -513,15 +530,20 @@ class JemaatDialog(QDialog):
             # Unblock signals after setting value
             self.status_ekaristi.blockSignals(False)
 
+        # Create labels for conditional fields
+        self.tempat_komuni_label = QLabel("Tempat Komuni:")
         self.tempat_komuni = QLineEdit(self.jemaat_data.get('tempat_komuni', ''))
         self.tempat_komuni.setMinimumWidth(300)
         self.tempat_komuni.setVisible(False)
+        self.tempat_komuni_label.setVisible(False)
 
+        self.tanggal_komuni_label = QLabel("Tanggal Komuni:")
         self.tanggal_komuni = QDateEdit()
         self.tanggal_komuni.setCalendarPopup(True)
         self.tanggal_komuni.setDate(QDate.currentDate())
         self.tanggal_komuni.setMinimumWidth(300)
         self.tanggal_komuni.setVisible(False)
+        self.tanggal_komuni_label.setVisible(False)
         if self.jemaat_data.get('tanggal_komuni'):
             try:
                 date_obj = datetime.strptime(str(self.jemaat_data['tanggal_komuni']), '%Y-%m-%d').date()
@@ -530,10 +552,14 @@ class JemaatDialog(QDialog):
                 pass
 
         ekaristi_layout.addRow("Status:", self.status_ekaristi)
-        ekaristi_layout.addRow("Tempat Komuni:", self.tempat_komuni)
-        ekaristi_layout.addRow("Tanggal Komuni:", self.tanggal_komuni)
+        ekaristi_layout.addRow(self.tempat_komuni_label, self.tempat_komuni)
+        ekaristi_layout.addRow(self.tanggal_komuni_label, self.tanggal_komuni)
 
         layout.addWidget(ekaristi_group)
+
+        # Trigger initial visibility state for edit mode
+        if self.jemaat_data.get('status_ekaristi'):
+            self.on_ekaristi_status_changed(self.status_ekaristi.currentText())
 
     def setup_sakramen_krisma(self, layout):
         """Setup section Sakramen Krisma"""
@@ -556,15 +582,20 @@ class JemaatDialog(QDialog):
             # Unblock signals after setting value
             self.status_krisma.blockSignals(False)
 
+        # Create labels for conditional fields
+        self.tempat_krisma_label = QLabel("Tempat Krisma:")
         self.tempat_krisma = QLineEdit(self.jemaat_data.get('tempat_krisma', ''))
         self.tempat_krisma.setMinimumWidth(300)
         self.tempat_krisma.setVisible(False)
+        self.tempat_krisma_label.setVisible(False)
 
+        self.tanggal_krisma_label = QLabel("Tanggal Krisma:")
         self.tanggal_krisma = QDateEdit()
         self.tanggal_krisma.setCalendarPopup(True)
         self.tanggal_krisma.setDate(QDate.currentDate())
         self.tanggal_krisma.setMinimumWidth(300)
         self.tanggal_krisma.setVisible(False)
+        self.tanggal_krisma_label.setVisible(False)
         if self.jemaat_data.get('tanggal_krisma'):
             try:
                 date_obj = datetime.strptime(str(self.jemaat_data['tanggal_krisma']), '%Y-%m-%d').date()
@@ -573,10 +604,14 @@ class JemaatDialog(QDialog):
                 pass
 
         krisma_layout.addRow("Status:", self.status_krisma)
-        krisma_layout.addRow("Tempat Krisma:", self.tempat_krisma)
-        krisma_layout.addRow("Tanggal Krisma:", self.tanggal_krisma)
+        krisma_layout.addRow(self.tempat_krisma_label, self.tempat_krisma)
+        krisma_layout.addRow(self.tanggal_krisma_label, self.tanggal_krisma)
 
         layout.addWidget(krisma_group)
+
+        # Trigger initial visibility state for edit mode
+        if self.jemaat_data.get('status_krisma'):
+            self.on_krisma_status_changed(self.status_krisma.currentText())
 
     def setup_sakramen_perkawinan(self, layout):
         """Setup section Sakramen Perkawinan"""
@@ -599,23 +634,32 @@ class JemaatDialog(QDialog):
             # Unblock signals after setting value
             self.status_perkawinan.blockSignals(False)
 
+        # Create labels for conditional fields
+        self.keuskupan_label = QLabel("Keuskupan:")
         self.keuskupan = QLineEdit(self.jemaat_data.get('keuskupan', ''))
         self.keuskupan.setMinimumWidth(300)
         self.keuskupan.setVisible(False)
+        self.keuskupan_label.setVisible(False)
 
+        self.paroki_label = QLabel("Paroki:")
         self.paroki = QLineEdit(self.jemaat_data.get('paroki', ''))
         self.paroki.setMinimumWidth(300)
         self.paroki.setVisible(False)
+        self.paroki_label.setVisible(False)
 
+        self.kota_perkawinan_label = QLabel("Kota:")
         self.kota_perkawinan = QLineEdit(self.jemaat_data.get('kota_perkawinan', ''))
         self.kota_perkawinan.setMinimumWidth(300)
         self.kota_perkawinan.setVisible(False)
+        self.kota_perkawinan_label.setVisible(False)
 
+        self.tanggal_perkawinan_label = QLabel("Tanggal Perkawinan:")
         self.tanggal_perkawinan = QDateEdit()
         self.tanggal_perkawinan.setCalendarPopup(True)
         self.tanggal_perkawinan.setDate(QDate.currentDate())
         self.tanggal_perkawinan.setMinimumWidth(300)
         self.tanggal_perkawinan.setVisible(False)
+        self.tanggal_perkawinan_label.setVisible(False)
         if self.jemaat_data.get('tanggal_perkawinan'):
             try:
                 date_obj = datetime.strptime(str(self.jemaat_data['tanggal_perkawinan']), '%Y-%m-%d').date()
@@ -623,25 +667,31 @@ class JemaatDialog(QDialog):
             except:
                 pass
 
+        self.status_perkawinan_detail_label = QLabel("Jenis Perkawinan:")
         self.status_perkawinan_detail = QComboBox()
         self.status_perkawinan_detail.addItems(["Pilih jenis perkawinan", "Sipil", "Gereja", "Sipil dan Gereja"])
         self.status_perkawinan_detail.setCurrentIndex(0)
         self.status_perkawinan_detail.setMinimumWidth(300)
         self.setup_placeholder_style(self.status_perkawinan_detail)
         self.status_perkawinan_detail.setVisible(False)
+        self.status_perkawinan_detail_label.setVisible(False)
         if self.jemaat_data.get('status_perkawinan_detail'):
             index = self.status_perkawinan_detail.findText(self.jemaat_data['status_perkawinan_detail'])
             if index >= 0:
                 self.status_perkawinan_detail.setCurrentIndex(index)
 
         perkawinan_layout.addRow("Status:", self.status_perkawinan)
-        perkawinan_layout.addRow("Keuskupan:", self.keuskupan)
-        perkawinan_layout.addRow("Paroki:", self.paroki)
-        perkawinan_layout.addRow("Kota:", self.kota_perkawinan)
-        perkawinan_layout.addRow("Tanggal Perkawinan:", self.tanggal_perkawinan)
-        perkawinan_layout.addRow("Jenis Perkawinan:", self.status_perkawinan_detail)
+        perkawinan_layout.addRow(self.keuskupan_label, self.keuskupan)
+        perkawinan_layout.addRow(self.paroki_label, self.paroki)
+        perkawinan_layout.addRow(self.kota_perkawinan_label, self.kota_perkawinan)
+        perkawinan_layout.addRow(self.tanggal_perkawinan_label, self.tanggal_perkawinan)
+        perkawinan_layout.addRow(self.status_perkawinan_detail_label, self.status_perkawinan_detail)
 
         layout.addWidget(perkawinan_group)
+
+        # Trigger initial visibility state for edit mode
+        if self.jemaat_data.get('status_perkawinan'):
+            self.on_perkawinan_status_changed(self.status_perkawinan.currentText())
 
     def setup_status(self, layout):
         """Setup section Status"""
@@ -786,31 +836,43 @@ class JemaatDialog(QDialog):
             self.detail_pekerjaan.setVisible(False)
 
     def on_babtis_status_changed(self, text):
-        """Show/hide babtis fields based on status"""
+        """Show/hide babtis fields and labels based on status"""
         show_fields = text == "Sudah"
+        self.tempat_babtis_label.setVisible(show_fields)
         self.tempat_babtis.setVisible(show_fields)
+        self.tanggal_babtis_label.setVisible(show_fields)
         self.tanggal_babtis.setVisible(show_fields)
+        self.nama_babtis_label.setVisible(show_fields)
         self.nama_babtis.setVisible(show_fields)
 
     def on_ekaristi_status_changed(self, text):
-        """Show/hide ekaristi fields based on status"""
+        """Show/hide ekaristi fields and labels based on status"""
         show_fields = text == "Sudah"
+        self.tempat_komuni_label.setVisible(show_fields)
         self.tempat_komuni.setVisible(show_fields)
+        self.tanggal_komuni_label.setVisible(show_fields)
         self.tanggal_komuni.setVisible(show_fields)
 
     def on_krisma_status_changed(self, text):
-        """Show/hide krisma fields based on status"""
+        """Show/hide krisma fields and labels based on status"""
         show_fields = text == "Sudah"
+        self.tempat_krisma_label.setVisible(show_fields)
         self.tempat_krisma.setVisible(show_fields)
+        self.tanggal_krisma_label.setVisible(show_fields)
         self.tanggal_krisma.setVisible(show_fields)
 
     def on_perkawinan_status_changed(self, text):
-        """Show/hide perkawinan fields based on status"""
+        """Show/hide perkawinan fields and labels based on status"""
         show_fields = text == "Sudah"
+        self.keuskupan_label.setVisible(show_fields)
         self.keuskupan.setVisible(show_fields)
+        self.paroki_label.setVisible(show_fields)
         self.paroki.setVisible(show_fields)
+        self.kota_perkawinan_label.setVisible(show_fields)
         self.kota_perkawinan.setVisible(show_fields)
+        self.tanggal_perkawinan_label.setVisible(show_fields)
         self.tanggal_perkawinan.setVisible(show_fields)
+        self.status_perkawinan_detail_label.setVisible(show_fields)
         self.status_perkawinan_detail.setVisible(show_fields)
 
     def get_data(self):
@@ -1076,6 +1138,8 @@ class JemaatClientComponent(QWidget):
         self.jemaat_data = []
         self.filtered_data = []
         self.current_user = None
+        self._pengguna_lookup = {}
+        self._pengguna_lookup_attempted = False
 
         self.setup_ui()
 
@@ -1202,7 +1266,7 @@ class JemaatClientComponent(QWidget):
 
         layout.addLayout(toolbar_layout)
 
-        # Table dengan 38 kolom (tanpa No column) menggunakan header dengan word wrap - sesuai server dengan No. KK dan NIK
+        # Table dengan 38 kolom (tanpa No column) - sesuai server dengan No. KK, NIK, No. Telepon, dan Created By
         self.table_widget = QTableWidget()
         self.table_widget.setColumnCount(38)
         self.table_widget.setRowCount(0)
@@ -1360,56 +1424,48 @@ class JemaatClientComponent(QWidget):
         return button
 
     def setup_table_headers(self):
-        """Setup header kolom tanpa No column - sesuai server (38 kolom data) dengan No. KK dan NIK"""
+        """Setup header kolom tanpa No column - sesuai server (38 kolom data) dengan No. KK, NIK, No. Telepon, dan Created By"""
         headers = [
-            # DATA PRIBADI (0-17) - added No. KK and NIK
+            # DATA PRIBADI (0-18) - added No. KK, NIK, and No. Telepon
             "Wilayah Rohani", "Nama Keluarga", "No. KK", "Nama Lengkap", "NIK", "Tempat Lahir",
             "Tanggal Lahir", "Umur", "Status Kekatolikan", "Kategori", "J. Kelamin",
             "Hubungan Keluarga", "Pend. Terakhir", "Status Menikah", "Status Pekerjaan",
-            "Detail Pekerjaan", "Alamat", "Email/No.Hp",
-            # SAKRAMEN BABTIS (18-21)
+            "Detail Pekerjaan", "Alamat", "Email", "No. Telepon",
+            # SAKRAMEN BABTIS (19-22)
             "Status Babtis", "Tempat Babtis", "Tanggal Babtis", "Nama Babtis",
-            # SAKRAMEN EKARISTI (22-24)
+            # SAKRAMEN EKARISTI (23-25)
             "Status Ekaristi", "Tempat Komuni", "Tanggal Komuni",
-            # SAKRAMEN KRISMA (25-27)
+            # SAKRAMEN KRISMA (26-28)
             "Status Krisma", "Tempat Krisma", "Tanggal Krisma",
-            # SAKRAMEN PERKAWINAN (28-33)
-            "Status Perkawinan", "Keuskupan", "Paroki", "Kota", "Tgl Perkawinan", "Status Perkawinan Detail",
-            # STATUS (34-37) - TOTAL 38 COLUMNS
+            # SAKRAMEN PERKAWINAN (29-34)
+            "Status Perkawinan", "Keuskupan", "Paroki", "Kota", "Tanggal Perkawinan", "Status Perkawinan Detail",
+            # STATUS (35-37) - TOTAL 38 COLUMNS
             "Status Keanggotaan", "WR Tujuan", "Paroki Tujuan", "Created By Pengguna"
         ]
 
         self.table_widget.setHorizontalHeaderLabels(headers)
 
     def setup_column_widths(self):
-        """Set up column widths for better display (without No column - 38 columns total with No. KK and NIK)"""
-        # DATA PRIBADI columns (0-17) - added No. KK and NIK
-        self.table_widget.setColumnWidth(0, 110)  # Wilayah Rohani
+        """Set up column widths for better display (38 columns total with No. KK, NIK, No. Telepon, and Created By)"""
+        # Make important columns wider (matching server widths)
         self.table_widget.setColumnWidth(1, 120)  # Nama Keluarga
         self.table_widget.setColumnWidth(2, 110)  # No. KK
         self.table_widget.setColumnWidth(3, 150)  # Nama Lengkap - wider
         self.table_widget.setColumnWidth(4, 110)  # NIK
-        self.table_widget.setColumnWidth(5, 110)  # Tempat Lahir
-        self.table_widget.setColumnWidth(6, 100)  # Tanggal Lahir
-        self.table_widget.setColumnWidth(7, 60)   # Umur
-        self.table_widget.setColumnWidth(8, 110)  # Status Kekatolikan
-        self.table_widget.setColumnWidth(9, 90)   # Kategori
-        self.table_widget.setColumnWidth(10, 80)  # J. Kelamin
-        self.table_widget.setColumnWidth(11, 120) # Hubungan Keluarga
-        self.table_widget.setColumnWidth(12, 110) # Pend. Terakhir
-        self.table_widget.setColumnWidth(13, 110) # Status Menikah
-        self.table_widget.setColumnWidth(14, 110) # Status Pekerjaan
-        self.table_widget.setColumnWidth(15, 120) # Detail Pekerjaan
-        self.table_widget.setColumnWidth(16, 180) # Alamat - wider
-        self.table_widget.setColumnWidth(17, 130) # Email/No.Hp
+        self.table_widget.setColumnWidth(16, 180)  # Alamat - wider
+        self.table_widget.setColumnWidth(17, 140)  # Email
+        self.table_widget.setColumnWidth(18, 120)  # No. Telepon
 
-        # Sakramen columns (18-33)
-        for i in range(18, 34):
+        # Set standard width for other DATA columns
+        for i in [0, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]:  # DATA columns
+            self.table_widget.setColumnWidth(i, 110)
+
+        # Set standard width for Sakramen and Status columns
+        for i in range(19, 38):  # Sakramen and Status columns
             self.table_widget.setColumnWidth(i, 100)
 
-        # Status columns (34-37) - TOTAL 38 COLUMNS
-        for i in range(34, 38):
-            self.table_widget.setColumnWidth(i, 120)
+        # Make creator column slightly wider for names
+        self.table_widget.setColumnWidth(37, 160)  # Created By Pengguna
 
     def update_header_height(self, logical_index, old_size, new_size):
         """Update header height based on wrapped text similar to struktur table"""
@@ -1530,20 +1586,17 @@ class JemaatClientComponent(QWidget):
         try:
             result = self.api_client.get_jemaat()
             if result.get('success'):
-                response_data = result.get('data', {})
-                if response_data.get('status') == 'success':
-                    self.jemaat_data = response_data.get('data', [])
-                else:
-                    self.jemaat_data = []
-                    self.log_message.emit(f"API error: {response_data.get('message', 'Unknown error')}")  # type: ignore
+                # API returns {'success': True, 'data': [...]} directly
+                self.jemaat_data = result.get('data', [])
+                self.log_message.emit(f"Data jemaat berhasil dimuat dari API: {len(self.jemaat_data)} record")  # type: ignore
             else:
                 self.jemaat_data = []
-                self.log_message.emit(f"Failed to connect to API: {result.get('data', 'Unknown error')}")  # type: ignore
+                error_msg = result.get('data', 'Unknown error')
+                self.log_message.emit(f"Failed to load data: {error_msg}")  # type: ignore
 
             self.filtered_data = self.jemaat_data.copy()
             self.update_table()
             self.update_statistics()
-            self.log_message.emit(f"Data jemaat berhasil dimuat dari API: {len(self.jemaat_data)} record")  # type: ignore
 
         except Exception as e:
             self.jemaat_data = []
@@ -1628,19 +1681,16 @@ class JemaatClientComponent(QWidget):
 
                 result = self.api_client.add_jemaat(full_data)
                 if result.get('success'):
+                    # API returns {'success': True, 'data': {'message': '...', 'id': ...}}
+                    self.load_user_jemaat_data()
                     response_data = result.get('data', {})
-                    if response_data.get('status') == 'success':
-                        self.load_user_jemaat_data()
-                        QMessageBox.information(self, "Sukses", "Data umat baru berhasil ditambahkan")
-                        self.log_message.emit("Data umat baru berhasil ditambahkan")  # type: ignore
-                    else:
-                        error_msg = response_data.get('message', 'Unknown error')
-                        QMessageBox.warning(self, "Error", f"Gagal menambah umat: {error_msg}")
-                        self.log_message.emit(f"Error adding umat: {error_msg}")  # type: ignore
+                    message = response_data.get('message', 'Data umat baru berhasil ditambahkan')
+                    QMessageBox.information(self, "Sukses", message)
+                    self.log_message.emit(f"Data umat baru berhasil ditambahkan: {message}")  # type: ignore
                 else:
                     error_msg = result.get('data', 'Unknown error')
-                    QMessageBox.warning(self, "Error", f"Gagal terhubung ke API: {error_msg}")
-                    self.log_message.emit(f"API connection error: {error_msg}")  # type: ignore
+                    QMessageBox.warning(self, "Error", f"Gagal menambah umat: {error_msg}")
+                    self.log_message.emit(f"Error adding umat: {error_msg}")  # type: ignore
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Error saat tambah jemaat: {str(e)}")
             self.log_message.emit(f"Exception adding jemaat: {str(e)}")  # type: ignore
@@ -1744,19 +1794,16 @@ class JemaatClientComponent(QWidget):
 
                 result = self.api_client.update_jemaat(jemaat_id, full_data)
                 if result.get('success'):
+                    # API returns {'success': True, 'data': {'message': '...'}}
+                    self.load_user_jemaat_data()  # Refresh data from API
                     response_data = result.get('data', {})
-                    if response_data.get('status') == 'success':
-                        self.load_user_jemaat_data()  # Refresh data from API
-                        QMessageBox.information(self, "Sukses", "Data jemaat berhasil diperbarui")
-                        self.log_message.emit("Data jemaat berhasil diperbarui")  # type: ignore
-                    else:
-                        error_msg = response_data.get('message', 'Unknown error')
-                        QMessageBox.warning(self, "Error", f"Gagal update jemaat: {error_msg}")
-                        self.log_message.emit(f"Error updating jemaat: {error_msg}")  # type: ignore
+                    message = response_data.get('message', 'Data jemaat berhasil diperbarui')
+                    QMessageBox.information(self, "Sukses", message)
+                    self.log_message.emit(f"Data jemaat berhasil diperbarui: {message}")  # type: ignore
                 else:
                     error_msg = result.get('data', 'Unknown error')
-                    QMessageBox.warning(self, "Error", f"Gagal terhubung ke API: {error_msg}")
-                    self.log_message.emit(f"API connection error: {error_msg}")  # type: ignore
+                    QMessageBox.warning(self, "Error", f"Gagal update jemaat: {error_msg}")
+                    self.log_message.emit(f"Error updating jemaat: {error_msg}")  # type: ignore
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Error saat edit jemaat: {str(e)}")
             self.log_message.emit(f"Exception editing jemaat: {str(e)}")  # type: ignore
@@ -1796,19 +1843,14 @@ class JemaatClientComponent(QWidget):
 
                 result = self.api_client.delete_jemaat(jemaat_id)
                 if result.get('success'):
-                    response_data = result.get('data', {})
-                    if response_data.get('status') == 'success':
-                        self.load_user_jemaat_data()  # Refresh data from API
-                        QMessageBox.information(self, "Sukses", f"Data jemaat '{jemaat_name}' berhasil dihapus")
-                        self.log_message.emit(f"Data jemaat berhasil dihapus: {jemaat_name}")  # type: ignore
-                    else:
-                        error_msg = response_data.get('message', 'Unknown error')
-                        QMessageBox.warning(self, "Error", f"Gagal hapus jemaat: {error_msg}")
-                        self.log_message.emit(f"Error deleting jemaat: {error_msg}")  # type: ignore
+                    # API returns {'success': True, 'data': {'message': '...'}}
+                    self.load_user_jemaat_data()  # Refresh data from API
+                    QMessageBox.information(self, "Sukses", f"Data jemaat '{jemaat_name}' berhasil dihapus")
+                    self.log_message.emit(f"Data jemaat berhasil dihapus: {jemaat_name}")  # type: ignore
                 else:
                     error_msg = result.get('data', 'Unknown error')
-                    QMessageBox.warning(self, "Error", f"Gagal terhubung ke API: {error_msg}")
-                    self.log_message.emit(f"API connection error: {error_msg}")  # type: ignore
+                    QMessageBox.warning(self, "Error", f"Gagal hapus jemaat: {error_msg}")
+                    self.log_message.emit(f"Error deleting jemaat: {error_msg}")  # type: ignore
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Error saat hapus jemaat: {str(e)}")
             self.log_message.emit(f"Exception deleting jemaat: {str(e)}")  # type: ignore
@@ -1871,122 +1913,60 @@ class JemaatClientComponent(QWidget):
         for index, jemaat in enumerate(self.filtered_data):
             row_pos = index  # Start from row 0
 
-            # Helper function for date formatting
-            def format_date(date_value):
-                if not date_value:
-                    return ''
-                try:
-                    if isinstance(date_value, str):
-                        dt = datetime.fromisoformat(date_value.replace('Z', '+00:00'))
-                        return dt.strftime('%d/%m/%Y')
-                    elif hasattr(date_value, 'strftime'):
-                        return date_value.strftime('%d/%m/%Y')
-                except:
-                    pass
-                return str(date_value)
-
-            # Helper function for gender formatting
-            def format_gender(gender):
-                if gender == 'Laki-laki':
-                    return 'L'
-                elif gender == 'Perempuan':
-                    return 'P'
-                return str(gender) if gender else ''
-
-            # Helper function to convert empty values to "-"
-            def format_value(value):
-                if value is None or value == '' or value == 'None':
-                    return '-'
-                return str(value)
-
-            # Helper function to get creator display name
-            def get_creator_display(row_data):
-                """Resolve nama pembuat data jemaat untuk tampilan tabel"""
-                if not row_data:
-                    return 'System'
-
-                # Check various possible field names for creator
-                possible_keys = [
-                    'created_by_name',
-                    'created_by_pengguna_name',
-                    'created_by_pengguna_fullname',
-                    'created_by_username',
-                    'created_by',
-                    'dibuat_oleh',
-                    'dibuat_oleh_nama',
-                    'nama_pembuat',
-                    'nama_user',
-                    'creator_name'
-                ]
-
-                for key in possible_keys:
-                    value = row_data.get(key)
-                    if value and value not in [None, '', 'None']:
-                        return str(value)
-
-                # Check nested creator_info
-                creator_info = row_data.get('created_by_pengguna')
-                if isinstance(creator_info, dict):
-                    for sub_key in ['nama_lengkap', 'full_name', 'name', 'username']:
-                        value = creator_info.get(sub_key)
-                        if value and value not in [None, '', 'None']:
-                            return str(value)
-
-                return '-'
-
             # All data columns (0-37) matching server structure - tanpa No column (TOTAL 38 COLUMNS with No. KK and NIK)
             data_items = [
-                # DATA PRIBADI (columns 0-17) - added No. KK and NIK
-                format_value(jemaat.get('wilayah_rohani', '')),
-                format_value(jemaat.get('nama_keluarga', '')),
-                format_value(jemaat.get('no_kk', '')),  # Column 2: No. KK
-                format_value(jemaat.get('nama_lengkap', '')),
-                format_value(jemaat.get('nik', '')),  # Column 4: NIK
-                format_value(jemaat.get('tempat_lahir', '')),
-                format_date(jemaat.get('tanggal_lahir')) or '-',
-                format_value(jemaat.get('umur', '')),
-                format_value(jemaat.get('status_kekatolikan', '')),
-                format_value(jemaat.get('kategori', '')),
-                format_gender(jemaat.get('jenis_kelamin', '')) or '-',
-                format_value(jemaat.get('hubungan_keluarga', '')),
-                format_value(jemaat.get('pendidikan_terakhir', '')),
-                format_value(jemaat.get('status_menikah', '')),
-                format_value(jemaat.get('jenis_pekerjaan', '')),
-                format_value(jemaat.get('detail_pekerjaan', '')),
-                format_value(jemaat.get('alamat', '')),
-                format_value(jemaat.get('email', '') or jemaat.get('no_telepon', '')),  # Email/No.Hp
-                # SAKRAMEN BABTIS (columns 18-21)
-                format_value(jemaat.get('status_babtis', '')),
-                format_value(jemaat.get('tempat_babtis', '')),
-                format_date(jemaat.get('tanggal_babtis')) or '-',
-                format_value(jemaat.get('nama_babtis', '')),
-                # SAKRAMEN EKARISTI (columns 22-24)
-                format_value(jemaat.get('status_ekaristi', '')),
-                format_value(jemaat.get('tempat_komuni', '')),
-                format_date(jemaat.get('tanggal_komuni')) or '-',
-                # SAKRAMEN KRISMA (columns 25-27)
-                format_value(jemaat.get('status_krisma', '')),
-                format_value(jemaat.get('tempat_krisma', '')),
-                format_date(jemaat.get('tanggal_krisma')) or '-',
-                # SAKRAMEN PERKAWINAN (columns 28-33)
-                format_value(jemaat.get('status_perkawinan', '')),
-                format_value(jemaat.get('keuskupan', '')),
-                format_value(jemaat.get('paroki', '')),
-                format_value(jemaat.get('kota_perkawinan', '')),
-                format_date(jemaat.get('tanggal_perkawinan')) or '-',
-                format_value(jemaat.get('status_perkawinan_detail', '')),
-                # STATUS (columns 34-37) - TOTAL 38 COLUMNS
-                format_value(jemaat.get('status_keanggotaan', 'Aktif')),
-                format_value(jemaat.get('wilayah_rohani_pindah', '')),
-                format_value(jemaat.get('paroki_pindah', '')),
-                get_creator_display(jemaat)  # Column 37: Created By Pengguna
+                # DATA PRIBADI (columns 0-18) - added No. KK, NIK, and No. Telepon
+                self.format_display(jemaat.get('wilayah_rohani')),  # Column 0: Wilayah Rohani
+                self.format_display(jemaat.get('nama_keluarga')),  # Column 1: Nama Keluarga
+                self.format_numeric(jemaat.get('no_kk')),  # Column 2: No. KK (numeric only)
+                self.format_display(jemaat.get('nama_lengkap')),  # Column 3: Nama Lengkap
+                self.format_numeric(jemaat.get('nik')),  # Column 4: NIK (numeric only)
+                self.format_display(jemaat.get('tempat_lahir')),
+                self.format_date(jemaat.get('tanggal_lahir')),
+                self.format_display(jemaat.get('umur')),
+                self.format_display(jemaat.get('status_kekatolikan')),
+                self.format_display(jemaat.get('kategori')),
+                self.format_gender(jemaat.get('jenis_kelamin')),
+                self.format_display(jemaat.get('hubungan_keluarga')),
+                self.format_display(jemaat.get('pendidikan_terakhir')),
+                self.format_display(jemaat.get('status_menikah')),  # Status Menikah
+                self.format_display(jemaat.get('jenis_pekerjaan')),
+                self.format_display(jemaat.get('detail_pekerjaan')),
+                self.format_display(jemaat.get('alamat')),
+                self.format_display(jemaat.get('email')),
+                self.format_display(jemaat.get('no_telepon')),
+                # SAKRAMEN BABTIS (columns 19-22)
+                self.format_display(jemaat.get('status_babtis')),
+                self.format_display(jemaat.get('tempat_babtis')),
+                self.format_date(jemaat.get('tanggal_babtis')),
+                self.format_display(jemaat.get('nama_babtis')),
+                # SAKRAMEN EKARISTI (columns 23-25)
+                self.format_display(jemaat.get('status_ekaristi')),
+                self.format_display(jemaat.get('tempat_komuni')),
+                self.format_date(jemaat.get('tanggal_komuni')),
+                # SAKRAMEN KRISMA (columns 26-28)
+                self.format_display(jemaat.get('status_krisma')),
+                self.format_display(jemaat.get('tempat_krisma')),
+                self.format_date(jemaat.get('tanggal_krisma')),
+                # SAKRAMEN PERKAWINAN (columns 29-34)
+                self.format_display(jemaat.get('status_perkawinan')),
+                self.format_display(jemaat.get('keuskupan')),
+                self.format_display(jemaat.get('paroki')),
+                self.format_display(jemaat.get('kota_perkawinan')),
+                self.format_date(jemaat.get('tanggal_perkawinan')),
+                self.format_display(jemaat.get('status_perkawinan_detail')),
+                # STATUS (columns 35-37) - TOTAL 38 COLUMNS
+                self.format_display(jemaat.get('status_keanggotaan', 'Aktif')),
+                self.format_display(jemaat.get('wr_tujuan')),
+                self.format_display(jemaat.get('paroki_tujuan')),
+                self.get_creator_display(jemaat)  # Column 37: Created By Pengguna
             ]
 
             # Add data to columns 0-37 (total 38 data columns)
             for col, item_text in enumerate(data_items):
                 item = QTableWidgetItem(item_text)
                 # Center align certain columns for better readability
-                if col in [7, 8, 9, 10, 18, 19, 22, 23, 25, 26, 28, 34]:  # Status and categorical columns (adjusted for No. KK and NIK)
+                if col in [7, 8, 9, 10, 18, 19, 22, 23, 25, 26, 28, 34]:  # Status and categorical columns
                     item.setTextAlignment(Qt.AlignCenter)
                 else:
                     item.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
@@ -2056,3 +2036,217 @@ class JemaatClientComponent(QWidget):
         self.total_label.setStyleSheet("color: #2c3e50; font-weight: bold;")
         self.active_label.setStyleSheet("color: #27ae60; font-weight: bold;")
         self.inactive_label.setStyleSheet("color: #e74c3c; font-weight: bold;")
+
+    # ===== FORMATTING METHODS (matching server implementation) =====
+
+    def format_numeric(self, value, default='-'):
+        """Format numeric value (NIK, NO_KK) untuk display, hanya menampilkan angka saja"""
+        if value is None:
+            return default
+
+        if isinstance(value, str):
+            text = value.strip()
+            if not text or text.lower() in ('none', 'null', 'nan', ''):
+                return default
+            # Ambil hanya karakter numerik
+            numeric_text = ''.join(c for c in text if c.isdigit())
+            return numeric_text if numeric_text else default
+
+        if isinstance(value, (int, float)):
+            return str(int(value))
+
+        text = str(value).strip()
+        if not text or text.lower() in ('none', 'null', 'nan'):
+            return default
+        # Ambil hanya karakter numerik
+        numeric_text = ''.join(c for c in text if c.isdigit())
+        return numeric_text if numeric_text else default
+
+    def format_display(self, value, default='-'):
+        """Format generic value for display, replacing kosong/None with '-'."""
+        if value is None:
+            return default
+
+        if isinstance(value, str):
+            text = value.strip()
+            if not text or text.lower() in ('none', 'null', 'nan'):
+                return default
+            return text
+
+        text = str(value).strip()
+        if not text or text.lower() in ('none', 'null', 'nan'):
+            return default
+        return text
+
+    def format_date(self, date_value):
+        """Format date for display in spreadsheet - DD/MM/YYYY only"""
+        if not date_value:
+            return '-'
+
+        # Handle datetime objects
+        if hasattr(date_value, 'strftime'):
+            return date_value.strftime('%d/%m/%Y')
+
+        # Handle string dates
+        if isinstance(date_value, str):
+            text = date_value.strip()
+            if not text or text.lower() in ('none', 'null', 'nan'):
+                return '-'
+
+            # Try to parse various date formats
+            from datetime import datetime
+
+            # First try RFC 2822 format (from Flask API) - most common in this app
+            # Example: "Thu, 27 Nov 2025 00:00:00 GMT"
+            try:
+                # Remove day name and GMT suffix, parse the core date
+                import re
+                # Match pattern: "Day, DD Mon YYYY HH:MM:SS GMT"
+                match = re.match(r'^\w+,\s+(\d{1,2})\s+(\w+)\s+(\d{4})', text)
+                if match:
+                    day = match.group(1)
+                    month = match.group(2)
+                    year = match.group(3)
+                    # Parse using strptime
+                    parsed_date = datetime.strptime(f"{day} {month} {year}", '%d %b %Y')
+                    return parsed_date.strftime('%d/%m/%Y')
+            except (ValueError, AttributeError):
+                pass
+
+            # Try other common formats
+            date_formats = [
+                '%Y-%m-%d %H:%M:%S',  # 2025-11-22 14:30:00
+                '%Y-%m-%d',           # 2025-11-22
+                '%d/%m/%Y',           # 22/11/2025
+                '%d-%m-%Y',           # 22-11-2025
+            ]
+
+            for fmt in date_formats:
+                try:
+                    parsed_date = datetime.strptime(text.split('.')[0], fmt)
+                    return parsed_date.strftime('%d/%m/%Y')
+                except ValueError:
+                    continue
+
+            # If no format matched, return as-is (fallback)
+            return text
+
+        return self.format_display(date_value)
+
+    def format_gender(self, gender):
+        """Format gender for display"""
+        if gender == 'Laki-laki':
+            return 'L'
+        elif gender == 'Perempuan':
+            return 'P'
+        return self.format_display(gender)
+
+    def get_creator_display(self, row_data):
+        """Resolve nama pembuat data jemaat untuk tampilan tabel."""
+        if not row_data:
+            return 'System'
+
+        possible_keys = [
+            'created_by_name',
+            'created_by_pengguna_name',
+            'created_by_pengguna_fullname',
+            'created_by_username',
+            'created_by',
+            'dibuat_oleh',
+            'dibuat_oleh_nama',
+            'nama_pembuat',
+            'nama_user',
+            'creator_name'
+        ]
+
+        for key in possible_keys:
+            value = row_data.get(key)
+            display_value = self.format_display(value, default='')
+            if display_value:
+                return display_value
+
+        creator_info = row_data.get('created_by_pengguna')
+        if isinstance(creator_info, dict):
+            for sub_key in ['nama_lengkap', 'full_name', 'name', 'username']:
+                value = creator_info.get(sub_key)
+                display_value = self.format_display(value, default='')
+                if display_value:
+                    return display_value
+            return '-'
+
+        if creator_info in (None, '', 'None'):
+            return '-'
+
+        if isinstance(creator_info, str) and not creator_info.isdigit():
+            return self.format_display(creator_info)
+
+        name = self.lookup_pengguna_name(creator_info)
+        if name:
+            return self.format_display(name)
+
+        if creator_info not in (None, '', 'None'):
+            try:
+                numeric_id = int(creator_info)
+                return f"User #{numeric_id}"
+            except (TypeError, ValueError):
+                return self.format_display(creator_info)
+
+        return '-'
+
+    def lookup_pengguna_name(self, pengguna_id):
+        """Cari nama lengkap pengguna berdasarkan ID menggunakan cache lokal."""
+        if pengguna_id in (None, '', 'None'):
+            return ''
+
+        try:
+            pengguna_key = int(pengguna_id)
+        except (TypeError, ValueError):
+            return str(pengguna_id) if pengguna_id is not None else ''
+
+        if pengguna_key in self._pengguna_lookup:
+            return self._pengguna_lookup[pengguna_key]
+
+        self.load_pengguna_lookup()
+        return self._pengguna_lookup.get(pengguna_key, '')
+
+    def load_pengguna_lookup(self):
+        """Load data pengguna sekali untuk mapping ID -> nama pembuat."""
+        if self._pengguna_lookup_attempted:
+            return
+
+        self._pengguna_lookup_attempted = True
+        try:
+            from API.config import ServerConfig
+            import requests
+
+            response = requests.get(
+                f"{ServerConfig.API_BASE_URL}/pengguna",
+                timeout=10
+            )
+
+            if response.status_code != 200:
+                self._safe_log(f"Gagal memuat daftar pengguna: HTTP {response.status_code}")
+                return
+
+            payload = response.json() if response.text else {}
+            users = payload.get('data', []) if isinstance(payload, dict) else []
+
+            for user in users:
+                try:
+                    user_id = user.get('id_pengguna')
+                    if user_id is None:
+                        continue
+                    name = user.get('nama_lengkap') or user.get('username')
+                    if name:
+                        self._pengguna_lookup[int(user_id)] = str(name)
+                except Exception:
+                    continue
+        except Exception as exc:
+            self._safe_log(f"Error memuat data pengguna: {exc}")
+
+    def _safe_log(self, message):
+        """Kirim log message jika signal tersedia, abaikan jika gagal."""
+        try:
+            self.log_message.emit(message)
+        except Exception:
+            pass

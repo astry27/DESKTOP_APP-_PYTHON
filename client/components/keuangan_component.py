@@ -196,6 +196,7 @@ class KeuanganClientComponent(QWidget):
         self.sorted_data = []  # Data yang sudah di-sort untuk display di tabel
         self.current_user = None
         self._data_loaded = False  # Flag to track if data has been loaded
+        self.current_report_data = []  # Data untuk laporan yang sedang di-generate
 
         self.setup_ui()
 
@@ -379,7 +380,7 @@ class KeuanganClientComponent(QWidget):
         export_layout = QHBoxLayout()
         export_layout.addStretch()
 
-        export_button = self.create_action_button("Export Data", "#16a085", "#1abc9c", "export.png")
+        export_button = self.create_action_button(".CSV", "#16a085", "#1abc9c", "export.png")
         export_button.clicked.connect(self.export_data)
         export_button.setToolTip("Ekspor data ke CSV")
         export_layout.addWidget(export_button)
@@ -806,35 +807,41 @@ class KeuanganClientComponent(QWidget):
         """)
         controls_layout = QHBoxLayout(controls_frame)
 
-        controls_label = QLabel("Jenis Laporan:")
-        controls_label.setFont(QFont("Arial", 12, QFont.Bold))
-
-        self.report_type = QComboBox()
-        self.report_type.addItems([
-            "Laporan Bulanan",
-            "Laporan Tahunan",
-            "Laporan per Kategori",
-            "Laporan Ringkasan"
-        ])
-        self.report_type.setMinimumWidth(180)
-
-        # Period selection
-        period_label = QLabel("Periode:")
+        # Date range filter
+        period_label = QLabel("Periode Laporan:")
         period_label.setFont(QFont("Arial", 11, QFont.Bold))
 
-        self.month_filter = QComboBox()
-        self.month_filter.addItems([
-            "Semua Bulan", "Januari", "Februari", "Maret", "April", "Mei", "Juni",
-            "Juli", "Agustus", "September", "Oktober", "November", "Desember"
-        ])
-        self.month_filter.setMinimumWidth(120)
+        from_label = QLabel("Dari:")
+        from_label.setStyleSheet("font-weight: 500; color: #2c3e50;")
 
-        self.year_filter = QComboBox()
-        current_year = datetime.datetime.now().year
-        for year in range(current_year - 5, current_year + 2):
-            self.year_filter.addItem(str(year))
-        self.year_filter.setCurrentText(str(current_year))
-        self.year_filter.setMinimumWidth(80)
+        self.start_date_filter = QDateEdit()
+        self.start_date_filter.setCalendarPopup(True)
+        self.start_date_filter.setDisplayFormat("dd/MM/yyyy")
+        self.start_date_filter.setDate(QDate.currentDate().addMonths(-1))  # Default 1 bulan lalu
+        self.start_date_filter.setMinimumWidth(120)
+        self.start_date_filter.setStyleSheet("""
+            QDateEdit {
+                padding: 5px;
+                border: 1px solid #bdc3c7;
+                border-radius: 3px;
+            }
+        """)
+
+        to_label = QLabel("Sampai:")
+        to_label.setStyleSheet("font-weight: 500; color: #2c3e50;")
+
+        self.end_date_filter = QDateEdit()
+        self.end_date_filter.setCalendarPopup(True)
+        self.end_date_filter.setDisplayFormat("dd/MM/yyyy")
+        self.end_date_filter.setDate(QDate.currentDate())  # Default hari ini
+        self.end_date_filter.setMinimumWidth(120)
+        self.end_date_filter.setStyleSheet("""
+            QDateEdit {
+                padding: 5px;
+                border: 1px solid #bdc3c7;
+                border-radius: 3px;
+            }
+        """)
 
         generate_button = QPushButton("Generate Laporan")
         generate_button.setStyleSheet("""
@@ -853,32 +860,33 @@ class KeuanganClientComponent(QWidget):
         """)
         generate_button.clicked.connect(self.generate_report)
 
-        export_pdf_button = QPushButton("Export PDF")
-        export_pdf_button.setStyleSheet("""
+        export_csv_button = QPushButton(".CSV")
+        export_csv_button.setStyleSheet("""
             QPushButton {
-                background-color: #3498db;
+                background-color: #16a085;
                 color: white;
                 padding: 8px 15px;
                 border: none;
                 border-radius: 5px;
                 font-weight: bold;
-                min-width: 100px;
+                min-width: 140px;
             }
             QPushButton:hover {
-                background-color: #2980b9;
+                background-color: #138d75;
             }
         """)
-        export_pdf_button.clicked.connect(self.export_report_pdf)
+        export_csv_button.clicked.connect(self.export_report_csv)
 
-        controls_layout.addWidget(controls_label)
-        controls_layout.addWidget(self.report_type)
-        controls_layout.addSpacing(20)
         controls_layout.addWidget(period_label)
-        controls_layout.addWidget(self.month_filter)
-        controls_layout.addWidget(self.year_filter)
+        controls_layout.addSpacing(10)
+        controls_layout.addWidget(from_label)
+        controls_layout.addWidget(self.start_date_filter)
+        controls_layout.addSpacing(10)
+        controls_layout.addWidget(to_label)
+        controls_layout.addWidget(self.end_date_filter)
         controls_layout.addSpacing(20)
         controls_layout.addWidget(generate_button)
-        controls_layout.addWidget(export_pdf_button)
+        controls_layout.addWidget(export_csv_button)
         controls_layout.addStretch()
 
         layout.addWidget(controls_frame)
@@ -1856,23 +1864,143 @@ Jumlah: Rp {selected_data.get('jumlah', 0):,.0f}
         current_date = datetime.datetime.now().strftime("%d/%m/%Y")
         user_name = self.api_client.user_data.get('nama_lengkap', 'User') if self.api_client.user_data else 'User'
 
-        # Calculate totals
-        total_transaksi = len(self.filtered_data)
-        total_pemasukan = sum(t.get('jumlah', 0) for t in self.filtered_data if (t.get('jenis', '') or '').lower() == 'pemasukan')
-        total_pengeluaran = sum(t.get('jumlah', 0) for t in self.filtered_data if (t.get('jenis', '') or '').lower() == 'pengeluaran')
-        saldo = total_pemasukan - total_pengeluaran
+        # Get default date range (1 month)
+        start_date = self.start_date_filter.date().toPyDate()
+        end_date = self.end_date_filter.date().toPyDate()
 
         return f"""
-        <h2 style="color: #27ae60; text-align: center;">LAPORAN KEUANGAN PRIBADI</h2>
-        <p style="text-align: center; color: #7f8c8d;">Nama: {user_name}</p>
-        <p style="text-align: center; color: #7f8c8d;">Tanggal Laporan: {current_date}</p>
+        <h2 style="color: #27ae60; text-align: center;">LAPORAN KEUANGAN</h2>
+        <p style="text-align: center; color: #7f8c8d;"><strong>Silakan pilih periode laporan dan klik "Generate Laporan"</strong></p>
+        <hr>
+
+        <div style="text-align: center; padding: 50px;">
+            <p style="color: #7f8c8d; font-size: 14px;">
+            📊 Pilih tanggal mulai dan tanggal akhir periode laporan<br><br>
+            📋 Klik tombol <strong>Generate Laporan</strong> untuk melihat laporan<br><br>
+            💾 Gunakan tombol <strong>.CSV</strong> untuk mengunduh laporan
+            </p>
+        </div>
+
+        <hr>
+        <p style="color: #7f8c8d; font-size: 10px; text-align: center;">
+        Sistem Informasi Keuangan<br>
+        User: {user_name} | Tanggal: {current_date}
+        </p>
+        """
+
+    def generate_report(self):
+        """Generate financial report based on date range"""
+        try:
+            # Get date range from filters
+            start_date = self.start_date_filter.date().toPyDate()
+            end_date = self.end_date_filter.date().toPyDate()
+
+            print(f"[DEBUG] Generating report from {start_date} to {end_date}")
+            print(f"[DEBUG] Total keuangan_data: {len(self.keuangan_data)}")
+
+            # Validate date range
+            if start_date > end_date:
+                QMessageBox.warning(self, "Error", "Tanggal awal tidak boleh lebih besar dari tanggal akhir")
+                return
+
+            # Filter data berdasarkan date range
+            filtered_data = []
+
+            for t in self.keuangan_data:
+                tanggal = t.get('tanggal', '')
+                if not tanggal:
+                    continue
+
+                try:
+                    # Parse tanggal transaksi
+                    t_date = self._parse_date_to_date_object(tanggal)
+                    if t_date:
+                        # Check if date is within range (inclusive)
+                        if start_date <= t_date <= end_date:
+                            filtered_data.append(t)
+                except Exception as e:
+                    print(f"[WARN] Failed to parse date '{tanggal}': {e}")
+                    continue
+
+            print(f"[DEBUG] Filtered data count: {len(filtered_data)}")
+
+            # Simpan data laporan saat ini untuk export
+            self.current_report_data = filtered_data
+
+            # Sort data by date (oldest first)
+            self.current_report_data.sort(key=lambda x: self._parse_date_to_date_object(x.get('tanggal', '')) or datetime.date.min)
+
+            # Generate report
+            html = self._generate_date_range_report(filtered_data, start_date, end_date)
+
+            self.report_content.setHtml(html)
+            self.log_message.emit(f"Laporan periode {start_date.strftime('%d/%m/%Y')} - {end_date.strftime('%d/%m/%Y')} berhasil digenerate dengan {len(filtered_data)} transaksi")
+
+        except Exception as e:
+            print(f"[ERROR] Error generating report: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            QMessageBox.critical(self, "Error", f"Gagal generate laporan: {str(e)}")
+
+    def _parse_date_to_date_object(self, date_str):
+        """Parse date string to date object for comparison"""
+        if not date_str:
+            return None
+        try:
+            dt = None
+            if isinstance(date_str, str):
+                date_str = date_str.strip()
+
+                # Handle RFC 1123 / GMT format
+                if 'GMT' in date_str or date_str.count(',') == 1:
+                    try:
+                        from email.utils import parsedate_to_datetime
+                        dt = parsedate_to_datetime(date_str)
+                    except:
+                        pass
+                # Handle ISO format with time
+                elif 'T' in date_str or (' ' in date_str and ':' in date_str):
+                    try:
+                        dt = datetime.datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+                    except:
+                        parts = date_str.split('T')[0] if 'T' in date_str else date_str.split(' ')[0]
+                        dt = datetime.datetime.strptime(parts, '%Y-%m-%d')
+                # Handle date only format
+                elif '-' in date_str:
+                    parts = date_str.split(' ')[0] if ' ' in date_str else date_str
+                    dt = datetime.datetime.strptime(parts, '%Y-%m-%d')
+                # Handle dd/mm/yyyy format
+                elif '/' in date_str:
+                    try:
+                        dt = datetime.datetime.strptime(date_str, '%d/%m/%Y')
+                    except:
+                        try:
+                            dt = datetime.datetime.strptime(date_str, '%m/%d/%Y')
+                        except:
+                            pass
+
+            return dt.date() if dt else None
+        except Exception as e:
+            print(f"[WARN] Failed to parse date to date object '{date_str}': {e}")
+            return None
+
+    def _generate_date_range_report(self, data, start_date, end_date):
+        """Generate report for specific date range"""
+        # Calculate totals
+        total_pemasukan = sum(t.get('jumlah', 0) for t in data if (t.get('jenis', '') or '').lower() == 'pemasukan')
+        total_pengeluaran = sum(t.get('jumlah', 0) for t in data if (t.get('jenis', '') or '').lower() == 'pengeluaran')
+        saldo = total_pemasukan - total_pengeluaran
+
+        html = f"""
+        <h2 style="color: #27ae60; text-align: center;">LAPORAN KEUANGAN</h2>
+        <p style="text-align: center; color: #7f8c8d;"><strong>Periode: {start_date.strftime('%d/%m/%Y')} - {end_date.strftime('%d/%m/%Y')}</strong></p>
         <hr>
 
         <h3 style="color: #2c3e50;">📊 RINGKASAN KEUANGAN</h3>
-        <table style="width: 100%; border-collapse: collapse;">
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
             <tr style="background-color: #ecf0f1;">
                 <td style="padding: 10px; border: 1px solid #bdc3c7;"><strong>Total Transaksi</strong></td>
-                <td style="padding: 10px; border: 1px solid #bdc3c7; text-align: right;"><strong>{total_transaksi}</strong></td>
+                <td style="padding: 10px; border: 1px solid #bdc3c7; text-align: right;"><strong>{len(data)}</strong></td>
             </tr>
             <tr>
                 <td style="padding: 10px; border: 1px solid #bdc3c7;"><strong>Total Pemasukan</strong></td>
@@ -1883,92 +2011,228 @@ Jumlah: Rp {selected_data.get('jumlah', 0):,.0f}
                 <td style="padding: 10px; border: 1px solid #bdc3c7; text-align: right; color: #e74c3c;"><strong>Rp {total_pengeluaran:,.0f}</strong></td>
             </tr>
             <tr>
-                <td style="padding: 10px; border: 1px solid #bdc3c7;"><strong>Saldo Akhir</strong></td>
+                <td style="padding: 10px; border: 1px solid #bdc3c7;"><strong>Saldo</strong></td>
                 <td style="padding: 10px; border: 1px solid #bdc3c7; text-align: right; color: {'#27ae60' if saldo >= 0 else '#e74c3c'};"><strong>Rp {saldo:,.0f}</strong></td>
             </tr>
         </table>
 
-        <h3 style="color: #2c3e50; margin-top: 20px;">📋 DAFTAR TRANSAKSI TERAKHIR</h3>
-        <p style="color: #7f8c8d; font-size: 11px;">Menampilkan 10 transaksi terakhir</p>
-        <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+        <h3 style="color: #2c3e50;">📋 DAFTAR TRANSAKSI</h3>
+        <table style="width: 100%; border-collapse: collapse;">
             <tr style="background-color: #34495e; color: white;">
+                <th style="padding: 8px; border: 1px solid #bdc3c7; text-align: center;">No</th>
                 <th style="padding: 8px; border: 1px solid #bdc3c7; text-align: left;">Tanggal</th>
                 <th style="padding: 8px; border: 1px solid #bdc3c7; text-align: left;">Jenis</th>
                 <th style="padding: 8px; border: 1px solid #bdc3c7; text-align: left;">Kategori</th>
                 <th style="padding: 8px; border: 1px solid #bdc3c7; text-align: left;">Keterangan</th>
                 <th style="padding: 8px; border: 1px solid #bdc3c7; text-align: right;">Jumlah</th>
             </tr>
+        """
+
+        # Add transaction rows
+        for idx, transaksi in enumerate(data, 1):
+            tanggal = self._format_date(transaksi.get('tanggal', ''))
+            jenis = transaksi.get('jenis', '') or transaksi.get('tipe', '')
+            kategori = transaksi.get('sub_kategori') or transaksi.get('kategori', '')
+            keterangan = transaksi.get('keterangan', '')
+            jumlah = transaksi.get('jumlah', 0) or transaksi.get('nominal', 0) or 0
+
+            bg_color = "#ecf0f1" if idx % 2 == 0 else "white"
+            jenis_color = "#27ae60" if jenis.lower() == "pemasukan" else "#e74c3c"
+
+            html += f"""
+            <tr style="background-color: {bg_color};">
+                <td style="padding: 8px; border: 1px solid #bdc3c7; text-align: center;">{idx}</td>
+                <td style="padding: 8px; border: 1px solid #bdc3c7;">{tanggal}</td>
+                <td style="padding: 8px; border: 1px solid #bdc3c7; color: {jenis_color};"><strong>{jenis}</strong></td>
+                <td style="padding: 8px; border: 1px solid #bdc3c7;">{kategori}</td>
+                <td style="padding: 8px; border: 1px solid #bdc3c7;">{keterangan}</td>
+                <td style="padding: 8px; border: 1px solid #bdc3c7; text-align: right; color: {jenis_color};">Rp {jumlah:,.0f}</td>
+            </tr>
+            """
+
+        html += """
         </table>
 
-        <hr>
+        <hr style="margin-top: 30px;">
         <p style="color: #7f8c8d; font-size: 10px; text-align: center;">
-        Laporan ini menampilkan data keuangan pribadi Anda.<br>
-        Dihasilkan otomatis oleh sistem pada {current_date}.
+        Laporan ini dihasilkan otomatis oleh sistem.
         </p>
         """
 
-    def generate_report(self):
-        """Generate financial report based on selected criteria"""
-        try:
-            report_type = self.report_type.currentText()
-            month = self.month_filter.currentIndex()  # 0 = Semua, 1-12 = Jan-Des
-            year = int(self.year_filter.currentText())
-
-            # Filter data berdasarkan periode
-            filtered_data = self.filtered_data.copy()
-
-            if month > 0:  # Jika bulan dipilih
-                filtered_data = [
-                    t for t in filtered_data
-                    if self._get_month_from_date(t.get('tanggal', '')) == month
-                    and self._get_year_from_date(t.get('tanggal', '')) == year
-                ]
-            else:  # Semua bulan tahun terpilih
-                filtered_data = [
-                    t for t in filtered_data
-                    if self._get_year_from_date(t.get('tanggal', '')) == year
-                ]
-
-            # Generate report berdasarkan jenis laporan
-            if report_type == "Laporan Bulanan":
-                html = self._generate_monthly_report(filtered_data, month, year)
-            elif report_type == "Laporan Tahunan":
-                html = self._generate_yearly_report(filtered_data, year)
-            elif report_type == "Laporan per Kategori":
-                html = self._generate_category_report(filtered_data, year)
-            else:  # Laporan Ringkasan
-                html = self._generate_summary_report(filtered_data, month, year)
-
-            self.report_content.setHtml(html)
-            self.log_message.emit(f"Laporan {report_type} berhasil digenerate")
-
-        except Exception as e:
-            print(f"[ERROR] Error generating report: {str(e)}")
-            import traceback
-            traceback.print_exc()
-            QMessageBox.critical(self, "Error", f"Gagal generate laporan: {str(e)}")
+        return html
 
     def _get_month_from_date(self, date_str):
         """Extract month from date string"""
+        if not date_str:
+            return 0
         try:
-            if 'T' in date_str or ' ' in date_str:
-                dt = datetime.datetime.fromisoformat(date_str.replace('Z', '+00:00'))
-            else:
-                dt = datetime.datetime.strptime(date_str, '%Y-%m-%d')
-            return dt.month
-        except:
+            dt = None
+            if isinstance(date_str, str):
+                date_str = date_str.strip()
+
+                # Handle RFC 1123 / GMT format
+                if 'GMT' in date_str or date_str.count(',') == 1:
+                    try:
+                        from email.utils import parsedate_to_datetime
+                        dt = parsedate_to_datetime(date_str)
+                    except:
+                        pass
+                # Handle ISO format with time
+                elif 'T' in date_str or (' ' in date_str and ':' in date_str):
+                    try:
+                        dt = datetime.datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+                    except:
+                        parts = date_str.split('T')[0] if 'T' in date_str else date_str.split(' ')[0]
+                        dt = datetime.datetime.strptime(parts, '%Y-%m-%d')
+                # Handle date only format
+                elif '-' in date_str:
+                    parts = date_str.split(' ')[0] if ' ' in date_str else date_str
+                    dt = datetime.datetime.strptime(parts, '%Y-%m-%d')
+                # Handle dd/mm/yyyy format
+                elif '/' in date_str:
+                    try:
+                        dt = datetime.datetime.strptime(date_str, '%d/%m/%Y')
+                    except:
+                        try:
+                            dt = datetime.datetime.strptime(date_str, '%m/%d/%Y')
+                        except:
+                            pass
+
+            return dt.month if dt else 0
+        except Exception as e:
+            print(f"[WARN] Failed to extract month from '{date_str}': {e}")
             return 0
 
     def _get_year_from_date(self, date_str):
         """Extract year from date string"""
-        try:
-            if 'T' in date_str or ' ' in date_str:
-                dt = datetime.datetime.fromisoformat(date_str.replace('Z', '+00:00'))
-            else:
-                dt = datetime.datetime.strptime(date_str, '%Y-%m-%d')
-            return dt.year
-        except:
+        if not date_str:
             return 0
+        try:
+            dt = None
+            if isinstance(date_str, str):
+                date_str = date_str.strip()
+
+                # Handle RFC 1123 / GMT format
+                if 'GMT' in date_str or date_str.count(',') == 1:
+                    try:
+                        from email.utils import parsedate_to_datetime
+                        dt = parsedate_to_datetime(date_str)
+                    except:
+                        pass
+                # Handle ISO format with time
+                elif 'T' in date_str or (' ' in date_str and ':' in date_str):
+                    try:
+                        dt = datetime.datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+                    except:
+                        parts = date_str.split('T')[0] if 'T' in date_str else date_str.split(' ')[0]
+                        dt = datetime.datetime.strptime(parts, '%Y-%m-%d')
+                # Handle date only format
+                elif '-' in date_str:
+                    parts = date_str.split(' ')[0] if ' ' in date_str else date_str
+                    dt = datetime.datetime.strptime(parts, '%Y-%m-%d')
+                # Handle dd/mm/yyyy format
+                elif '/' in date_str:
+                    try:
+                        dt = datetime.datetime.strptime(date_str, '%d/%m/%Y')
+                    except:
+                        try:
+                            dt = datetime.datetime.strptime(date_str, '%m/%d/%Y')
+                        except:
+                            pass
+
+            return dt.year if dt else 0
+        except Exception as e:
+            print(f"[WARN] Failed to extract year from '{date_str}': {e}")
+            return 0
+
+    def export_report_csv(self):
+        """Export current report data to CSV"""
+        if not hasattr(self, 'current_report_data') or not self.current_report_data:
+            QMessageBox.warning(self, "Warning", "Belum ada laporan yang di-generate. Silakan generate laporan terlebih dahulu.")
+            return
+
+        try:
+            # Get date range for filename
+            start_date = self.start_date_filter.date().toPyDate()
+            end_date = self.end_date_filter.date().toPyDate()
+
+            # Build filename based on date range
+            filename = f"Laporan_Keuangan_{start_date.strftime('%d-%m-%Y')}_sampai_{end_date.strftime('%d-%m-%Y')}.csv"
+
+            file_path, _ = QFileDialog.getSaveFileName(
+                self,
+                "Export Laporan Keuangan CSV",
+                filename,
+                "CSV Files (*.csv)"
+            )
+
+            if file_path:
+                import csv
+                with open(file_path, 'w', newline='', encoding='utf-8-sig') as csvfile:
+                    fieldnames = ['No', 'Tanggal', 'Jenis', 'Kategori', 'Keterangan', 'Jumlah']
+                    writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+
+                    writer.writeheader()
+
+                    # Write data rows
+                    for idx, transaksi in enumerate(self.current_report_data, 1):
+                        tanggal = self._format_date(transaksi.get('tanggal', ''))
+                        jenis = transaksi.get('jenis', '') or transaksi.get('tipe', '')
+                        kategori = transaksi.get('sub_kategori') or transaksi.get('kategori', '')
+                        keterangan = transaksi.get('keterangan', '')
+                        jumlah = transaksi.get('jumlah', 0) or transaksi.get('nominal', 0) or 0
+
+                        writer.writerow({
+                            'No': idx,
+                            'Tanggal': tanggal,
+                            'Jenis': jenis,
+                            'Kategori': kategori,
+                            'Keterangan': keterangan,
+                            'Jumlah': jumlah
+                        })
+
+                    # Add summary rows
+                    total_pemasukan = sum(t.get('jumlah', 0) for t in self.current_report_data if (t.get('jenis', '') or '').lower() == 'pemasukan')
+                    total_pengeluaran = sum(t.get('jumlah', 0) for t in self.current_report_data if (t.get('jenis', '') or '').lower() == 'pengeluaran')
+                    saldo = total_pemasukan - total_pengeluaran
+
+                    # Empty row
+                    writer.writerow({})
+
+                    # Summary
+                    writer.writerow({
+                        'No': '',
+                        'Tanggal': '',
+                        'Jenis': '',
+                        'Kategori': 'RINGKASAN',
+                        'Keterangan': 'Total Pemasukan',
+                        'Jumlah': total_pemasukan
+                    })
+                    writer.writerow({
+                        'No': '',
+                        'Tanggal': '',
+                        'Jenis': '',
+                        'Kategori': '',
+                        'Keterangan': 'Total Pengeluaran',
+                        'Jumlah': total_pengeluaran
+                    })
+                    writer.writerow({
+                        'No': '',
+                        'Tanggal': '',
+                        'Jenis': '',
+                        'Kategori': '',
+                        'Keterangan': 'Saldo',
+                        'Jumlah': saldo
+                    })
+
+                QMessageBox.information(self, "Export Berhasil", f"Laporan berhasil diekspor ke:\n{file_path}")
+                self.log_message.emit(f"Laporan keuangan periode {start_date.strftime('%d/%m/%Y')} - {end_date.strftime('%d/%m/%Y')} berhasil diekspor ke {file_path}")
+
+        except Exception as e:
+            print(f"[ERROR] Error exporting report CSV: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            QMessageBox.critical(self, "Error", f"Gagal mengekspor laporan:\n{str(e)}")
 
     def _generate_monthly_report(self, data, month, year):
         """Generate monthly financial report"""
@@ -2055,10 +2319,14 @@ Jumlah: Rp {selected_data.get('jumlah', 0):,.0f}
                     tanggal_formatted = str(tanggal)
             tanggal = tanggal_formatted
 
-            jenis = transaksi.get('jenis', 'N/A')
-            kategori = transaksi.get('kategori', 'N/A')
+            jenis = transaksi.get('jenis', '') or transaksi.get('tipe', 'N/A')
+            kategori = transaksi.get('sub_kategori') or transaksi.get('kategori', 'N/A')
             keterangan = transaksi.get('keterangan', 'N/A')
-            jumlah = transaksi.get('jumlah', 0)
+            jumlah = transaksi.get('jumlah', 0) or transaksi.get('nominal', 0) or 0
+            try:
+                jumlah = float(jumlah)
+            except:
+                jumlah = 0
             warna = '#27ae60' if jenis.lower() == 'pemasukan' else '#e74c3c'
 
             html += f"""
@@ -2127,8 +2395,14 @@ Jumlah: Rp {selected_data.get('jumlah', 0):,.0f}
         """Generate category-based financial report"""
         categories = {}
         for transaksi in data:
-            kategori = transaksi.get('kategori', 'Lainnya')
-            jumlah = transaksi.get('jumlah', 0)
+            # Support both endpoint formats
+            kategori = transaksi.get('sub_kategori') or transaksi.get('kategori', 'Lainnya')
+            jumlah = transaksi.get('jumlah', 0) or transaksi.get('nominal', 0) or 0
+            try:
+                jumlah = float(jumlah)
+            except:
+                jumlah = 0
+
             if kategori not in categories:
                 categories[kategori] = 0
             categories[kategori] += jumlah

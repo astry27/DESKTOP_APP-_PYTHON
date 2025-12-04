@@ -304,17 +304,14 @@ class ProgramKerjaKegiatanParokiWidget(QWidget):
         action_layout = QHBoxLayout()
         action_layout.addStretch()
 
-        edit_button = self.create_button("Edit Terpilih", "#f39c12", self.edit_kegiatan, "server/assets/edit.png")
+        edit_button = self.create_button("Edit", "#f39c12", self.edit_kegiatan, "server/assets/edit.png")
         action_layout.addWidget(edit_button)
 
-        delete_button = self.create_button("Hapus Terpilih", "#c0392b", self.delete_kegiatan, "server/assets/hapus.png")
+        delete_button = self.create_button("Hapus", "#c0392b", self.delete_kegiatan, "server/assets/hapus.png")
         action_layout.addWidget(delete_button)
 
-        export_button = self.create_button("Export Jadwal", "#16a085", self.export_kegiatan, "server/assets/export.png")
+        export_button = self.create_button(".CSV", "#16a085", self.export_kegiatan, "server/assets/export.png")
         action_layout.addWidget(export_button)
-
-        refresh_button = self.create_button("Refresh", "#8e44ad", self.load_data, "server/assets/refresh.png")
-        action_layout.addWidget(refresh_button)
 
         return action_layout
 

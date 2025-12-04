@@ -172,10 +172,8 @@ class ServerMainWindow(QMainWindow):
         main_layout = QHBoxLayout(central_widget)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
-        
+
         self.sidebar = SidebarWidget()
-        # PENTING: Set database manager ke sidebar agar status API bisa diupdate
-        self.sidebar.set_database_manager(self.db)
         main_layout.addWidget(self.sidebar)
         
         separator = QFrame()
@@ -351,6 +349,9 @@ class ServerMainWindow(QMainWindow):
 
         # Submenu Kelompok Kategorial connections
         self.sidebar.submenu_kelompok_kategorial.menu_clicked.connect(self.on_kelompok_kategorial_menu_selected)
+
+        # Logout connection
+        self.sidebar.logout_requested.connect(self.on_logout_requested)
 
         self.server_control.log_message.connect(self.server_control.add_log_message)
 
@@ -802,7 +803,128 @@ class ServerMainWindow(QMainWindow):
         msg.setText(help_text)
         msg.setStandardButtons(QMessageBox.Ok)
         msg.exec_()
-    
+
+    def on_logout_requested(self):
+        """Handle logout request dari sidebar"""
+        try:
+            # Log logout activity
+            self.log_admin_activity("Logout", "Administrator logout dari sistem")
+
+            # Stop all timers in components
+            for component_name in ['dokumen_component', 'riwayat_component', 'server_control']:
+                if hasattr(self, component_name):
+                    component = getattr(self, component_name)
+                    if hasattr(component, 'update_timer') and component.update_timer:
+                        component.update_timer.stop()
+                    if hasattr(component, 'status_timer') and component.status_timer:
+                        component.status_timer.stop()
+
+            # Reset current admin
+            self.current_admin = None
+
+            # Hide main window
+            self.hide()
+
+            # Show login dialog
+            self.show_login()
+
+            # Jika login berhasil, tampilkan kembali main window dan refresh
+            if self.current_admin:
+                # Update admin info di semua komponen
+                self.dashboard_component.set_current_admin(self.current_admin)
+                self.struktur_component.set_current_admin(self.current_admin)
+                self.proker_dpp_page.set_current_admin(self.current_admin)
+                self.kegiatan_paroki_page.set_current_admin(self.current_admin)
+                self.aset_component.set_current_admin(self.current_admin)
+                self.pengumuman_component.set_current_admin(self.current_admin)
+                self.dokumen_component.set_current_admin(self.current_admin)
+                self.keuangan_component.set_current_admin(self.current_admin)
+                self.tim_pembina_component.set_current_admin(self.current_admin)
+                self.buku_kronik_component.set_current_admin(self.current_admin)
+                self.kegiatan_wr_page.set_current_admin(self.current_admin)
+                self.proker_wr_page.set_current_admin(self.current_admin)
+                self.struktur_wr_page.set_current_admin(self.current_admin)
+                self.keuangan_wr_page.set_current_admin(self.current_admin)
+                self.struktur_kategorial_page.set_current_admin(self.current_admin)
+                self.keuangan_kategorial_page.set_current_admin(self.current_admin)
+                self.proker_kategorial_page.set_current_admin(self.current_admin)
+
+                # Update window title
+                admin_name = self.current_admin.get('nama_lengkap', 'Administrator')
+                self.setWindowTitle(f"Server Admin Panel - {admin_name} (API Mode)")
+
+                # Log login baru
+                self.log_admin_activity("Login berhasil", "Administrator login ke sistem")
+                self.server_control.add_log_message(f"Login berhasil: {admin_name}")
+
+                # Reload data
+                if self.db and self.db.connection:
+                    self.load_all_data()
+
+                # Show main window again
+                self.show()
+
+                # Reset ke dashboard
+                self.show_page(0)
+            else:
+                # Jika login gagal/dibatalkan, tutup aplikasi
+                self.close()
+
+        except Exception as e:
+            print(f"Error saat logout: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Terjadi kesalahan saat logout: {str(e)}")
+
+    def refresh_current_component(self):
+        """Refresh data pada komponen yang sedang aktif"""
+        try:
+            current_index = self.content_stack.currentIndex()
+
+            # Mapping index ke komponen
+            component_map = {
+                0: ('dashboard_component', 'Dashboard'),
+                1: ('jemaat_component', 'Database Umat'),
+                2: ('struktur_component', 'Struktur Organisasi'),
+                3: ('proker_dpp_page', 'Program Kerja DPP'),
+                4: ('kegiatan_paroki_page', 'Kegiatan Paroki'),
+                5: ('aset_component', 'Aset'),
+                6: ('pengumuman_component', 'Pengumuman'),
+                7: ('dokumen_component', 'Dokumen'),
+                8: ('keuangan_component', 'Keuangan'),
+                9: ('tim_pembina_component', 'Tim Pembina'),
+                10: ('buku_kronik_component', 'Buku Kronik'),
+                11: ('kegiatan_wr_page', 'Kegiatan WR'),
+                12: ('proker_wr_page', 'Program Kerja WR'),
+                13: ('struktur_wr_page', 'Struktur WR'),
+                14: ('keuangan_wr_page', 'Keuangan WR'),
+                15: ('struktur_kategorial_page', 'Struktur Kategorial'),
+                16: ('keuangan_kategorial_page', 'Keuangan Kategorial'),
+                17: ('proker_kategorial_page', 'Program Kerja Kategorial'),
+                18: ('pengguna_component', 'Pengguna'),
+                19: ('riwayat_component', 'Riwayat'),
+                20: ('pengaturan_component', 'Pengaturan'),
+                21: ('server_control', 'Kontrol Server'),
+            }
+
+            if current_index in component_map:
+                component_name, display_name = component_map[current_index]
+
+                if hasattr(self, component_name):
+                    component = getattr(self, component_name)
+
+                    # Panggil load_data jika ada
+                    if hasattr(component, 'load_data'):
+                        component.load_data()
+                        self.server_control.add_log_message(f"Data {display_name} berhasil di-refresh")
+                    elif hasattr(component, 'refresh_status'):
+                        component.refresh_status()
+                        self.server_control.add_log_message(f"{display_name} berhasil di-refresh")
+                    else:
+                        self.server_control.add_log_message(f"{display_name} tidak memiliki fungsi refresh")
+
+        except Exception as e:
+            print(f"Error saat refresh: {str(e)}")
+            self.server_control.add_log_message(f"Error refresh: {str(e)}")
+
     def closeEvent(self, event):
         try:
             # Log logout activity

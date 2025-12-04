@@ -412,13 +412,13 @@ class StrukturWRComponent(BaseStrukturComponent):
         button_layout.setSpacing(10)
         button_layout.addStretch()
 
-        edit_btn = self.create_button("Edit Terpilih", "#f39c12", self.edit_wr, "server/assets/edit.png")
+        edit_btn = self.create_button("Edit", "#f39c12", self.edit_wr, "server/assets/edit.png")
         button_layout.addWidget(edit_btn)
 
-        delete_btn = self.create_button("Hapus Terpilih", "#e74c3c", self.delete_wr, "server/assets/hapus.png")
+        delete_btn = self.create_button("Hapus", "#e74c3c", self.delete_wr, "server/assets/hapus.png")
         button_layout.addWidget(delete_btn)
 
-        export_btn = self.create_button("Export Data", "#16a085", self.export_wr_data, "server/assets/export.png")
+        export_btn = self.create_button(".CSV", "#16a085", self.export_wr_data, "server/assets/export.png")
         button_layout.addWidget(export_btn)
 
         return button_layout

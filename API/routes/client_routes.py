@@ -304,24 +304,90 @@ def get_active_clients():
     status_check = check_api_enabled()
     if status_check:
         return status_check
-    
+
     connection = get_db_connection()
     if not connection:
         return jsonify({'status': 'error', 'message': 'Database error'}), 500
-    
+
     try:
         cursor = connection.cursor(dictionary=True)
-        
+
         # Menggunakan view yang sudah ada
         query = "SELECT * FROM v_active_clients ORDER BY last_activity DESC"
         cursor.execute(query)
         result = cursor.fetchall()
         cursor.close()
         connection.close()
-        
+
         return jsonify({
             'status': 'success',
             'data': result
+        })
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@client_bp.route('/connections/history', methods=['GET'])
+def get_client_connections_history():
+    """Ambil semua riwayat koneksi client (aktif dan terputus)"""
+    status_check = check_api_enabled()
+    if status_check:
+        return status_check
+
+    connection = get_db_connection()
+    if not connection:
+        return jsonify({'status': 'error', 'message': 'Database error'}), 500
+
+    try:
+        limit = request.args.get('limit', 100, type=int)
+        offset = request.args.get('offset', 0, type=int)
+        status_filter = request.args.get('status', None)  # 'Terhubung' atau 'Terputus'
+
+        cursor = connection.cursor(dictionary=True)
+
+        # Query untuk ambil semua koneksi client dengan informasi lengkap
+        query = """
+        SELECT
+            id_connection,
+            client_ip,
+            hostname,
+            status,
+            connect_time,
+            disconnect_time,
+            last_activity,
+            TIMESTAMPDIFF(SECOND, last_activity, NOW()) as seconds_since_activity
+        FROM client_connections
+        """
+
+        params = []
+
+        if status_filter:
+            query += " WHERE status = %s"
+            params.append(status_filter)
+
+        query += " ORDER BY last_activity DESC LIMIT %s OFFSET %s"
+        params.extend([limit, offset])
+
+        cursor.execute(query, params)
+        result = cursor.fetchall()
+
+        # Proses hasil untuk menambahkan informasi status yang lebih detail
+        for row in result:
+            if row['status'] == 'Terhubung':
+                # Cek apakah benar-benar masih aktif (< 5 menit)
+                if row['seconds_since_activity'] > 300:
+                    row['actual_status'] = 'Timeout'
+                else:
+                    row['actual_status'] = 'Aktif'
+            else:
+                row['actual_status'] = 'Terputus'
+
+        cursor.close()
+        connection.close()
+
+        return jsonify({
+            'status': 'success',
+            'data': result,
+            'total': len(result)
         })
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500

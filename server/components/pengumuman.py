@@ -1,10 +1,10 @@
 # Path: server/components/pengumuman.py
 
 import datetime
-from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
+from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                             QPushButton, QTableWidget, QTableWidgetItem,
                             QHeaderView, QMessageBox, QGroupBox, QCheckBox,
-                            QTextBrowser, QAbstractItemView, QFrame)
+                            QTextBrowser, QAbstractItemView, QFrame, QComboBox, QDateEdit)
 from PyQt5.QtCore import pyqtSignal, QSize, Qt
 from PyQt5.QtGui import QColor, QIcon, QFont
 
@@ -20,6 +20,7 @@ class PengumumanComponent(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.pengumuman_data = []
+        self.all_pengumuman_data = []  # Backup semua data untuk filtering
         self.db_manager = None
         self.current_admin = None
         self.setup_ui()
@@ -114,7 +115,7 @@ class PengumumanComponent(QWidget):
         table.itemSelectionChanged.connect(self.show_pengumuman_detail)
         
         # Enable context menu
-        table.setContextMenuPolicy(3)  # Qt.CustomContextMenu
+        table.setContextMenuPolicy(Qt.CustomContextMenu)
         table.customContextMenuRequested.connect(self.show_context_menu)
         
         return table
@@ -238,7 +239,7 @@ class PengumumanComponent(QWidget):
         header = QWidget()
         header_layout = QHBoxLayout(header)
         header_layout.setContentsMargins(10, 3, 10, 3)
-        header_layout.setSpacing(5)
+        header_layout.setSpacing(10)  # Increased spacing between buttons
 
         header_layout.addStretch()
 
@@ -252,12 +253,41 @@ class PengumumanComponent(QWidget):
         filter_group = QGroupBox("Filter Pengumuman")
         filter_layout = QHBoxLayout(filter_group)
         filter_layout.setContentsMargins(10, 3, 10, 3)
-        filter_layout.setSpacing(5)
+        filter_layout.setSpacing(10)
 
+        # Filter berdasarkan status aktif
         self.active_only = QCheckBox("Hanya Pengumuman Aktif")
         self.active_only.setChecked(False)  # Default show all announcements
-        self.active_only.stateChanged.connect(self.load_data)
+        self.active_only.stateChanged.connect(self.apply_filters)
         filter_layout.addWidget(self.active_only)
+
+        # Separator
+        filter_layout.addSpacing(20)
+
+        # Filter berdasarkan tanggal
+        from PyQt5.QtCore import QDate
+
+        date_label = QLabel("Dari Tanggal:")
+        filter_layout.addWidget(date_label)
+
+        self.date_from = QDateEdit()
+        self.date_from.setCalendarPopup(True)
+        self.date_from.setDisplayFormat("dd/MM/yyyy")
+        # Set default to 1 year ago
+        self.date_from.setDate(QDate.currentDate().addYears(-1))
+        self.date_from.dateChanged.connect(self.apply_filters)
+        filter_layout.addWidget(self.date_from)
+
+        date_to_label = QLabel("Sampai Tanggal:")
+        filter_layout.addWidget(date_to_label)
+
+        self.date_to = QDateEdit()
+        self.date_to.setCalendarPopup(True)
+        self.date_to.setDisplayFormat("dd/MM/yyyy")
+        # Set default to today
+        self.date_to.setDate(QDate.currentDate())
+        self.date_to.dateChanged.connect(self.apply_filters)
+        filter_layout.addWidget(self.date_to)
 
         filter_layout.addStretch()
 
@@ -266,17 +296,18 @@ class PengumumanComponent(QWidget):
     def create_action_buttons(self):
         """Buat tombol-tombol aksi"""
         action_layout = QHBoxLayout()
+        action_layout.setSpacing(10)  # Add spacing between buttons
         action_layout.addStretch()
-        
-        edit_button = self.create_button("Edit Terpilih", "#f39c12", self.edit_pengumuman, "server/assets/edit.png")
+
+        edit_button = self.create_button("Edit", "#f39c12", self.edit_pengumuman, "server/assets/edit.png")
         action_layout.addWidget(edit_button)
-        
-        delete_button = self.create_button("Hapus Terpilih", "#c0392b", self.delete_pengumuman, "server/assets/hapus.png")
+
+        delete_button = self.create_button("Hapus", "#c0392b", self.delete_pengumuman, "server/assets/hapus.png")
         action_layout.addWidget(delete_button)
-        
+
         broadcast_button = self.create_button("Broadcast ke Client", "#8e44ad", self.broadcast_pengumuman)
         action_layout.addWidget(broadcast_button)
-        
+
         return action_layout
     
     def create_button(self, text, color, slot, icon_path=None):
@@ -326,15 +357,16 @@ class PengumumanComponent(QWidget):
         if not self.db_manager:
             self.log_message.emit("Database tidak tersedia")
             return
-        
+
         try:
-            active_only = self.active_only.isChecked() if hasattr(self, 'active_only') else True
-            
-            success, result = self.db_manager.get_pengumuman_list(active_only=active_only, limit=1000)
-            
+            # Always load all data (not filtered by active_only at API level)
+            success, result = self.db_manager.get_pengumuman_list(active_only=False, limit=1000)
+
             if success:
-                self.pengumuman_data = result
-                self.populate_table()
+                # Backup all data for filtering
+                self.all_pengumuman_data = result
+                # Apply filters to display data
+                self.apply_filters()
                 self.log_message.emit(f"Data pengumuman berhasil dimuat: {len(result)} record")
                 self.data_updated.emit()
             else:
@@ -343,6 +375,97 @@ class PengumumanComponent(QWidget):
         except Exception as e:
             self.log_message.emit(f"Exception loading pengumuman data: {str(e)}")
             QMessageBox.critical(self, "Error", f"Error loading pengumuman data: {str(e)}")
+
+    def apply_filters(self):
+        """Apply active and date range filters to pengumuman data"""
+        if not self.all_pengumuman_data:
+            self.pengumuman_data = []
+            self.populate_table()
+            return
+
+        filtered_data = self.all_pengumuman_data.copy()
+
+        # Apply date range filter
+        if hasattr(self, 'date_from') and hasattr(self, 'date_to'):
+            from_date = self.date_from.date().toPyDate()
+            to_date = self.date_to.date().toPyDate()
+
+            filtered_data = [
+                item for item in filtered_data
+                if self.is_date_in_range(item, from_date, to_date)
+            ]
+
+        # Apply active only filter
+        if hasattr(self, 'active_only') and self.active_only.isChecked():
+            # Filter by tanggal_selesai to show only active announcements
+            today = datetime.date.today()
+            filtered_data = [
+                item for item in filtered_data
+                if self.is_announcement_active(item, today)
+            ]
+
+        self.pengumuman_data = filtered_data
+        self.populate_table()
+
+    def is_date_in_range(self, item, from_date, to_date):
+        """Check if item's date is within the specified range"""
+        tanggal_value = item.get('created_at') or item.get('tanggal') or item.get('tanggal_mulai')
+        if not tanggal_value:
+            return False
+
+        date_obj = self.parse_date(tanggal_value)
+        if not date_obj:
+            return False
+
+        return from_date <= date_obj <= to_date
+
+
+    def parse_date(self, date_value):
+        """Parse date value to date object for comparison"""
+        if not date_value:
+            return None
+
+        try:
+            # Case 1: Python datetime/date object
+            if hasattr(date_value, 'date'):
+                return date_value.date()
+            elif hasattr(date_value, 'year'):
+                return date_value
+
+            # Case 2: String format
+            if isinstance(date_value, str):
+                # Try RFC 822 format first: "Thu, 09 Oct 2025 23:44:21 GMT"
+                try:
+                    return datetime.datetime.strptime(date_value, '%a, %d %b %Y %H:%M:%S GMT').date()
+                except:
+                    pass
+
+                # Remove time component if present
+                date_str = date_value.split(' ')[0] if ' ' in date_value else date_value
+
+                # Try different date formats
+                for fmt in ['%Y-%m-%d', '%d/%m/%Y', '%Y/%m/%d', '%d-%m-%Y']:
+                    try:
+                        return datetime.datetime.strptime(date_str, fmt).date()
+                    except:
+                        continue
+        except:
+            pass
+
+        return None
+
+    def is_announcement_active(self, item, today):
+        """Check if announcement is currently active based on tanggal_selesai"""
+        tanggal_selesai = item.get('tanggal_selesai')
+        if not tanggal_selesai:
+            # If no end date, consider it always active
+            return True
+
+        end_date = self.parse_date(tanggal_selesai)
+        if end_date:
+            return today <= end_date
+
+        return True  # If can't parse, consider active
     
     def populate_table(self):
         """Populate tabel dengan data pengumuman"""
@@ -352,56 +475,18 @@ class PengumumanComponent(QWidget):
             row_pos = self.pengumuman_table.rowCount()
             self.pengumuman_table.insertRow(row_pos)
             
-            # Column 0: Tanggal (format Hari, dd NamaBulan yyyy)
+            # Column 0: Tanggal (format dd/mm/yyyy)
             # Use created_at timestamp automatically
             tanggal_value = row_data.get('created_at') or row_data.get('tanggal') or row_data.get('tanggal_mulai')
-
-            # Indonesian names mapping
-            day_names_id = {
-                'Monday': 'Senin', 'Tuesday': 'Selasa', 'Wednesday': 'Rabu',
-                'Thursday': 'Kamis', 'Friday': 'Jumat', 'Saturday': 'Sabtu', 'Sunday': 'Minggu'
-            }
-            month_names_id = {
-                1: 'Januari', 2: 'Februari', 3: 'Maret', 4: 'April',
-                5: 'Mei', 6: 'Juni', 7: 'Juli', 8: 'Agustus',
-                9: 'September', 10: 'Oktober', 11: 'November', 12: 'Desember'
-            }
 
             tanggal_display = ''
             if tanggal_value:
                 try:
-                    date_obj = None
+                    date_obj = self.parse_date(tanggal_value)
 
-                    # Case 1: Python datetime/date object
-                    if hasattr(tanggal_value, 'strftime'):
-                        if hasattr(tanggal_value, 'date'):
-                            date_obj = tanggal_value.date()
-                        else:
-                            date_obj = tanggal_value
-
-                    # Case 2: String format
-                    elif isinstance(tanggal_value, str):
-                        # Try RFC 822 format first (from API response): "Thu, 09 Oct 2025 23:44:21 GMT"
-                        try:
-                            date_obj = datetime.datetime.strptime(tanggal_value, '%a, %d %b %Y %H:%M:%S GMT').date()
-                        except:
-                            # Remove time component if present
-                            date_str = tanggal_value.split(' ')[0] if ' ' in tanggal_value else tanggal_value
-
-                            # Try different date formats
-                            for fmt in ['%Y-%m-%d', '%d/%m/%Y', '%Y/%m/%d', '%d-%m-%Y']:
-                                try:
-                                    date_obj = datetime.datetime.strptime(date_str, fmt).date()
-                                    break
-                                except:
-                                    continue
-
-                    # Format to Indonesian if date_obj was successfully parsed
+                    # Format to dd/mm/yyyy if date_obj was successfully parsed
                     if date_obj:
-                        english_day = date_obj.strftime('%A')
-                        indonesian_day = day_names_id.get(english_day, english_day)
-                        indonesian_month = month_names_id.get(date_obj.month, str(date_obj.month))
-                        tanggal_display = f"{indonesian_day}, {date_obj.day:02d} {indonesian_month} {date_obj.year}"
+                        tanggal_display = f"{date_obj.day:02d}/{date_obj.month:02d}/{date_obj.year}"
                     else:
                         # Fallback: just display as is
                         tanggal_display = str(tanggal_value).split(' ')[0] if ' ' in str(tanggal_value) else str(tanggal_value)

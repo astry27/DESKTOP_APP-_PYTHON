@@ -227,17 +227,14 @@ class JemaatComponent(QWidget):
         action_layout = QHBoxLayout()
         action_layout.addStretch()
 
-        edit_button = self.create_button("Edit Terpilih", "#f39c12", self.edit_jemaat, "server/assets/edit.png")
+        edit_button = self.create_button("Edit", "#f39c12", self.edit_jemaat, "server/assets/edit.png")
         action_layout.addWidget(edit_button)
 
-        delete_button = self.create_button("Hapus Terpilih", "#c0392b", self.delete_jemaat, "server/assets/hapus.png")
+        delete_button = self.create_button("Hapus", "#c0392b", self.delete_jemaat, "server/assets/hapus.png")
         action_layout.addWidget(delete_button)
 
-        export_button = self.create_button("Export Data", "#16a085", self.export_jemaat, "server/assets/export.png")
+        export_button = self.create_button(".CSV", "#16a085", self.export_jemaat, "server/assets/export.png")
         action_layout.addWidget(export_button)
-
-        broadcast_button = self.create_button("Broadcast ke Client", "#8e44ad", self.broadcast_jemaat, "server/assets/tambah.png")
-        action_layout.addWidget(broadcast_button)
 
         return action_layout
 
@@ -934,7 +931,7 @@ class JemaatComponent(QWidget):
                 # Success - close dialog and show confirmation
                 dialog.close()
                 QMessageBox.information(self, "Sukses",
-                    "✅ Data jemaat berhasil ditambahkan!\n\n" +
+                    "✅ Data umat berhasil ditambahkan!\n\n" +
                     f"Nama: {data['nama_lengkap']}\n" +
                     f"Jenis Kelamin: {'Laki-laki' if data.get('jenis_kelamin') == 'L' else 'Perempuan'}\n" +
                     f"Data lengkap termasuk sakramen dan wilayah rohani telah disimpan.")
@@ -1229,12 +1226,13 @@ class JemaatComponent(QWidget):
                     fieldnames = [
                         'Nama Lengkap', 'Wilayah Rohani', 'Nama Keluarga', 'Tempat Lahir',
                         'Tanggal Lahir', 'Umur', 'Status Kekatolikan', 'Jenis Kelamin', 'Hubungan Keluarga', 'Pendidikan Terakhir',
-                        'Jenis Pekerjaan', 'Detail Pekerjaan', 'Status Menikah', 'Alamat', 'Email',
+                        'Jenis Pekerjaan', 'Detail Pekerjaan', 'Status Menikah', 'Alamat', 'Email', 'No. Telepon',
                         'Status Babtis', 'Tempat Babtis', 'Tanggal Babtis', 'Nama Babtis',
                         'Status Ekaristi', 'Tempat Komuni', 'Tanggal Komuni',
                         'Status Krisma', 'Tempat Krisma', 'Tanggal Krisma',
                         'Status Perkawinan', 'Keuskupan', 'Paroki', 'Kota Perkawinan',
                         'Tanggal Perkawinan', 'Status Perkawinan Detail', 'Status Keanggotaan',
+                        'WR Tujuan', 'Paroki Tujuan',
                         'Created By Pengguna'
                     ]
                     writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
@@ -1286,48 +1284,6 @@ class JemaatComponent(QWidget):
             QMessageBox.critical(self, "Error", f"Error export data: {str(e)}")
             self.log_message.emit(f"Exception exporting jemaat: {str(e)}")
     
-    def broadcast_jemaat(self):
-        """Broadcast data jemaat ke client"""
-        if not self.jemaat_data:
-            QMessageBox.warning(self, "Warning", "Tidak ada data untuk dibroadcast")
-            return
-        
-        reply = QMessageBox.question(self, 'Konfirmasi Broadcast',
-                                   f"Yakin ingin broadcast {len(self.jemaat_data)} data jemaat ke semua client?",
-                                   QMessageBox.Yes | QMessageBox.No,
-                                   QMessageBox.No)
-        
-        if reply == QMessageBox.Yes:
-            try:
-                import requests
-                from API.config import ServerConfig
-                
-                data = {
-                    'admin_id': 1,
-                    'selected_ids': [jemaat.get('id_jemaat') for jemaat in self.jemaat_data if jemaat.get('id_jemaat')]
-                }
-                
-                response = requests.post(f"{ServerConfig.API_BASE_URL}/broadcast/jemaat", 
-                                       json=data, 
-                                       headers={'Content-Type': 'application/json'},
-                                       timeout=10)
-                
-                if response.status_code == 200:
-                    result = response.json()
-                    if result.get('status') == 'success':
-                        total_data = result.get('total', 0)
-                        QMessageBox.information(self, "Sukses", f"Data jemaat berhasil dibroadcast ke client!\nTotal data: {total_data}")
-                        self.log_message.emit(f"Broadcast jemaat sukses: {total_data} data")
-                    else:
-                        QMessageBox.warning(self, "Error", f"Gagal broadcast: {result.get('message', 'Unknown error')}")
-                        self.log_message.emit(f"Broadcast jemaat gagal: {result.get('message')}")
-                else:
-                    QMessageBox.warning(self, "Error", f"Server error: {response.status_code}")
-                    self.log_message.emit(f"Broadcast jemaat error: HTTP {response.status_code}")
-                    
-            except Exception as e:
-                QMessageBox.critical(self, "Error", f"Error broadcast jemaat: {str(e)}")
-                self.log_message.emit(f"Exception broadcasting jemaat: {str(e)}")
     
     def view_jemaat_details(self):
         """View detailed information of selected jemaat"""

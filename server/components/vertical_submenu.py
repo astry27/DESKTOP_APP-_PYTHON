@@ -11,9 +11,9 @@ class VerticalSubMenuButton(QPushButton):
     def __init__(self, text, icon_path=None, parent=None):
         super().__init__(text, parent)
         self.setCheckable(True)
+        self.setAutoExclusive(False)  # PENTING: Non-exclusive untuk kontrol manual
         self.setFixedHeight(45)
         self.icon_path = icon_path
-        self.icon_active_path = None
 
         # Set style untuk submenu - indentasi dalam dengan background transparan
         self.setStyleSheet("""
@@ -47,19 +47,9 @@ class VerticalSubMenuButton(QPushButton):
             self.setIcon(QIcon(icon_path))
             self.setIconSize(QSize(16, 16))
 
-            # Generate active icon path (icon.png -> icon_active_icon.png)
-            if icon_path.endswith('.png'):
-                base_path = icon_path[:-4]  # Remove .png
-                active_path = base_path + '_active_icon.png'
-                if os.path.exists(active_path):
-                    self.icon_active_path = active_path
-
     def update_icon_state(self):
-        """Update icon berdasarkan checked state"""
-        if self.isChecked() and self.icon_active_path:
-            self.setIcon(QIcon(self.icon_active_path))
-        elif not self.isChecked() and self.icon_path:
-            self.setIcon(QIcon(self.icon_path))
+        """Update icon state - tidak melakukan apa-apa karena active icon sudah dihilangkan"""
+        pass
 
 
 class VerticalSubMenu(QWidget):
@@ -92,16 +82,20 @@ class VerticalSubMenu(QWidget):
 
     def on_button_clicked(self, button_id, button):
         """Handle button click"""
-        # Uncheck semua button lain
-        for bid, btn in self.buttons.items():
-            if bid != button_id:
-                btn.setChecked(False)
-                btn.update_icon_state()
-            else:
-                btn.update_icon_state()
+        # PENTING: Hanya proses jika button di-check (klik pertama)
+        if button.isChecked():
+            # Uncheck semua button lain
+            for bid, btn in self.buttons.items():
+                if bid != button_id:
+                    btn.setChecked(False)
+                    btn.update_icon_state()
+                else:
+                    # Pastikan button yang diklik tetap checked
+                    btn.setChecked(True)
+                    btn.update_icon_state()
 
-        # Emit signal
-        self.menu_clicked.emit(button_id)
+            # Emit signal
+            self.menu_clicked.emit(button_id)
 
     def set_active_button(self, button_id):
         """Set button aktif"""

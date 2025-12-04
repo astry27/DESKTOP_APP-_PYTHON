@@ -644,6 +644,13 @@ class ProfileDialog(QDialog):
             if hasattr(dialog, 'selected_photo_path'):
                 if dialog.selected_photo_path != self.profile_image_path:
                     if dialog.selected_photo_path:
+                        # Upload to server first
+                        if self.api_client:
+                            upload_result = self.api_client.upload_profile_photo(dialog.selected_photo_path)
+                            if not upload_result.get('success'):
+                                QMessageBox.warning(self, "Warning", f"Gagal upload foto ke server: {upload_result.get('data')}")
+                                # Continue anyway to update local UI
+
                         self.profile_image_path = dialog.selected_photo_path
                         pixmap = QPixmap(dialog.selected_photo_path)
                         if not pixmap.isNull():
@@ -739,7 +746,15 @@ class ProfileDialog(QDialog):
                 QMessageBox.warning(self, "Error", "Password minimal 6 karakter!")
                 return
 
-            QMessageBox.information(self, "Sukses", "Password berhasil diubah!")
+            # Call API to change password
+            if self.api_client:
+                result = self.api_client.change_password(self.user_data.get('id_pengguna'), current, new)
+                if result['success']:
+                    QMessageBox.information(self, "Sukses", "Password berhasil diubah!")
+                else:
+                    QMessageBox.warning(self, "Error", f"Gagal mengubah password: {result.get('data', 'Unknown error')}")
+            else:
+                QMessageBox.warning(self, "Error", "Tidak terhubung ke API")
 
     def handle_logout(self):
         """Handle logout button click - akan redirect ke login page"""
@@ -764,7 +779,56 @@ class ProfileDialog(QDialog):
             self.username_label.setText(self.user_data.get('username', 'admin'))
             self.role_label.setText(self.user_data.get('peran', 'Administrator'))
             self.email_label.setText(self.user_data.get('email', 'user@example.com'))
-            self.profile_image.setText(self.get_initial_letter())
+            
+            # Only reset to initial if no profile image is set
+            if not self.profile_image_path:
+                self.reset_profile_image()
+
+    def load_profile_image(self, image_path):
+        """Load profile image from path"""
+        if image_path and os.path.exists(image_path):
+            self.profile_image_path = image_path
+            # Load via QImage to bypass QPixmap cache
+            from PyQt5.QtGui import QImage
+            image = QImage(image_path)
+            pixmap = QPixmap()
+            if not image.isNull():
+                pixmap = QPixmap.fromImage(image)
+            
+            if not pixmap.isNull():
+                # Create circular cropped image with caching
+                scaled_pixmap = pixmap.scaled(90, 90, Qt.AspectRatioMode.KeepAspectRatioByExpanding, Qt.TransformationMode.SmoothTransformation)
+                circular_pixmap = self.create_circular_pixmap(scaled_pixmap)
+                self.cached_pixmap = circular_pixmap
+                
+                # COMPLETELY REMOVE stylesheet to avoid conflict
+                # The border is now drawn inside the pixmap itself
+                self.profile_image.setStyleSheet("border: none; background: transparent;")
+                self.profile_image.clear()
+                self.profile_image.setPixmap(circular_pixmap)
+                self.profile_image.repaint()
+            else:
+                self.reset_profile_image()
+        else:
+            self.profile_image_path = None
+            self.reset_profile_image()
+
+    def reset_profile_image(self):
+        """Reset profile image to initial letter with blue background"""
+        self.profile_image_path = None  # Clear stored path
+        self.profile_image.setPixmap(QPixmap())
+        self.profile_image.setText(self.get_initial_letter())
+        self.profile_image.setStyleSheet("""
+            QLabel {
+                border: 3px solid #ffffff;
+                border-radius: 45px;
+                background-color: #0d6efd;
+                color: #ffffff;
+                font-size: 36px;
+                font-weight: 700;
+                font-family: 'Segoe UI', Arial, sans-serif;
+            }
+        """)
 
     def update_connection_status_external(self, is_connected):
         """Update connection status from external"""

@@ -153,15 +153,19 @@ class ApiClient:
     def get_active_sessions(self):
         """Ambil daftar client yang sedang aktif"""
         return self._make_request('GET', f"{self.base_url}/admin/active-sessions")
-    
+
+    def get_client_connections_history(self, limit=100):
+        """Ambil semua riwayat koneksi client (aktif dan terputus)"""
+        return self._make_request('GET', f"{self.base_url}/client/connections/history?limit={limit}")
+
     def send_broadcast_message(self, message):
         """Kirim broadcast message ke semua client"""
         data = {
             'message': message,
             'timestamp': datetime.datetime.now().isoformat()
         }
-        return self._make_request('POST', f"{self.base_url}/admin/broadcast", 
-                               json=data, 
+        return self._make_request('POST', f"{self.base_url}/admin/broadcast",
+                               json=data,
                                headers={'Content-Type': 'application/json'})
     
     def test_database(self):

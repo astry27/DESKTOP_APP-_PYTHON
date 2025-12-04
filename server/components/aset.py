@@ -491,15 +491,16 @@ class AsetComponent(QWidget):
     def create_action_buttons(self):
         """Buat tombol-tombol aksi."""
         action_layout = QHBoxLayout()
+        action_layout.setSpacing(10)
         action_layout.addStretch()
 
-        edit_button = self.create_button("Edit Terpilih", "#f39c12", self.edit_aset, "server/assets/edit.png")
+        edit_button = self.create_button("Edit", "#f39c12", self.edit_aset, "server/assets/edit.png")
         action_layout.addWidget(edit_button)
 
-        delete_button = self.create_button("Hapus Terpilih", "#c0392b", self.delete_aset, "server/assets/hapus.png")
+        delete_button = self.create_button("Hapus", "#c0392b", self.delete_aset, "server/assets/hapus.png")
         action_layout.addWidget(delete_button)
 
-        export_button = self.create_button("Export Data", "#16a085", self.export_data, "server/assets/export.png")
+        export_button = self.create_button(".CSV", "#16a085", self.export_data, "server/assets/export.png")
         action_layout.addWidget(export_button)
 
         return action_layout
@@ -518,41 +519,34 @@ class AsetComponent(QWidget):
             except Exception:
                 pass
 
-        hover_color = self.darken_color(color)
+        hover_color = self.lighten_color(color)
         button.setStyleSheet(f"""
             QPushButton {{
                 background-color: {color};
                 color: white;
-                padding: 8px 15px;
+                padding: 5px 10px;
                 border: none;
-                border-radius: 4px;
-                font-weight: bold;
-                font-family: Arial, sans-serif;
+                border-radius: 3px;
                 text-align: left;
             }}
             QPushButton:hover {{
                 background-color: {hover_color};
-                border: 1px solid {hover_color};
-            }}
-            QPushButton:pressed {{
-                background-color: {self.darken_color(hover_color)};
-                border: 2px inset {self.darken_color(hover_color)};
             }}
         """)
         button.clicked.connect(slot)
         return button
 
-    def darken_color(self, color):
-        """Buat warna lebih gelap untuk hover effect"""
+    def lighten_color(self, color):
+        """Buat warna lebih terang untuk hover effect"""
         color_map = {
-            "#27ae60": "#229954",  # Hijau
-            "#c0392b": "#a93226",  # Merah
-            "#3498db": "#2980b9",  # Biru
-            "#16a085": "#138d75",  # Teal
-            "#8e44ad": "#7d3c98",  # Ungu
-            "#f39c12": "#e67e22",  # Orange
-            "#2ecc71": "#27ae60",  # Light green
-            "#e74c3c": "#c0392b",  # Light red
+            "#27ae60": "#2ecc71",  # Hijau -> lebih terang
+            "#c0392b": "#e74c3c",  # Merah -> lebih terang
+            "#3498db": "#5dade2",  # Biru -> lebih terang
+            "#16a085": "#1abc9c",  # Teal -> lebih terang
+            "#8e44ad": "#9b59b6",  # Ungu -> lebih terang
+            "#f39c12": "#f1c40f",  # Orange -> lebih terang
+            "#2ecc71": "#52d97e",  # Light green -> lebih terang
+            "#e74c3c": "#ec7063",  # Light red -> lebih terang
         }
         return color_map.get(color, color)
 

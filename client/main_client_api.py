@@ -397,79 +397,79 @@ class ClientMainWindow(QMainWindow):
     #     layout = QVBoxLayout(comm_widget)
         
         # Header panel komunikasi
-        comm_header = QLabel("Panel Komunikasi")
-        comm_header.setFont(QFont("Arial", 12, QFont.Bold))
-        comm_header.setStyleSheet("background-color: #34495e; color: white; padding: 8px; border-radius: 4px;")
-        layout.addWidget(comm_header)
+        # comm_header = QLabel("Panel Komunikasi")
+        # comm_header.setFont(QFont("Arial", 12, QFont.Bold))
+        # comm_header.setStyleSheet("background-color: #34495e; color: white; padding: 8px; border-radius: 4px;")
+        # layout.addWidget(comm_header)
         
         # Log komunikasi
-        log_label = QLabel("Log Sistem:")
-        log_label.setFont(QFont("Arial", 10, QFont.Bold))
-        layout.addWidget(log_label)
+        # log_label = QLabel("Log Sistem:")
+        # log_label.setFont(QFont("Arial", 10, QFont.Bold))
+        # layout.addWidget(log_label)
         
-        self.communication_log = QTextEdit()
-        self.communication_log.setReadOnly(True)
-        self.communication_log.setFont(QFont("Courier New", 9))
-        self.communication_log.setMaximumHeight(200)
-        layout.addWidget(self.communication_log)
+        # self.communication_log = QTextEdit()
+        # self.communication_log.setReadOnly(True)
+        # self.communication_log.setFont(QFont("Courier New", 9))
+        # self.communication_log.setMaximumHeight(200)
+        # layout.addWidget(self.communication_log)
         
         # Input pesan ke admin
-        message_layout = QHBoxLayout()
+        # message_layout = QHBoxLayout()
         
-        self.message_input = QLineEdit()
-        self.message_input.setPlaceholderText("Ketik pesan untuk admin...")
-        self.message_input.returnPressed.connect(self.send_message_to_admin)
+        # self.message_input = QLineEdit()
+        # self.message_input.setPlaceholderText("Ketik pesan untuk admin...")
+        # self.message_input.returnPressed.connect(self.send_message_to_admin)
         
-        self.send_button = QPushButton("Kirim")
-        self.send_button.clicked.connect(self.send_message_to_admin)
-        self.send_button.setEnabled(False)
-        self.send_button.setStyleSheet("""
-            QPushButton {
-                background-color: #3498db;
-                color: white;
-                padding: 6px 12px;
-                border: none;
-                border-radius: 4px;
-            }
-            QPushButton:hover {
-                background-color: #2980b9;
-            }
-        """)
+        # self.send_button = QPushButton("Kirim")
+        # self.send_button.clicked.connect(self.send_message_to_admin)
+        # self.send_button.setEnabled(False)
+        # self.send_button.setStyleSheet("""
+        #     QPushButton {
+        #         background-color: #3498db;
+        #         color: white;
+        #         padding: 6px 12px;
+        #         border: none;
+        #         border-radius: 4px;
+        #     }
+        #     QPushButton:hover {
+        #         background-color: #2980b9;
+        #     }
+        # """)
         
-        message_layout.addWidget(self.message_input)
-        message_layout.addWidget(self.send_button)
+        # message_layout.addWidget(self.message_input)
+        # message_layout.addWidget(self.send_button)
         
-        layout.addLayout(message_layout)
+        # layout.addLayout(message_layout)
         
         # Notifikasi broadcast
-        self.broadcast_notification = QLabel("Siap menerima broadcast...")
-        self.broadcast_notification.setStyleSheet("color: #7f8c8d; font-style: italic; padding: 5px;")
-        layout.addWidget(self.broadcast_notification)
+        # self.broadcast_notification = QLabel("Siap menerima broadcast...")
+        # self.broadcast_notification.setStyleSheet("color: #7f8c8d; font-style: italic; padding: 5px;")
+        # layout.addWidget(self.broadcast_notification)
         
         # Clear log button
-        clear_layout = QHBoxLayout()
-        clear_layout.addStretch()
+        # clear_layout = QHBoxLayout()
+        # clear_layout.addStretch()
         
-        self.clear_log_button = QPushButton("Bersihkan Log")
-        self.clear_log_button.clicked.connect(self.clear_communication_log)
-        self.clear_log_button.setStyleSheet("""
-            QPushButton {
-                background-color: #95a5a6;
-                color: white;
-                padding: 4px 8px;
-                border: none;
-                border-radius: 3px;
-            }
-            QPushButton:hover {
-                background-color: #7f8c8d;
-            }
-        """)
-        clear_layout.addWidget(self.clear_log_button)
+        # self.clear_log_button = QPushButton("Bersihkan Log")
+        # self.clear_log_button.clicked.connect(self.clear_communication_log)
+        # self.clear_log_button.setStyleSheet("""
+        #     QPushButton {
+        #         background-color: #95a5a6;
+        #         color: white;
+        #         padding: 4px 8px;
+        #         border: none;
+        #         border-radius: 3px;
+        #     }
+        #     QPushButton:hover {
+        #         background-color: #7f8c8d;
+        #     }
+        # """)
+        # clear_layout.addWidget(self.clear_log_button)
         
-        layout.addLayout(clear_layout)
-        layout.addStretch()
+        # layout.addLayout(clear_layout)
+        # layout.addStretch()
         
-        return comm_widget
+        # return comm_widget
     
     def create_control_buttons(self):
         """Buat tombol kontrol"""
@@ -560,17 +560,31 @@ class ClientMainWindow(QMainWindow):
             if self.user_data:
                 self.api_client.user_data = self.user_data
                 self.user_label.setText(self.user_data.get('nama_lengkap', 'Unknown'))
-                self.user_info_label.setText(f"""
-                Nama: {self.user_data.get('nama_lengkap', 'Unknown')}
-                Username: {self.user_data.get('username', 'Unknown')}
-                Peran: {self.user_data.get('peran', 'Unknown')}
-                """)
+                self.user_info_label.setText(f"Nama: {self.user_data.get('nama_lengkap', 'Unknown')}\nUsername: {self.user_data.get('username', 'Unknown')}\nPeran: {self.user_data.get('peran', 'Unknown')}")
                 self.add_log("Login berhasil sebagai " + self.user_data.get('nama_lengkap', 'Unknown'))
 
                 # Tampilkan window utama setelah login berhasil
                 self.show()
                 self.raise_()
                 self.activateWindow()
+
+                # Check and download profile photo if exists
+                foto_profil = self.user_data.get('foto_profil')
+                if foto_profil:
+                    try:
+                        # Debug print
+                        print(f"[DEBUG] Found profile photo: {foto_profil}")
+                        cache_dir = os.path.join(current_dir, 'cache', 'profiles')
+                        result = self.api_client.download_profile_photo(foto_profil, cache_dir)
+                        if result['success']:
+                            self.profile_image_path = result['data']
+                            self.add_log(f"Foto profil berhasil diunduh: {self.profile_image_path}")
+                            print(f"[DEBUG] Photo downloaded to: {self.profile_image_path}")
+                        else:
+                            self.add_log(f"Gagal mengunduh foto profil: {result['data']}")
+                            print(f"[DEBUG] Download failed: {result['data']}")
+                    except Exception as e:
+                        print(f"[ERROR] Error downloading profile photo: {e}")
 
                 # Update profile icon
                 self.update_profile_icon()
@@ -607,12 +621,15 @@ class ClientMainWindow(QMainWindow):
                 # Check if there's a saved profile photo
                 if hasattr(self, 'profile_image_path') and self.profile_image_path:
                     try:
-                        from PyQt5.QtGui import QPixmap, QPainter, QPainterPath
-                        pixmap = QPixmap(self.profile_image_path)
-                        if not pixmap.isNull():
+                        from PyQt5.QtGui import QPixmap, QPainter, QPainterPath, QImage
+                        # Load via QImage to bypass QPixmap cache
+                        image = QImage(self.profile_image_path)
+                        if not image.isNull():
+                            pixmap = QPixmap.fromImage(image)
+                            
                             # Create circular pixmap
                             size = 35
-                            scaled_pixmap = pixmap.scaled(size, size, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+                            scaled_pixmap = pixmap.scaled(size, size, Qt.AspectRatioMode.KeepAspectRatioByExpanding, Qt.TransformationMode.SmoothTransformation)
                             circular_pixmap = QPixmap(size, size)
                             circular_pixmap.fill(Qt.GlobalColor.transparent)
 
@@ -622,7 +639,12 @@ class ClientMainWindow(QMainWindow):
                             path = QPainterPath()
                             path.addEllipse(0, 0, size, size)
                             painter.setClipPath(path)
-                            painter.drawPixmap(0, 0, scaled_pixmap)
+                            
+                            # Center the image
+                            x = (size - scaled_pixmap.width()) // 2
+                            y = (size - scaled_pixmap.height()) // 2
+                            painter.drawPixmap(x, y, scaled_pixmap)
+                            
                             painter.end()
 
                             self.profile_icon.setIcon(QIcon(circular_pixmap))
@@ -741,9 +763,6 @@ class ClientMainWindow(QMainWindow):
         self.connection_label.setText("● Offline")
         self.connection_label.setStyleSheet("color: #e74c3c; font-weight: bold; font-size: 10px;")
 
-        if self.activity_dialog:
-            self.activity_dialog.log_connection_failed()
-
     def _on_client_registration_success(self, result):
         """Handle successful client registration"""
         self.is_connected = True
@@ -844,11 +863,11 @@ class ClientMainWindow(QMainWindow):
     #     if not self.is_connected:
     #         QMessageBox.warning(self, "Error", "Tidak terhubung ke API")
     #         return
-        
+    #     
     #     message = self.message_input.text().strip()
     #     if not message:
     #         return
-        
+    #     
     #     result = self.api_client.send_message_to_admin(message)
     #     if result["success"]:
     #         self.add_log(f"[Pesan ke Admin]: {message}")
@@ -860,20 +879,20 @@ class ClientMainWindow(QMainWindow):
     #     """Check pesan broadcast baru dari admin"""
     #     if not self.is_connected:
     #         return
-        
+    #     
     #     result = self.api_client.get_broadcast_messages(limit=20)
     #     if result["success"]:
     #         data = result["data"]
     #         if data.get("status") == "success":
     #             messages = data.get("data", [])
     #             current_count = len(messages)
-                
+    #             
     #             if current_count > self.last_message_count:
     #                 # Ada pesan baru
     #                 new_message_count = current_count - self.last_message_count
     #                 self.broadcast_notification.setText(f"Pesan broadcast baru: +{new_message_count}")
     #                 self.broadcast_notification.setStyleSheet("color: #27ae60; font-weight: bold; padding: 5px;")
-                    
+    #                 
     #                 # Tampilkan notifikasi sistem tray jika ada
     #                 if hasattr(self, 'tray_icon') and new_message_count > 0:
     #                     self.tray_icon.showMessage(
@@ -882,7 +901,7 @@ class ClientMainWindow(QMainWindow):
     #                         QSystemTrayIcon.Information,
     #                         3000
     #                     )
-                    
+    #                 
     #                 # Log pesan terbaru
     #                 if messages:
     #                     latest_message = messages[0]
@@ -890,10 +909,10 @@ class ClientMainWindow(QMainWindow):
     #                     if len(pesan_content) > 50:
     #                         pesan_content = pesan_content[:50] + "..."
     #                     self.add_log(f"[Broadcast Admin]: {pesan_content}")
-                    
+    #                 
     #                 # Reset notification style setelah 5 detik
     #                 QTimer.singleShot(5000, self.reset_broadcast_notification)
-                    
+    #                 
     #             self.last_message_count = current_count
     
     # def reset_broadcast_notification(self):
@@ -1011,6 +1030,13 @@ class ClientMainWindow(QMainWindow):
                 self.profile_dialog.update_user_data(self.user_data)
                 self.profile_dialog.update_connection_status_external(self.is_connected)
 
+            # Load current profile image
+            if hasattr(self, 'profile_image_path') and self.profile_image_path:
+                self.profile_dialog.load_profile_image(self.profile_image_path)
+            else:
+                # Force reset if no image path exists for current user
+                self.profile_dialog.reset_profile_image()
+
             self.profile_dialog.show()
             self.profile_dialog.raise_()
             self.profile_dialog.activateWindow()
@@ -1024,26 +1050,30 @@ class ClientMainWindow(QMainWindow):
     def restore_profile_icon(self):
         """Restore profile icon to original state"""
         if self.profile_showing_text:
-            self.profile_icon.setText("👤")
+            self.profile_showing_text = False
+            
+            # Restore stylesheet
             self.profile_icon.setStyleSheet("""
                 QPushButton {
-                    background-color: rgba(52, 152, 219, 0.8);
-                    color: white;
-                    border: 2px solid white;
+                    background-color: #ecf0f1;
+                    color: #2c3e50;
+                    border: 2px solid #bdc3c7;
                     border-radius: 17px;
-                    font-size: 16px;
+                    font-size: 14px;
                     font-weight: bold;
                     text-align: center;
                 }
                 QPushButton:hover {
-                    background-color: rgba(41, 128, 185, 0.9);
-                    border: 2px solid #f1c40f;
+                    background-color: #d5d8dc;
+                    border-color: #95a5a6;
                 }
                 QPushButton:pressed {
-                    background-color: rgba(41, 128, 185, 1.0);
+                    background-color: #bdc3c7;
                 }
             """)
-            self.profile_showing_text = False
+            
+            # Update icon to show photo or initial
+            self.update_profile_icon()
 
     def show_activity_dialog(self):
         """Show activity history dialog"""
@@ -1067,8 +1097,10 @@ class ClientMainWindow(QMainWindow):
         # Close dialogs
         if self.profile_dialog:
             self.profile_dialog.close()
+            self.profile_dialog = None  # FORCE DESTROY INSTANCE
         if self.activity_dialog:
             self.activity_dialog.close()
+            self.activity_dialog = None  # FORCE DESTROY INSTANCE
 
         # Clear all component data
         self.clear_all_data()
@@ -1076,6 +1108,7 @@ class ClientMainWindow(QMainWindow):
         # Reset user data
         self.user_data = None
         self.api_client.user_data = None
+        self.profile_image_path = None  # CRITICAL: Clear cached profile image path
 
         # Reset UI state
         self.user_label.setText("Guest")

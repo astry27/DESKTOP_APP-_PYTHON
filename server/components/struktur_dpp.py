@@ -75,10 +75,6 @@ class StrukturDPPComponent(BaseStrukturComponent):
         self.search_input.textChanged.connect(self.filter_data)
         header_layout.addWidget(self.search_input)
 
-        # Tombol Refresh
-        refresh_button = self.create_button("Refresh", "#3498db", self.refresh_data, "server/assets/refresh.png")
-        header_layout.addWidget(refresh_button)
-
         header_layout.addStretch()
 
         add_button = self.create_button("Tambah Pengurus", "#27ae60", self.add_struktur, "server/assets/tambah.png")
@@ -226,13 +222,13 @@ class StrukturDPPComponent(BaseStrukturComponent):
         action_layout = QHBoxLayout()
         action_layout.addStretch()
 
-        edit_button = self.create_button("Edit Terpilih", "#f39c12", self.edit_struktur, "server/assets/edit.png")
+        edit_button = self.create_button("Edit", "#f39c12", self.edit_struktur, "server/assets/edit.png")
         action_layout.addWidget(edit_button)
 
-        delete_button = self.create_button("Hapus Terpilih", "#c0392b", self.delete_struktur, "server/assets/hapus.png")
+        delete_button = self.create_button("Hapus", "#c0392b", self.delete_struktur, "server/assets/hapus.png")
         action_layout.addWidget(delete_button)
 
-        export_button = self.create_button("Export Data", "#16a085", self.export_data, "server/assets/export.png")
+        export_button = self.create_button(".CSV", "#16a085", self.export_data, "server/assets/export.png")
         action_layout.addWidget(export_button)
 
         return action_layout
@@ -417,15 +413,12 @@ class StrukturDPPComponent(BaseStrukturComponent):
         self.struktur_data = filtered_data
         self.populate_views()
 
-    def refresh_data(self):
-        """Refresh data dari database"""
-        self.search_input.clear()
-
-        if hasattr(self, 'all_struktur_data'):
-            self.all_struktur_data = []
-
-        self.load_data()
-        self.log_message.emit("Data struktur DPP berhasil di-refresh")
+    def set_database_manager(self, db_manager):
+        """Set database manager dan load data otomatis"""
+        super().set_database_manager(db_manager)
+        # Load data otomatis setelah database manager di-set
+        if db_manager:
+            self.load_data()
 
     def add_struktur(self):
         """Tambah pengurus baru"""

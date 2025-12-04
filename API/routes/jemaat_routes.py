@@ -186,9 +186,13 @@ def add_jemaat():
         }
 
         for field_name, db_column in field_mapping.items():
-            if field_name in data and data[field_name] not in [None, '']:
+            if field_name in data:
+                value = data[field_name]
+                # Skip hanya jika value adalah None atau string yang hanya whitespace
+                if value is None or (isinstance(value, str) and value.strip() == ''):
+                    continue
                 fields.append(db_column)
-                values.append(data[field_name])
+                values.append(value)
 
         query = f"INSERT INTO jemaat ({', '.join(fields)}) VALUES ({', '.join(['%s'] * len(values))})"
         params = tuple(values)
@@ -334,10 +338,14 @@ def update_jemaat(jemaat_id):
 
         # Dynamically build update clauses (skip user_id and other system fields)
         for field_name, db_column in field_mapping.items():
-            if data and field_name in data and data[field_name] not in [None, '']:  # type: ignore
+            if data and field_name in data:  # type: ignore
                 try:
+                    value = data[field_name]  # type: ignore
+                    # Skip hanya jika value adalah None atau string yang hanya whitespace
+                    if value is None or (isinstance(value, str) and value.strip() == ''):
+                        continue
                     set_clauses.append(f"{db_column} = %s")
-                    params.append(data[field_name])  # type: ignore
+                    params.append(value)
                 except Exception as e:
                     # Log but continue - skip fields that cause issues
                     print(f"[WARNING] Skipping field {field_name}: {e}")

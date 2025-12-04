@@ -554,10 +554,6 @@ class TimPembinaComponent(BaseStrukturComponent):
         self.search_input.textChanged.connect(self.filter_data)
         header_layout.addWidget(self.search_input)
 
-        # Tombol Refresh
-        refresh_button = self.create_button("Refresh", "#3498db", self.refresh_data, "server/assets/refresh.png")
-        header_layout.addWidget(refresh_button)
-
         header_layout.addStretch()
 
         add_button = self.create_button("Tambah Tim", "#27ae60", self.add_tim_pembina, "server/assets/tambah.png")
@@ -770,13 +766,13 @@ class TimPembinaComponent(BaseStrukturComponent):
         action_layout = QHBoxLayout()
         action_layout.addStretch()
 
-        edit_button = self.create_button("Edit Terpilih", "#f39c12", self.edit_tim_pembina, "server/assets/edit.png")
+        edit_button = self.create_button("Edit", "#f39c12", self.edit_tim_pembina, "server/assets/edit.png")
         action_layout.addWidget(edit_button)
 
-        delete_button = self.create_button("Hapus Terpilih", "#c0392b", self.delete_tim_pembina, "server/assets/hapus.png")
+        delete_button = self.create_button("Hapus", "#c0392b", self.delete_tim_pembina, "server/assets/hapus.png")
         action_layout.addWidget(delete_button)
 
-        export_button = self.create_button("Export Data", "#16a085", self.export_data, "server/assets/export.png")
+        export_button = self.create_button(".CSV", "#16a085", self.export_data, "server/assets/export.png")
         action_layout.addWidget(export_button)
 
         return action_layout
@@ -940,20 +936,6 @@ class TimPembinaComponent(BaseStrukturComponent):
         self.populate_table()
         self.update_total_label()
 
-    def refresh_data(self):
-        """Refresh data dari database"""
-        self.search_input.clear()
-        self.tim_pembina_filter.setCurrentIndex(0)
-        self.wilayah_rohani_filter.setCurrentIndex(0)
-        self.jabatan_filter.setCurrentIndex(0)
-        self.tahun_filter.setCurrentIndex(0)
-
-        if hasattr(self, 'all_tim_pembina_data'):
-            self.all_tim_pembina_data = []
-
-        self.load_data()
-        self.log_message.emit("Data Tim Pembina berhasil di-refresh")
-
     def add_tim_pembina(self):
         """Tambah peserta Tim Pembina baru"""
         dialog = TimPembinaDialog(self)
@@ -1093,6 +1075,13 @@ class TimPembinaComponent(BaseStrukturComponent):
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Gagal mengekspor data: {str(e)}")
             self.log_message.emit(f"Gagal mengekspor data: {str(e)}")
+
+    def set_database_manager(self, db_manager):
+        """Set database manager dan load data otomatis"""
+        super().set_database_manager(db_manager)
+        # Load data otomatis setelah database manager di-set
+        if db_manager:
+            self.load_data()
 
     def set_current_admin(self, admin_data):
         """Set current admin data"""

@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QTableWidget,
                              QTabWidget, QDialog, QFormLayout, QDateEdit, QSpinBox,
                              QTextEdit, QFileDialog, QFrame)
 from PyQt5.QtCore import Qt, pyqtSignal, QSize, QRect, QTimer, QDate
-from PyQt5.QtGui import QFont, QColor, QPainter, QBrush
+from PyQt5.QtGui import QFont, QColor, QPainter, QBrush, QIcon
 from database import DatabaseManager
 import datetime
 
@@ -652,10 +652,10 @@ class KeuanganKategorialWidget(QWidget):
         self.jenis_filter.currentTextChanged.connect(self.filter_data)
 
         # Add and Refresh buttons
-        add_btn = self.create_professional_button("Tambah Transaksi", "#27ae60", "#2ecc71")
+        add_btn = self.create_professional_button("Tambah Transaksi", "#27ae60", "#2ecc71", "server/assets/tambah.png")
         add_btn.clicked.connect(self.add_data)
 
-        refresh_btn = self.create_professional_button("Refresh", "#3498db", "#2980b9")
+        refresh_btn = self.create_professional_button("Refresh", "#3498db", "#2980b9", "server/assets/refresh.png")
         refresh_btn.clicked.connect(self.load_data)
 
         toolbar_layout.addWidget(search_label)
@@ -701,7 +701,7 @@ class KeuanganKategorialWidget(QWidget):
         export_layout = QHBoxLayout()
         export_layout.addStretch()
 
-        export_excel_btn = self.create_professional_button("Export ke Excel", "#16a085", "#1abc9c")
+        export_excel_btn = self.create_professional_button(".CSV", "#16a085", "#1abc9c", "server/assets/export.png")
         export_excel_btn.clicked.connect(self.export_to_excel)
         export_excel_btn.setToolTip("Ekspor data ke file Excel")
         export_layout.addWidget(export_excel_btn)
@@ -777,11 +777,21 @@ class KeuanganKategorialWidget(QWidget):
 
         return widget
 
-    def create_professional_button(self, text, bg_color, hover_color):
-        """Create a professional button with gradient"""
+    def create_professional_button(self, text, bg_color, hover_color, icon_path=None):
+        """Create a professional button with gradient and optional icon"""
         button = QPushButton(text)
         button.setMinimumSize(150, 32)
         button.setMaximumSize(220, 32)
+
+        # Add icon if provided
+        if icon_path:
+            try:
+                icon = QIcon(icon_path)
+                if not icon.isNull():
+                    button.setIcon(icon)
+                    button.setIconSize(QSize(18, 18))
+            except Exception:
+                pass
 
         button.setStyleSheet(f"""
             QPushButton {{
@@ -792,7 +802,7 @@ class KeuanganKategorialWidget(QWidget):
                 padding: 4px 8px;
                 font-size: 11px;
                 font-weight: 500;
-                text-align: center;
+                text-align: left;
                 margin: 1px 3px;
                 box-shadow: 0 1px 2px rgba(0,0,0,0.1);
             }}
@@ -1049,6 +1059,16 @@ class KeuanganKategorialWidget(QWidget):
         view_button = QPushButton()
         view_button.setText("Lihat")
         view_button.setFixedSize(50, 28)
+
+        # Add icon
+        try:
+            icon = QIcon("server/assets/lihat.png")
+            if not icon.isNull():
+                view_button.setIcon(icon)
+                view_button.setIconSize(QSize(14, 14))
+        except Exception:
+            pass
+
         view_button.setStyleSheet("""
             QPushButton {
                 background-color: #3498db;
@@ -1074,6 +1094,16 @@ class KeuanganKategorialWidget(QWidget):
         edit_button = QPushButton()
         edit_button.setText("Edit")
         edit_button.setFixedSize(50, 28)
+
+        # Add icon
+        try:
+            icon = QIcon("server/assets/edit.png")
+            if not icon.isNull():
+                edit_button.setIcon(icon)
+                edit_button.setIconSize(QSize(14, 14))
+        except Exception:
+            pass
+
         edit_button.setStyleSheet("""
             QPushButton {
                 background-color: #f39c12;
@@ -1099,6 +1129,16 @@ class KeuanganKategorialWidget(QWidget):
         delete_button = QPushButton()
         delete_button.setText("Hapus")
         delete_button.setFixedSize(55, 28)
+
+        # Add icon
+        try:
+            icon = QIcon("server/assets/hapus.png")
+            if not icon.isNull():
+                delete_button.setIcon(icon)
+                delete_button.setIconSize(QSize(14, 14))
+        except Exception:
+            pass
+
         delete_button.setStyleSheet("""
             QPushButton {
                 background-color: #e74c3c;

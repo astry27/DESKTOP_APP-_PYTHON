@@ -12,7 +12,7 @@ class JemaatDialog(QDialog):
     def __init__(self, parent=None, jemaat_data=None):
         super().__init__(parent)
         self.jemaat_data = jemaat_data
-        self.setWindowTitle("Tambah Jemaat" if not jemaat_data else "Edit Jemaat")
+        self.setWindowTitle("Tambah Umat" if not jemaat_data else "Edit Jemaat")
         self.setModal(True)
         self.setFixedSize(600, 700)
 

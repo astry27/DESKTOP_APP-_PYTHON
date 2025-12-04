@@ -18,8 +18,7 @@ class StatisticsChart(QWidget):
         self.jemaat_data = {
             'total': 0,
             'keluarga': 0,
-            'lingkungan': 15,
-            'wilayah': 5,
+            'wilayah_rohani': 0,
             'laki_laki': 0,
             'perempuan': 0,
             'kategori': {
@@ -48,14 +47,23 @@ class StatisticsChart(QWidget):
 
         # Hitung jumlah keluarga dari No. KK yang unik (same No. KK = 1 family)
         unique_no_kk = set()
+        unique_wilayah_rohani = set()
         if jemaat_data:
             for jemaat in jemaat_data:
                 no_kk = jemaat.get('no_kk', '')
                 if no_kk and no_kk.strip():  # Only count if No. KK exists and not empty
                     unique_no_kk.add(no_kk.strip())
 
+                # Hitung wilayah rohani yang unik
+                wilayah_rohani = jemaat.get('wilayah_rohani', '')
+                if wilayah_rohani and wilayah_rohani.strip():
+                    unique_wilayah_rohani.add(wilayah_rohani.strip())
+
         # Jumlah keluarga = jumlah unique No. KK
         self.jemaat_data['keluarga'] = len(unique_no_kk) if unique_no_kk else max(1, total_jemaat // 4)
+
+        # Jumlah wilayah rohani = jumlah unique wilayah rohani
+        self.jemaat_data['wilayah_rohani'] = len(unique_wilayah_rohani) if unique_wilayah_rohani else 0
 
         # Reset kategori dan gender
         for kategori in self.jemaat_data['kategori']:
@@ -348,9 +356,9 @@ class StatisticsChart(QWidget):
         painter.drawText(col2_x, stats_y, "Laki-laki")
         painter.drawText(col2_x + 70, stats_y, f": {self.jemaat_data['laki_laki']}")
 
-        # Column 3 - Lingkungan
-        painter.drawText(col3_x, stats_y, "Lingkungan")
-        painter.drawText(col3_x + 70, stats_y, f": {self.jemaat_data['lingkungan']}")
+        # Column 3 - Wilayah Rohani
+        painter.drawText(col3_x, stats_y, "Wilayah Rohani")
+        painter.drawText(col3_x + 90, stats_y, f": {self.jemaat_data['wilayah_rohani']}")
 
         # Row 2
         # Column 1 - Jumlah Keluarga
@@ -361,16 +369,17 @@ class StatisticsChart(QWidget):
         painter.drawText(col2_x, stats_y + 20, "Perempuan")
         painter.drawText(col2_x + 70, stats_y + 20, f": {self.jemaat_data['perempuan']}")
 
-        # Column 3 - Wilayah
-        painter.drawText(col3_x, stats_y + 20, "Wilayah")
-        painter.drawText(col3_x + 70, stats_y + 20, f": {self.jemaat_data['wilayah']}")
-
 class DashboardComponent(QWidget):
     """Komponen dashboard untuk menampilkan statistik dan info terbaru"""
 
     def __init__(self, parent=None):  # type: ignore
         super().__init__(parent)  # type: ignore
+        self.current_admin = None
         self.setup_ui()
+
+    def set_current_admin(self, admin_data):
+        """Set current admin data"""
+        self.current_admin = admin_data
         
     def setup_ui(self):
         """Setup UI dashboard"""

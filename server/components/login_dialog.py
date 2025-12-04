@@ -1,8 +1,8 @@
 # Path: server/components/login_dialog.py
 
 import hashlib
-from PyQt5.QtWidgets import QDialog, QVBoxLayout, QLineEdit, QPushButton, QMessageBox, QLabel
-from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtWidgets import QDialog, QVBoxLayout, QLineEdit, QPushButton, QMessageBox, QLabel, QCheckBox
+from PyQt5.QtCore import Qt, pyqtSignal, QSettings
 from PyQt5.QtGui import QFont
 
 class LoginDialog(QDialog):
@@ -12,7 +12,7 @@ class LoginDialog(QDialog):
     
     def __init__(self, database_manager, parent=None):
         super(LoginDialog, self).__init__(parent)
-        self.setWindowTitle("Login Administrator - Gereja Katolik")
+        self.setWindowTitle("Login Administrator")
         self.setMinimumSize(350, 250)
         self.database_manager = database_manager
         self.admin_data = None
@@ -29,13 +29,13 @@ class LoginDialog(QDialog):
         layout.setSpacing(15)
         layout.setContentsMargins(30, 30, 30, 30)
         
-        title_label = QLabel("Login Administrator")
+        title_label = QLabel("Sistem Manajemen Gereja katolik")
         title_label.setFont(QFont("Arial", 16, QFont.Bold))
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title_label.setStyleSheet("color: #2c3e50; margin-bottom: 10px;")
         layout.addWidget(title_label)
         
-        subtitle_label = QLabel("Sistem Manajemen Gereja Katolik")
+        subtitle_label = QLabel("Paroki Santa Maria Ratu Damai, Uluindano")
         subtitle_label.setFont(QFont("Arial", 10))
         subtitle_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         subtitle_label.setStyleSheet("color: #7f8c8d; margin-bottom: 20px;")
@@ -53,6 +53,11 @@ class LoginDialog(QDialog):
         self.password_input.setEchoMode(QLineEdit.Password)
         self.password_input.setStyleSheet("padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px;")
         layout.addWidget(self.password_input)
+
+        # Checkbox Ingat Saya
+        self.remember_checkbox = QCheckBox("Ingat Saya")
+        self.remember_checkbox.setStyleSheet("color: #2c3e50; font-size: 12px; margin: 5px 0px;")
+        layout.addWidget(self.remember_checkbox)
 
         self.login_button = QPushButton("Login")
         self.login_button.setStyleSheet("""
@@ -92,16 +97,44 @@ class LoginDialog(QDialog):
         self.info_label.setStyleSheet("color: #e74c3c; font-size: 12px; margin-top: 10px;")
         self.info_label.setWordWrap(True)
         layout.addWidget(self.info_label)
-        
-        # Set default credentials untuk testing
-        self.username_input.setText("admin")
-        self.password_input.setText("admin123")
-        
+
+        # Load saved credentials dari QSettings
+        self.load_saved_credentials()
+
         # Setup connections
         self.login_button.clicked.connect(self.handle_login)
         self.exit_button.clicked.connect(self.handle_exit)
         self.username_input.returnPressed.connect(self.handle_login)
         self.password_input.returnPressed.connect(self.handle_login)
+
+    def load_saved_credentials(self):
+        """Load kredensial yang tersimpan dari QSettings"""
+        settings = QSettings("GerejaKatolik", "ServerAdminPanel")
+        remember = settings.value("remember_me", False, type=bool)
+
+        if remember:
+            username = settings.value("username", "", type=str)
+            password = settings.value("password", "", type=str)
+
+            if username and password:
+                self.username_input.setText(username)
+                self.password_input.setText(password)
+                self.remember_checkbox.setChecked(True)
+
+    def save_credentials(self):
+        """Simpan kredensial ke QSettings jika checkbox dicentang"""
+        settings = QSettings("GerejaKatolik", "ServerAdminPanel")
+
+        if self.remember_checkbox.isChecked():
+            # Simpan kredensial
+            settings.setValue("remember_me", True)
+            settings.setValue("username", self.username_input.text())
+            settings.setValue("password", self.password_input.text())
+        else:
+            # Hapus kredensial tersimpan
+            settings.setValue("remember_me", False)
+            settings.remove("username")
+            settings.remove("password")
 
     def handle_login(self):
         username = self.username_input.text().strip()
@@ -125,10 +158,13 @@ class LoginDialog(QDialog):
             if success and result:
                 self.admin_data = result
                 self.show_success("Login berhasil!")
-                
+
+                # Simpan kredensial jika checkbox dicentang
+                self.save_credentials()
+
                 # Update last login di database
                 self.update_last_login(result['id_admin'])  # type: ignore
-                
+
                 # Emit signal dan tutup dialog
                 self.login_successful.emit(result)  # type: ignore
                 self.accept()

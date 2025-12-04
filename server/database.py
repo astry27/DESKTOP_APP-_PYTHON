@@ -214,7 +214,23 @@ class DatabaseManager:
         except Exception as e:
             self.logger.error(f"Error getting active sessions: {e}")
             return False, []
-    
+
+    def get_client_connections_history(self, limit: int = 100) -> Tuple[bool, Any]:
+        """Ambil semua riwayat koneksi client (aktif dan terputus)"""
+        try:
+            result = self.api_client.get_client_connections_history(limit)
+            if result["success"]:
+                api_data = result["data"]
+                if isinstance(api_data, dict) and "data" in api_data:
+                    return True, api_data.get("data", [])
+                else:
+                    return True, api_data if isinstance(api_data, list) else []
+            else:
+                return False, result["data"]
+        except Exception as e:
+            self.logger.error(f"Error getting client connections history: {e}")
+            return False, str(e)
+
     def send_broadcast_message(self, message: str) -> Tuple[bool, Any]:
         """Kirim broadcast message ke semua client melalui API"""
         try:

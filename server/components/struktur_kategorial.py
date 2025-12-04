@@ -519,13 +519,13 @@ class StrukturKategorialComponent(BaseStrukturComponent):
         action_layout = QHBoxLayout()
         action_layout.addStretch()
 
-        edit_button = self.create_button("Edit Terpilih", "#f39c12", self.edit_kategorial, "server/assets/edit.png")
+        edit_button = self.create_button("Edit", "#f39c12", self.edit_kategorial, "server/assets/edit.png")
         action_layout.addWidget(edit_button)
 
-        delete_button = self.create_button("Hapus Terpilih", "#c0392b", self.delete_kategorial, "server/assets/hapus.png")
+        delete_button = self.create_button("Hapus", "#c0392b", self.delete_kategorial, "server/assets/hapus.png")
         action_layout.addWidget(delete_button)
 
-        export_button = self.create_button("Export Data", "#16a085", self.export_kategorial_data, "server/assets/export.png")
+        export_button = self.create_button(".CSV", "#16a085", self.export_kategorial_data, "server/assets/export.png")
         action_layout.addWidget(export_button)
 
         return action_layout

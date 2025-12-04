@@ -309,10 +309,10 @@ class ProgramKerjaWRWidget(QWidget):
         action_layout = QHBoxLayout()
         action_layout.addStretch()
 
-        view_button = self.create_button("Lihat Detail", "#3498db", self.view_program, "server/assets/view.png")
+        view_button = self.create_button("Lihat Detail", "#3498db", self.view_program, "server/assets/lihat.png")
         action_layout.addWidget(view_button)
 
-        export_button = self.create_button("Export CSV", "#16a085", self.export_programs, "server/assets/export.png")
+        export_button = self.create_button(".CSV", "#16a085", self.export_programs, "server/assets/export.png")
         action_layout.addWidget(export_button)
 
         return action_layout

@@ -53,7 +53,7 @@ def user_login():
         
         cursor = connection.cursor(dictionary=True)
         query = """
-        SELECT id_pengguna, username, nama_lengkap, email, peran, is_active, created_at, last_login
+        SELECT id_pengguna, username, nama_lengkap, email, peran, is_active, created_at, last_login, foto_profil
         FROM pengguna 
         WHERE username = %s AND password = %s AND is_active = 1
         """
@@ -311,7 +311,7 @@ def get_profile():
     try:
         cursor = connection.cursor(dictionary=True)
         query = """
-        SELECT id_pengguna, username, nama_lengkap, email, peran, is_active, created_at, last_login
+        SELECT id_pengguna, username, nama_lengkap, email, peran, is_active, created_at, last_login, foto_profil
         FROM pengguna 
         WHERE id_pengguna = %s
         """
@@ -377,5 +377,79 @@ def update_profile():
                 'status': 'error',
                 'message': 'Pengguna tidak ditemukan'
             }), 404
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@auth_bp.route('/upload-photo', methods=['POST'])
+def upload_photo():
+    """Upload foto profil pengguna"""
+    status_check = check_api_enabled()
+    if status_check:
+        return status_check
+
+    if 'file' not in request.files:
+        return jsonify({'status': 'error', 'message': 'Tidak ada file yang diupload'}), 400
+
+    file = request.files['file']
+    user_id = request.form.get('user_id')
+
+    if not file or not user_id:
+        return jsonify({'status': 'error', 'message': 'File dan User ID harus diisi'}), 400
+
+    if file.filename == '':
+        return jsonify({'status': 'error', 'message': 'Tidak ada file yang dipilih'}), 400
+
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({'status': 'error', 'message': 'Database error'}), 500
+
+        # Buat direktori uploads jika belum ada
+        import uuid
+        upload_dir = 'uploads/profiles'
+        os.makedirs(upload_dir, exist_ok=True)
+
+        # Generate unique filename
+        file_ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else 'jpg'
+        unique_filename = f"profile_{user_id}_{uuid.uuid4().hex[:8]}.{file_ext}"
+        file_path = os.path.join(upload_dir, unique_filename)
+        
+        # Save file (convert backslashes to forward slashes for URL consistency)
+        relative_path = file_path.replace('\\', '/')
+        file.save(file_path)
+
+        cursor = connection.cursor()
+        
+        # Cek user di tabel pengguna atau admin
+        # Cek pengguna dulu
+        cursor.execute("SELECT id_pengguna FROM pengguna WHERE id_pengguna = %s", (user_id,))
+        if cursor.fetchone():
+            table = 'pengguna'
+            id_col = 'id_pengguna'
+        else:
+            # Cek admin
+            cursor.execute("SELECT id_admin FROM admin WHERE id_admin = %s", (user_id,))
+            if cursor.fetchone():
+                table = 'admin'
+                id_col = 'id_admin'
+            else:
+                cursor.close()
+                connection.close()
+                return jsonify({'status': 'error', 'message': 'User tidak ditemukan'}), 404
+
+        # Update database
+        query = f"UPDATE {table} SET foto_profil = %s, updated_at = %s WHERE {id_col} = %s"
+        cursor.execute(query, (relative_path, datetime.datetime.now(), user_id))
+        connection.commit()
+        
+        cursor.close()
+        connection.close()
+
+        return jsonify({
+            'status': 'success',
+            'message': 'Foto profil berhasil diupload',
+            'data': {'foto_path': relative_path}
+        })
+
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500

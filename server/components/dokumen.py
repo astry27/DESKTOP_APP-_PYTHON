@@ -412,7 +412,7 @@ class DokumenComponent(QWidget):
     
     def setup_ui(self):
         layout = QVBoxLayout(self)
-        
+
         # Clean header without background (matching pengaturan style)
         header = QWidget()
         header_layout = QHBoxLayout(header)
@@ -424,17 +424,17 @@ class DokumenComponent(QWidget):
         header_layout.addStretch()
 
         layout.addWidget(header)
-        
-        toolbar_layout = QHBoxLayout()
 
-        self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Cari dokumen...")
-        self.search_input.textChanged.connect(self.filter_data)
-        toolbar_layout.addWidget(QLabel("Cari:"))
-        toolbar_layout.addWidget(self.search_input)
+        # Button upload dalam baris terpisah di bawah judul, posisi kanan
+        button_row = QWidget()
+        button_row_layout = QHBoxLayout(button_row)
+        button_row_layout.setContentsMargins(0, 5, 10, 10)
+        button_row_layout.setSpacing(0)
+        button_row_layout.addStretch()
 
         self.upload_button = QPushButton("Upload Dokumen")
         self.upload_button.clicked.connect(self.upload_document)
+        self.upload_button.setCursor(Qt.PointingHandCursor)
         # Add upload icon
         upload_icon = QIcon("server/assets/upload.png")
         if not upload_icon.isNull():
@@ -444,16 +444,31 @@ class DokumenComponent(QWidget):
             QPushButton {
                 background-color: #27ae60;
                 color: white;
-                padding: 6px 12px;
+                padding: 8px 15px;
                 border: none;
-                border-radius: 4px;
-                text-align: left;
+                border-radius: 5px;
+                text-align: center;
+                font-weight: bold;
+                font-size: 12px;
             }
             QPushButton:hover {
-                background-color: #2ecc71;
+                background-color: #229954;
+            }
+            QPushButton:pressed {
+                background-color: #1e8449;
             }
         """)
-        toolbar_layout.addWidget(self.upload_button)
+        button_row_layout.addWidget(self.upload_button)
+
+        layout.addWidget(button_row)
+
+        toolbar_layout = QHBoxLayout()
+
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("Cari dokumen...")
+        self.search_input.textChanged.connect(self.filter_data)
+        toolbar_layout.addWidget(QLabel("Cari:"))
+        toolbar_layout.addWidget(self.search_input)
 
         # Filter Kategori Dokumen menggunakan QComboBox
         toolbar_layout.addWidget(QLabel("Kategori:"))

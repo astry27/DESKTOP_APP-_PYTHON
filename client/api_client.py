@@ -319,7 +319,7 @@ class ApiClient:
             params = {'user_id': user_id}
             response = requests.get(f"{self.base_url}/jemaat/my", params=params, timeout=self.timeout)
             response.raise_for_status()
-            return {"success": True, "data": response.json()}
+            return response.json()
         except requests.exceptions.RequestException as e:
             return {"success": False, "data": f"Gagal mengambil data jemaat: {e}"}
     
@@ -868,30 +868,29 @@ class ApiClient:
             return {"success": True, "data": response.json()}
         except requests.exceptions.RequestException as e:
             return {"success": False, "data": f"Gagal mengambil data broadcast dokumen: {e}"}
-    
-    def change_password(self, username, old_password, new_password):
+
+    def change_password(self, user_id, current_password, new_password):
         """Change user password"""
         try:
+            url = f"{self.base_url}/auth/change-password"
             data = {
-                "username": username,
-                "old_password": old_password,
-                "new_password": new_password
+                'user_id': user_id,
+                'old_password': current_password,
+                'new_password': new_password
             }
             
-            response = requests.post(f"{self.base_url}/change-password", 
-                                   json=data,
-                                   headers={'Content-Type': 'application/json'},
-                                   timeout=self.timeout)
-            response.raise_for_status()
+            response = requests.post(url, json=data, timeout=self.timeout)
             
-            result = response.json()
-            if result.get("status") == "success":
-                return {"success": True, "data": result}
-            else:
-                return {"success": False, "data": result.get("message", "Gagal mengubah password")}
-                
-        except requests.exceptions.RequestException as e:
-            return {"success": False, "data": f"Gagal mengubah password: {e}"}
+            try:
+                result = response.json()
+                if response.status_code == 200 and result.get('status') == 'success':
+                    return {"success": True, "data": result}
+                else:
+                    return {"success": False, "data": result.get('message', 'Gagal mengubah password')}
+            except:
+                return {"success": False, "data": f"Error: {response.status_code}"}
+        except Exception as e:
+            return {"success": False, "data": str(e)}
     
     def logout(self):
         """Logout user and clear session"""
@@ -912,3 +911,81 @@ class ApiClient:
             # Even if logout request fails, clear local session
             self.session_id = None
             return {"success": True, "data": f"Logout selesai (warning: {e})"}
+
+    def download_profile_photo(self, relative_path, save_dir):
+        """Download profile photo from server"""
+        try:
+            # Construct full URL
+            # relative_path usually looks like 'uploads/profiles/filename.jpg'
+            # We need to make sure we don't double slash
+            if relative_path.startswith('/'):
+                relative_path = relative_path[1:]
+            
+            url = f"{self.base_url}/{relative_path}"
+            
+            # Create save directory if not exists
+            os.makedirs(save_dir, exist_ok=True)
+            
+            # Determine filename
+            filename = os.path.basename(relative_path)
+            save_path = os.path.join(save_dir, filename)
+            
+            # Download
+            response = requests.get(url, timeout=self.timeout, stream=True)
+            if response.status_code == 200:
+                with open(save_path, 'wb') as f:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        f.write(chunk)
+                return {"success": True, "data": save_path}
+            else:
+                return {"success": False, "data": f"Server returned {response.status_code}"}
+                
+        except Exception as e:
+            return {"success": False, "data": f"Download failed: {e}"}
+
+    def upload_profile_photo(self, file_path):
+        """Upload profile photo"""
+        try:
+            if not self.user_data:
+                return {"success": False, "data": "User not logged in"}
+
+            user_id = self.user_data.get('id_pengguna')
+            if not user_id:
+                return {"success": False, "data": "User ID not found"}
+
+            with open(file_path, 'rb') as f:
+                files = {'file': (os.path.basename(file_path), f)}
+                data = {'user_id': user_id}
+                
+                response = requests.post(f"{self.base_url}/auth/upload-photo", 
+                                       files=files,
+                                       data=data,
+                                       timeout=60)
+                
+                if response.status_code == 200:
+                    return {"success": True, "data": response.json()}
+                else:
+                    return {"success": False, "data": f"Upload failed: {response.status_code} - {response.text}"}
+        except Exception as e:
+            return {"success": False, "data": f"Upload error: {e}"}
+
+    def update_profile(self, user_id, data):
+        """Update user profile data"""
+        try:
+            # Determine source table if not provided
+            if 'source_table' not in data and self.user_data:
+                data['source_table'] = self.user_data.get('source_table')
+                
+            response = requests.put(f"{self.base_url}/pengguna/{user_id}", 
+                                  json=data,
+                                  timeout=self.timeout)
+            
+            if response.status_code == 200:
+                return {"success": True, "data": response.json()}
+            else:
+                try:
+                    return {"success": False, "data": response.json().get('message', 'Update failed')}
+                except:
+                    return {"success": False, "data": f"Update failed: {response.status_code}"}
+        except Exception as e:
+            return {"success": False, "data": f"Update error: {e}"}

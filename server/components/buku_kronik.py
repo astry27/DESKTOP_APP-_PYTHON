@@ -8,6 +8,7 @@ from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushBut
 from PyQt5.QtCore import Qt, QDate, pyqtSignal, QDateTime, QTimer, QSize
 from PyQt5.QtGui import QFont, QColor, QIcon
 import datetime
+from typing import Any, Dict
 
 
 class PeistiwaDialog(QDialog):
@@ -81,7 +82,7 @@ class PeistiwaDialog(QDialog):
         self.peristiwa_input.setText(self.peristiwa_data.get('peristiwa', ''))
         self.keterangan_input.setText(self.peristiwa_data.get('keterangan', ''))
 
-    def get_data(self):
+    def get_data(self) -> Dict[str, Any]:
         """Get form data"""
         return {
             'tanggal': self.tanggal_input.date().toString("yyyy-MM-dd"),
@@ -293,7 +294,7 @@ class BukuKronikComponent(QWidget):
         action_layout.addStretch()
 
         # Export PDF button
-        pdf_button = QPushButton(" Export PDF")
+        pdf_button = QPushButton(".PDF")
         try:
             icon = QIcon("server/assets/export.png")
             if not icon.isNull():
@@ -568,7 +569,7 @@ class BukuKronikComponent(QWidget):
         try:
             dialog = PeistiwaDialog(self, db_manager=self.db_manager)
             if dialog.exec_() == dialog.Accepted:
-                data = dialog.get_data()
+                data: Dict[str, Any] = dialog.get_data()
 
                 # Validate required fields
                 if not data['peristiwa'].strip():
@@ -613,7 +614,7 @@ class BukuKronikComponent(QWidget):
         try:
             dialog = PeistiwaDialog(self, peristiwa, db_manager=self.db_manager)
             if dialog.exec_() == dialog.Accepted:
-                data = dialog.get_data()
+                data: Dict[str, Any] = dialog.get_data()
 
                 # Validate required fields
                 if not data['peristiwa'].strip():
