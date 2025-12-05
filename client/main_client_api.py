@@ -123,7 +123,7 @@ class ClientMainWindow(QMainWindow):
         header_frame.setMinimumHeight(90)
         header_frame.setStyleSheet("""
             QFrame {
-                background-color: #12101E;
+                background-color: #073642;
             }
         """)
         header_layout = QHBoxLayout(header_frame)

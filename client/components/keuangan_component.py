@@ -808,11 +808,8 @@ class KeuanganClientComponent(QWidget):
         controls_layout = QHBoxLayout(controls_frame)
 
         # Date range filter
-        period_label = QLabel("Periode Laporan:")
-        period_label.setFont(QFont("Arial", 11, QFont.Bold))
-
         from_label = QLabel("Dari:")
-        from_label.setStyleSheet("font-weight: 500; color: #2c3e50;")
+        from_label.setStyleSheet("color: #2c3e50; font-size: 11px; border: none; background-color: transparent;")
 
         self.start_date_filter = QDateEdit()
         self.start_date_filter.setCalendarPopup(True)
@@ -828,7 +825,7 @@ class KeuanganClientComponent(QWidget):
         """)
 
         to_label = QLabel("Sampai:")
-        to_label.setStyleSheet("font-weight: 500; color: #2c3e50;")
+        to_label.setStyleSheet("color: #2c3e50; font-size: 11px; border: none; background-color: transparent;")
 
         self.end_date_filter = QDateEdit()
         self.end_date_filter.setCalendarPopup(True)
@@ -861,6 +858,17 @@ class KeuanganClientComponent(QWidget):
         generate_button.clicked.connect(self.generate_report)
 
         export_csv_button = QPushButton(".CSV")
+        # Add export icon if available
+        export_icon_path = os.path.join(os.path.dirname(__file__), '..', 'assets', 'export.png')
+        if os.path.exists(export_icon_path):
+            try:
+                export_icon = QIcon(export_icon_path)
+                if not export_icon.isNull():
+                    export_csv_button.setIcon(export_icon)
+                    export_csv_button.setIconSize(QSize(16, 16))
+            except Exception:
+                pass  # Continue without icon if loading fails
+
         export_csv_button.setStyleSheet("""
             QPushButton {
                 background-color: #16a085;
@@ -877,8 +885,6 @@ class KeuanganClientComponent(QWidget):
         """)
         export_csv_button.clicked.connect(self.export_report_csv)
 
-        controls_layout.addWidget(period_label)
-        controls_layout.addSpacing(10)
         controls_layout.addWidget(from_label)
         controls_layout.addWidget(self.start_date_filter)
         controls_layout.addSpacing(10)
@@ -1986,9 +1992,29 @@ Jumlah: Rp {selected_data.get('jumlah', 0):,.0f}
 
     def _generate_date_range_report(self, data, start_date, end_date):
         """Generate report for specific date range"""
-        # Calculate totals
-        total_pemasukan = sum(t.get('jumlah', 0) for t in data if (t.get('jenis', '') or '').lower() == 'pemasukan')
-        total_pengeluaran = sum(t.get('jumlah', 0) for t in data if (t.get('jenis', '') or '').lower() == 'pengeluaran')
+        # Calculate totals with proper type conversion
+        total_pemasukan = 0.0
+        total_pengeluaran = 0.0
+
+        for t in data:
+            jenis = (t.get('jenis', '') or '').lower()
+            jumlah = t.get('jumlah', 0) or t.get('nominal', 0) or 0
+
+            # Konversi jumlah ke float dengan aman
+            try:
+                if isinstance(jumlah, str):
+                    # Hapus koma atau karakter non-numeric
+                    jumlah = jumlah.replace(',', '').strip()
+                jumlah = float(jumlah) if jumlah else 0.0
+
+                if jenis == 'pemasukan':
+                    total_pemasukan += jumlah
+                elif jenis == 'pengeluaran':
+                    total_pengeluaran += jumlah
+            except (ValueError, TypeError) as e:
+                print(f"[WARN] Invalid jumlah value: {jumlah}, error: {e}")
+                continue
+
         saldo = total_pemasukan - total_pengeluaran
 
         html = f"""
@@ -2034,7 +2060,15 @@ Jumlah: Rp {selected_data.get('jumlah', 0):,.0f}
             jenis = transaksi.get('jenis', '') or transaksi.get('tipe', '')
             kategori = transaksi.get('sub_kategori') or transaksi.get('kategori', '')
             keterangan = transaksi.get('keterangan', '')
-            jumlah = transaksi.get('jumlah', 0) or transaksi.get('nominal', 0) or 0
+            jumlah_raw = transaksi.get('jumlah', 0) or transaksi.get('nominal', 0) or 0
+
+            # Konversi jumlah ke float dengan aman
+            try:
+                if isinstance(jumlah_raw, str):
+                    jumlah_raw = jumlah_raw.replace(',', '').strip()
+                jumlah = float(jumlah_raw) if jumlah_raw else 0.0
+            except (ValueError, TypeError):
+                jumlah = 0.0
 
             bg_color = "#ecf0f1" if idx % 2 == 0 else "white"
             jenis_color = "#27ae60" if jenis.lower() == "pemasukan" else "#e74c3c"
@@ -2180,7 +2214,15 @@ Jumlah: Rp {selected_data.get('jumlah', 0):,.0f}
                         jenis = transaksi.get('jenis', '') or transaksi.get('tipe', '')
                         kategori = transaksi.get('sub_kategori') or transaksi.get('kategori', '')
                         keterangan = transaksi.get('keterangan', '')
-                        jumlah = transaksi.get('jumlah', 0) or transaksi.get('nominal', 0) or 0
+                        jumlah_raw = transaksi.get('jumlah', 0) or transaksi.get('nominal', 0) or 0
+
+                        # Konversi jumlah ke float dengan aman
+                        try:
+                            if isinstance(jumlah_raw, str):
+                                jumlah_raw = jumlah_raw.replace(',', '').strip()
+                            jumlah = float(jumlah_raw) if jumlah_raw else 0.0
+                        except (ValueError, TypeError):
+                            jumlah = 0.0
 
                         writer.writerow({
                             'No': idx,
@@ -2191,9 +2233,26 @@ Jumlah: Rp {selected_data.get('jumlah', 0):,.0f}
                             'Jumlah': jumlah
                         })
 
-                    # Add summary rows
-                    total_pemasukan = sum(t.get('jumlah', 0) for t in self.current_report_data if (t.get('jenis', '') or '').lower() == 'pemasukan')
-                    total_pengeluaran = sum(t.get('jumlah', 0) for t in self.current_report_data if (t.get('jenis', '') or '').lower() == 'pengeluaran')
+                    # Add summary rows with proper type conversion
+                    total_pemasukan = 0.0
+                    total_pengeluaran = 0.0
+
+                    for t in self.current_report_data:
+                        jenis = (t.get('jenis', '') or '').lower()
+                        jumlah_raw = t.get('jumlah', 0) or t.get('nominal', 0) or 0
+
+                        try:
+                            if isinstance(jumlah_raw, str):
+                                jumlah_raw = jumlah_raw.replace(',', '').strip()
+                            jumlah = float(jumlah_raw) if jumlah_raw else 0.0
+
+                            if jenis == 'pemasukan':
+                                total_pemasukan += jumlah
+                            elif jenis == 'pengeluaran':
+                                total_pengeluaran += jumlah
+                        except (ValueError, TypeError):
+                            continue
+
                     saldo = total_pemasukan - total_pengeluaran
 
                     # Empty row

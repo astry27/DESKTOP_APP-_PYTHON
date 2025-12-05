@@ -1,102 +1,241 @@
 # Path: server/components/login_dialog.py
 
 import hashlib
-from PyQt5.QtWidgets import QDialog, QVBoxLayout, QLineEdit, QPushButton, QMessageBox, QLabel, QCheckBox
+import os
+from PyQt5.QtWidgets import QDialog, QVBoxLayout, QLineEdit, QPushButton, QMessageBox, QLabel, QCheckBox, QFrame, QHBoxLayout
 from PyQt5.QtCore import Qt, pyqtSignal, QSettings
-from PyQt5.QtGui import QFont
+from PyQt5.QtGui import QFont, QPixmap, QPalette, QBrush
 
 class LoginDialog(QDialog):
     """Dialog untuk login admin"""
-    
+
     login_successful: pyqtSignal = pyqtSignal(dict)  # Signal ketika login berhasil dengan data admin  # type: ignore
-    
+
     def __init__(self, database_manager, parent=None):
         super(LoginDialog, self).__init__(parent)
         self.setWindowTitle("Login Administrator")
-        self.setMinimumSize(350, 250)
+        self.setMinimumSize(1000, 550)
+        self.setMaximumSize(1400, 750)
+        self.resize(1200, 600)
         self.database_manager = database_manager
         self.admin_data = None
         self.login_attempts = 0
         self.max_attempts = 3
-        
+
         # Set window flags untuk tidak bisa ditutup dengan X
         self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.CustomizeWindowHint | Qt.WindowType.WindowTitleHint)  # type: ignore
-        
+
         self.setup_ui()
 
     def setup_ui(self):
-        layout = QVBoxLayout(self)
-        layout.setSpacing(15)
-        layout.setContentsMargins(30, 30, 30, 30)
-        
-        title_label = QLabel("Sistem Manajemen Gereja katolik")
-        title_label.setFont(QFont("Arial", 16, QFont.Bold))
+        # Set background image
+        background_path = os.path.join(os.path.dirname(__file__), '..', 'assets', 'SMRD.jpg')
+        if os.path.exists(background_path):
+            palette = QPalette()
+            background = QPixmap(background_path)
+            palette.setBrush(QPalette.Window, QBrush(background.scaled(
+                self.size(), Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)))
+            self.setPalette(palette)
+            self.setAutoFillBackground(True)
+
+        # Main layout dengan horizontal arrangement
+        main_layout = QHBoxLayout(self)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+
+        # Left and right spacers - equal untuk center card (landscape layout)
+        main_layout.addStretch(1)
+
+        # Login card container dengan semi-transparent background - landscape style
+        login_card = QFrame()
+        login_card.setStyleSheet("""
+            QFrame {
+                background-color: rgba(255, 255, 255, 0.85);
+                border-radius: 15px;
+                padding: 0px;
+                border: 1px solid rgba(255, 255, 255, 0.3);
+            }
+        """)
+        # Landscape: lebih lebar, kurang tinggi
+        login_card.setMaximumWidth(550)
+        login_card.setMinimumWidth(500)
+        login_card.setMaximumHeight(400)
+
+        # Layout untuk login card - vertical layout
+        card_layout = QVBoxLayout(login_card)
+        card_layout.setContentsMargins(40, 25, 40, 25)
+        card_layout.setSpacing(8)
+
+        # Header section
+        header_frame = QFrame()
+        header_frame.setStyleSheet("background-color: transparent; border: none;")
+        header_layout = QVBoxLayout(header_frame)
+        header_layout.setSpacing(3)
+        header_layout.setContentsMargins(0, 0, 0, 8)
+
+        title_label = QLabel("Sistem Manajemen Gereja Katolik")
+        title_label.setFont(QFont("Arial", 14, QFont.Bold))
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        title_label.setStyleSheet("color: #2c3e50; margin-bottom: 10px;")
-        layout.addWidget(title_label)
-        
+        title_label.setStyleSheet("color: #2c3e50; background-color: transparent; border: none;")
+        header_layout.addWidget(title_label)
+
         subtitle_label = QLabel("Paroki Santa Maria Ratu Damai, Uluindano")
         subtitle_label.setFont(QFont("Arial", 10))
         subtitle_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        subtitle_label.setStyleSheet("color: #7f8c8d; margin-bottom: 20px;")
-        layout.addWidget(subtitle_label)
-        
-        layout.addWidget(QLabel(""))
-        
+        subtitle_label.setStyleSheet("color: #7f8c8d; background-color: transparent; border: none;")
+        header_layout.addWidget(subtitle_label)
+
+        card_layout.addWidget(header_frame)
+
+        # Admin login title
+        admin_title = QLabel("Administrator Login")
+        admin_title.setFont(QFont("Arial", 12, QFont.Bold))
+        admin_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        admin_title.setStyleSheet("color: #34495e; background-color: transparent; border: none; margin-bottom: 5px;")
+        card_layout.addWidget(admin_title)
+
+        # Username input
         self.username_input = QLineEdit()
         self.username_input.setPlaceholderText("Username")
-        self.username_input.setStyleSheet("padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px;")
-        layout.addWidget(self.username_input)
+        self.username_input.setMinimumHeight(38)
+        self.username_input.setStyleSheet("""
+            QLineEdit {
+                padding: 9px 12px;
+                border: 2px solid #e0e0e0;
+                border-radius: 6px;
+                background-color: white;
+                font-size: 12px;
+                color: #2c3e50;
+            }
+            QLineEdit:focus {
+                border: 2px solid #3498db;
+                background-color: #f8f9fa;
+            }
+        """)
+        card_layout.addWidget(self.username_input)
 
+        # Password input
         self.password_input = QLineEdit()
         self.password_input.setPlaceholderText("Password")
         self.password_input.setEchoMode(QLineEdit.Password)
-        self.password_input.setStyleSheet("padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px;")
-        layout.addWidget(self.password_input)
+        self.password_input.setMinimumHeight(38)
+        self.password_input.setStyleSheet("""
+            QLineEdit {
+                padding: 9px 12px;
+                border: 2px solid #e0e0e0;
+                border-radius: 6px;
+                background-color: white;
+                font-size: 12px;
+                color: #2c3e50;
+            }
+            QLineEdit:focus {
+                border: 2px solid #3498db;
+                background-color: #f8f9fa;
+            }
+        """)
+        card_layout.addWidget(self.password_input)
 
-        # Checkbox Ingat Saya
-        self.remember_checkbox = QCheckBox("Ingat Saya")
-        self.remember_checkbox.setStyleSheet("color: #2c3e50; font-size: 12px; margin: 5px 0px;")
-        layout.addWidget(self.remember_checkbox)
+        # Checkbox Ingat Saya dengan checkmark yang terlihat jelas
+        self.remember_checkbox = QCheckBox("  ☐  Ingat Saya")
+        self.remember_checkbox.setChecked(False)
 
+        # Connect state change untuk update text
+        def update_checkbox_text(state):
+            if state == Qt.CheckState.Checked:
+                self.remember_checkbox.setText("  ☑  Ingat Saya")
+            else:
+                self.remember_checkbox.setText("  ☐  Ingat Saya")
+
+        self.remember_checkbox.stateChanged.connect(update_checkbox_text)
+
+        self.remember_checkbox.setStyleSheet("""
+            QCheckBox {
+                color: #2c3e50;
+                font-size: 14px;
+                margin: 3px 0px;
+                background-color: transparent;
+                border: none;
+                spacing: 5px;
+            }
+            QCheckBox::indicator {
+                width: 0px;
+                height: 0px;
+            }
+        """)
+
+        card_layout.addWidget(self.remember_checkbox)
+
+        # Login button
         self.login_button = QPushButton("Login")
+        self.login_button.setMinimumHeight(40)
+        self.login_button.setCursor(Qt.PointingHandCursor)
         self.login_button.setStyleSheet("""
             QPushButton {
-                background-color: #3498db;
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #3498db, stop:1 #2980b9);
                 color: white;
                 padding: 10px;
                 border: none;
-                border-radius: 4px;
+                border-radius: 6px;
                 font-weight: bold;
+                font-size: 13px;
             }
             QPushButton:hover {
-                background-color: #2980b9;
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #5dade2, stop:1 #3498db);
+            }
+            QPushButton:pressed {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #2980b9, stop:1 #21618c);
+            }
+            QPushButton:disabled {
+                background-color: #bdc3c7;
             }
         """)
-        layout.addWidget(self.login_button)
-        
+        card_layout.addWidget(self.login_button)
+
+        # Exit button
         self.exit_button = QPushButton("Keluar")
+        self.exit_button.setMinimumHeight(38)
+        self.exit_button.setCursor(Qt.PointingHandCursor)
         self.exit_button.setStyleSheet("""
             QPushButton {
                 background-color: #e74c3c;
                 color: white;
-                padding: 10px;
+                padding: 9px;
                 border: none;
-                border-radius: 4px;
+                border-radius: 6px;
                 font-weight: bold;
+                font-size: 12px;
             }
             QPushButton:hover {
                 background-color: #c0392b;
             }
+            QPushButton:pressed {
+                background-color: #a93226;
+            }
         """)
-        layout.addWidget(self.exit_button)
-        
+        card_layout.addWidget(self.exit_button)
+
         # Info label untuk menampilkan pesan
         self.info_label = QLabel("")
         self.info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.info_label.setStyleSheet("color: #e74c3c; font-size: 12px; margin-top: 10px;")
+        self.info_label.setStyleSheet("""
+            color: #e74c3c;
+            font-size: 11px;
+            background-color: transparent;
+            border: none;
+            padding: 5px;
+            margin-top: 3px;
+        """)
         self.info_label.setWordWrap(True)
-        layout.addWidget(self.info_label)
+        card_layout.addWidget(self.info_label)
+
+        # Add login card to main layout
+        main_layout.addWidget(login_card)
+
+        # Right spacer - equal untuk center card
+        main_layout.addStretch(1)
 
         # Load saved credentials dari QSettings
         self.load_saved_credentials()
@@ -248,13 +387,29 @@ class LoginDialog(QDialog):
     
     def show_error(self, message):
         """Tampilkan pesan error"""
-        self.info_label.setText(message)
-        self.info_label.setStyleSheet("color: #e74c3c; font-size: 12px; margin-top: 10px;")
-    
+        self.info_label.setText(f"✗ {message}")
+        self.info_label.setStyleSheet("""
+            color: #e74c3c;
+            font-size: 12px;
+            background-color: transparent;
+            border: none;
+            padding: 8px;
+            margin-top: 5px;
+            font-weight: 600;
+        """)
+
     def show_success(self, message):
         """Tampilkan pesan sukses"""
-        self.info_label.setText(message)
-        self.info_label.setStyleSheet("color: #27ae60; font-size: 12px; margin-top: 10px;")
+        self.info_label.setText(f"✓ {message}")
+        self.info_label.setStyleSheet("""
+            color: #27ae60;
+            font-size: 12px;
+            background-color: transparent;
+            border: none;
+            padding: 8px;
+            margin-top: 5px;
+            font-weight: 600;
+        """)
     
     def handle_exit(self):
         """Keluar dari aplikasi"""
